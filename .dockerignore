@@ -1,0 +1,26 @@
+# Allowlist: the image gets the root manifests and what the npm packages ship ("files" in each package.json).
+*
+!package.json
+!package-lock.json
+!packages/core/package.json
+!packages/core/src
+!packages/core/templates
+!packages/core/data/msn
+!packages/core/data/itemized-bill
+!packages/core/data/ppo-eob
+!packages/core/data/hmo-eob
+!packages/core/data/SOURCES.md
+!packages/core/data/original-sentences.json
+!packages/core/scenarios
+!packages/core/reference-data
+!packages/core/fonts
+!packages/core/scripts
+!packages/core/README.md
+!packages/core/LICENSE
+!packages/core/NOTICE
+!packages/mcp/package.json
+!packages/mcp/src
+!packages/mcp/resources
+!packages/mcp/README.md
+!packages/mcp/LICENSE
+!packages/mcp/NOTICE

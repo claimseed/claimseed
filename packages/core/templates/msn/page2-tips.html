@@ -1,0 +1,208 @@
+{% extends "base-portrait.html" %}
+
+{% block extra_styles %}
+    .page {
+      padding: 0.35in 0.5in 0.45in 0.5in;
+    }
+
+    /* MSN header */
+    .msn-page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 6pt;
+    }
+
+    .agency-brand {
+      display: flex;
+      align-items: center;
+      gap: 6pt;
+    }
+
+    .agency-text {
+      line-height: 1.2;
+    }
+
+    .agency-dept {
+      font-size: 7pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      color: #003DA5;
+    }
+
+    .agency-sub {
+      font-size: 6.5pt;
+      color: #003DA5;
+    }
+
+    .msn-page-number {
+      font-size: 9pt;
+      text-align: right;
+    }
+
+    /* Blue page title */
+    .page-title-bar {
+      background: {{ stock.colors.headerBlueBg }};
+      color: {{ stock.colors.headerBlueText }};
+      padding: 5pt 10pt;
+      font-size: 12pt;
+      font-weight: bold;
+      margin-bottom: 10pt;
+    }
+
+    /* Section headers */
+    .section-header {
+      font-size: 11pt;
+      font-weight: bold;
+      color: {{ stock.colors.headerBlueBg }};
+      margin: 10pt 0 4pt 0;
+      border-bottom: 1pt solid {{ stock.colors.headerBlueBg }};
+      padding-bottom: 2pt;
+    }
+
+    .two-col-layout {
+      display: flex;
+      gap: 16pt;
+    }
+
+    .col-left {
+      flex: 1;
+    }
+
+    .col-right {
+      flex: 1;
+    }
+
+    .section-body {
+      font-size: 9pt;
+      line-height: 1.5;
+      margin-bottom: 4pt;
+    }
+
+    .check-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 4pt 0;
+    }
+
+    .check-list li {
+      font-size: 9pt;
+      line-height: 1.4;
+      margin-bottom: 4pt;
+      padding-left: 16pt;
+      position: relative;
+    }
+
+    /* Check mark drawn with borders (no symbol glyph needed; bundled fonts are Latin-only). */
+    .check-list li::before {
+      content: "";
+      position: absolute;
+      left: 3pt;
+      top: 1pt;
+      width: 4pt;
+      height: 8pt;
+      border-right: 2pt solid {{ stock.colors.headerBlueBg }};
+      border-bottom: 2pt solid {{ stock.colors.headerBlueBg }};
+      transform: rotate(40deg);
+    }
+
+    .help-list {
+      list-style: disc;
+      padding: 0 0 0 18pt;
+      margin: 0;
+    }
+
+    .help-list li {
+      font-size: 9pt;
+      line-height: 1.4;
+      margin-bottom: 4pt;
+    }
+
+    /* Messages box */
+    .messages-box {
+      border: 1.5pt solid {{ stock.colors.boxBorderBlue }};
+      padding: 0;
+      margin-top: 10pt;
+    }
+
+    .messages-header {
+      background: {{ stock.colors.lightBlueBg }};
+      padding: 4pt 8pt;
+      font-size: 10pt;
+      font-weight: bold;
+      color: {{ stock.colors.headerBlueBg }};
+    }
+
+    .messages-body {
+      padding: 6pt 8pt;
+    }
+
+    .messages-body ul {
+      list-style: disc;
+      padding: 0 0 0 16pt;
+      margin: 0;
+    }
+
+    .messages-body ul li {
+      font-size: 8.5pt;
+      line-height: 1.4;
+      margin-bottom: 4pt;
+    }
+
+    /* Footer */
+    .page-footer {
+      position: absolute;
+      bottom: 0.3in;
+      left: 0.5in;
+      right: 0.5in;
+      font-size: 7pt;
+      text-align: center;
+      color: #666;
+    }
+{% endblock %}
+
+{% block body %}
+<div class="page">
+  {% set currentPage = 2 %}
+  {% include "partials/msn-header.html" %}
+
+  <div class="page-title-bar">{{ stock.page2.title }} <span class="title-specimen">&mdash; SPECIMEN</span></div>
+
+  <div class="two-col-layout">
+    <div class="col-left">
+      <div class="section-header">{{ stock.page2.howToCheckTitle }}</div>
+      <ul class="check-list">
+        {% for item in stock.page2.howToCheckItems %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+
+      <div class="section-header">{{ stock.page2.howToReportFraudTitle }}</div>
+      <div class="section-body">{{ stock.page2.howToReportFraudText }}</div>
+
+      <div class="section-header">{{ stock.page2.howToGetHelpTitle }}</div>
+      <ul class="help-list">
+        {% for item in stock.page2.howToGetHelpItems %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="col-right">
+      <div class="section-header">{{ stock.page2.preventiveServicesTitle }}</div>
+      <div class="section-body">{{ stock.page2.preventiveServicesText }}</div>
+
+      <div class="messages-box">
+        <div class="messages-header">{{ stock.page2.messagesTitle }}</div>
+        <div class="messages-body">
+          <ul>
+            {% for msg in stock.page2.messages %}
+            <li>{{ msg }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+claimseed
+Copyright 2026 Gildage, Inc. and claimseed contributors
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Generated documents and their ground-truth files are released to the public domain under CC0 1.0. They are
+synthetic specimens for testing software; presenting one as a genuine notice, bill or statement is outside the
+purpose of this project (see docs/synthetic-data-policy.md, "Acceptable use").
+
+The Medicare Summary Notice layout follows the public CMS model notice, a work of the United States Government
+not subject to copyright; its use here implies no endorsement by, and no connection with, CMS, HHS or the Social
+Security Administration. The Medicare Advantage layouts follow the structure required by 42 CFR 422.111(k) and
+the CMS Part C EOB model and imitate no plan's statement.
+
+CPT(R) is a registered trademark of the American Medical Association. CPT codes only copyright 2025 American
+Medical Association. All rights reserved. claimseed references a small number of CPT code numbers for testing
+purposes only; it includes no AMA CPT descriptors or CPT Consumer Friendly Descriptors, and the plain-language
+service descriptions in reference-data/service-catalog.json are claimseed's own. claimseed is not affiliated
+with or endorsed by the AMA. Fee-schedule amounts and relative value units are CMS public data (Medicare
+Physician Fee Schedule, Clinical Laboratory Fee Schedule) and are not part of CPT. HCPCS Level II codes are
+maintained by CMS and are in the public domain. Revenue codes on the itemized bill are NUBC (UB-04) codes; the
+short labels beside them are claimseed's own, and claimseed is not affiliated with the NUBC or the AHA.
+
+Fonts: Inter, Noto Sans, Noto Sans SC, Noto Sans KR, Noto Serif and Courier Prime are embedded in rendered PDFs
+under the SIL Open Font License 1.1 from the @fontsource npm packages (not redistributed in this repository).
+fonts/ClaimseedNotdef-Regular.ttf is a two-glyph font generated for this project and dedicated to the public
+domain (CC0 1.0).

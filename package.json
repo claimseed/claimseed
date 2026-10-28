@@ -1,0 +1,25 @@
+{
+  "name": "claimseed-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Synthetic medical-billing specimen generator (workspace root)",
+  "license": "Apache-2.0",
+  "author": "claimseed maintainers <maintainers@gildage.co>",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "npm test --workspaces --if-present",
+    "check": "npm run check --workspaces --if-present",
+    "release-ready": "npm run release-ready --workspaces --if-present",
+    "scan-rendered": "node packages/core/scripts/scan-rendered.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1"
+  }
+}

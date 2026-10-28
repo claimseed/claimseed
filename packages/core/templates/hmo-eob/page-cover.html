@@ -1,0 +1,145 @@
+{% extends "base-portrait.html" %}
+{% import "partials/hmo-eob-common.html" as ts %}
+
+{% block extra_styles %}
+{{ ts.styles(stock) }}
+    .ts-band { position: absolute; left: 0; right: 0; top: 0; height: 0.95in; background: {{ stock.colors.ink }}; color: #fff; }
+    .ts-band-in { position: absolute; left: 0.55in; right: 0.55in; top: 0.3in; display: flex; justify-content: space-between; align-items: flex-start; }
+    .ts-band .kicker { text-align: right; font-size: 8pt; letter-spacing: 0.2pt; text-transform: uppercase; }
+    .ts-band .kicker .pg { display: block; text-transform: none; letter-spacing: 0; font-weight: 700; margin-top: 3pt; }
+    .ts-band .brandrow { display: flex; align-items: center; gap: 10pt; }
+
+    .ts-cover { position: absolute; left: 0.55in; right: 0.55in; top: 1.13in; bottom: 0.7in; }
+    .ts-addr { display: flex; justify-content: space-between; }
+    .ts-ret { font-size: 6.9pt; color: {{ stock.colors.muted }}; line-height: 1.35; }
+    .ts-to { margin-top: 12pt; font-size: 9.5pt; line-height: 1.4; font-family: 'Courier Prime', monospace; }
+    .ts-details { width: 3.1in; background: {{ stock.colors.sand }}; padding: 6pt 9pt; font-size: 7.8pt; }
+    .ts-details table { width: 100%; border-collapse: collapse; }
+    .ts-details td { padding: 1.5pt 0; vertical-align: top; }
+    .ts-details td.k { color: {{ stock.colors.muted }}; width: 1.05in; }
+    .ts-details td.v { font-weight: 700; }
+
+    .ts-title { margin-top: 14pt; font-family: 'Noto Serif', serif; font-size: 18pt; font-weight: 700; color: {{ stock.colors.ink }}; line-height: 1.15; }
+    .ts-specimen-line { margin-top: 2pt; font-size: 7.6pt; font-weight: 700; color: #8A3D16; }
+    .ts-nab { margin-top: 7pt; border: 1pt solid {{ stock.colors.ink }}; border-left: 6pt solid {{ stock.colors.ink }}; padding: 5pt 9pt; display: flex; gap: 10pt; align-items: center; }
+    .ts-nab .big { font-family: 'Noto Serif', serif; font-weight: 700; font-size: 12pt; color: {{ stock.colors.ink }}; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.8pt; }
+    .ts-nab .txt { font-size: 7.8pt; line-height: 1.4; }
+    .ts-intro { margin-top: 8pt; font-size: 8.3pt; line-height: 1.45; }
+
+    .ts-cards { display: flex; gap: 12pt; margin-top: 10pt; }
+    .ts-card { flex: 1; border: 0.75pt solid {{ stock.colors.rule }}; }
+    .ts-card .hd { background: {{ stock.colors.ink }}; color: #fff; font-weight: 700; font-size: 8.2pt; padding: 3.5pt 8pt; display: flex; justify-content: space-between; }
+    .ts-card .hd span { font-weight: 400; font-size: 7pt; }
+    .ts-card table { width: 100%; border-collapse: collapse; }
+    .ts-card td { font-size: 8.2pt; padding: 3.5pt 8pt; border-bottom: 0.5pt solid {{ stock.colors.rule }}; }
+    .ts-card tr:last-child td { border-bottom: none; background: {{ stock.colors.sand }}; font-weight: 700; font-size: 9pt; }
+    .ts-totnote { font-size: 6.9pt; color: {{ stock.colors.muted }}; margin-top: 3pt; }
+
+    .ts-moop { margin-top: 10pt; display: flex; gap: 14pt; align-items: stretch; }
+    .ts-moop .l { flex: 1.5; }
+    .ts-moop .l p { font-size: 7.6pt; line-height: 1.4; }
+    .ts-moop .r { flex: 1; background: {{ stock.colors.inkSoft }}; padding: 6pt 9pt; }
+    .ts-meter { height: 9pt; border: 0.75pt solid {{ stock.colors.ink }}; background: #fff; margin: 5pt 0 4pt; position: relative; }
+    .ts-meter .fill { position: absolute; left: 0; top: 0; bottom: 0; background: {{ stock.colors.ink }}; }
+    .ts-moop .fig { display: flex; justify-content: space-between; font-size: 7.4pt; }
+    .ts-moop .fig b { display: block; font-size: 9pt; color: {{ stock.colors.ink }}; }
+    .ts-moop .nod { font-size: 7pt; color: {{ stock.colors.muted }}; margin-top: 4pt; }
+
+    table.ts-glance { width: 100%; border-collapse: collapse; margin-top: 3pt; }
+    table.ts-glance th { font-size: 7.2pt; text-align: left; font-weight: 700; padding: 2.5pt 5pt; border-bottom: 1pt solid {{ stock.colors.ink }}; color: {{ stock.colors.ink }}; }
+    table.ts-glance td { font-size: 7.8pt; padding: 2.5pt 5pt; border-bottom: 0.5pt solid {{ stock.colors.rule }}; }
+    table.ts-glance .num { text-align: right; }
+    .ts-glnote { font-size: 6.9pt; color: {{ stock.colors.muted }}; margin-top: 3pt; }
+
+    .ts-call { position: absolute; left: 0; right: 0; bottom: 0; background: {{ stock.colors.sand }}; padding: 7pt 10pt; display: flex; justify-content: space-between; align-items: center; }
+    .ts-call .t { font-family: 'Noto Serif', serif; font-weight: 700; color: {{ stock.colors.ink }}; font-size: 10pt; }
+    .ts-call .d { text-align: right; font-size: 8pt; line-height: 1.45; }
+{% endblock %}
+
+{% block body %}
+{% set fsum = financialSummary %}
+<div class="page">
+  <div class="ts-band">
+    <div class="ts-band-in">
+      <div class="brandrow">
+        <div>{{ ts.tiles(false) }}<span class="ts-word">{{ stock.brand.wordmark }}</span><span class="ts-desc">{{ stock.brand.descriptor }}</span></div>
+        <span class="ts-chip"><span class="specimen-badge">SPECIMEN</span></span>
+      </div>
+      <div class="kicker">{{ stock.cover.kicker }}<span class="pg">{{ stock.header.pageLabel }} 1 of {{ metadata.pageCount }}</span></div>
+    </div>
+  </div>
+
+  <div class="ts-cover">
+    <div class="ts-addr">
+      <div>
+        <div class="ts-ret"><div>{{ metadata.issuer.name }}</div>{% for l in metadata.issuer.address %}<div>{{ l }}</div>{% endfor %}</div>
+        <div class="ts-to">{% for l in metadata.memberAddress %}<div>{{ l }}</div>{% endfor %}</div>
+      </div>
+      <div class="ts-details">
+        <table>
+          <tr><td class="k">{{ stock.cover.detailsLabels.noticeDate }}</td><td class="v">{{ metadata.dateOfNotice }}</td></tr>
+          <tr><td class="k">{{ stock.cover.detailsLabels.memberName }}</td><td class="v">{{ metadata.memberName }}</td></tr>
+          <tr><td class="k">{{ stock.cover.detailsLabels.memberId }}</td><td class="v">{{ metadata.memberId }}</td></tr>
+          <tr><td class="k">{{ stock.cover.detailsLabels.plan }}</td><td class="v">{{ metadata.planName }}</td></tr>
+          <tr><td class="k">{{ stock.cover.detailsLabels.period }}</td><td class="v">{{ metadata.processingPeriod.start }} to {{ metadata.processingPeriod.end }}</td></tr>
+          <tr><td class="k">{{ stock.cover.detailsLabels.documentId }}</td><td class="v">{{ metadata.documentId }}</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="ts-title">{{ stock.cover.titlePrefix }} {{ metadata.processingPeriod.month }} {{ metadata.processingPeriod.year }}</div>
+    <div class="ts-specimen-line">{{ stock.cover.specimenLine }}</div>
+    <div class="ts-nab"><div class="big">{{ stock.cover.notABill }}</div><div class="txt">{{ stock.cover.notABillText }}</div></div>
+
+    <div class="ts-intro"><div>{{ stock.cover.greeting }}</div><div>{{ stock.cover.intro }}</div></div>
+
+    <div class="ts-h2" style="margin-top: 10pt;">{{ stock.cover.totalsTitle }}</div>
+    <div class="ts-cards" style="margin-top: 2pt;">
+      {% for blk in [fsum.monthly, fsum.ytd] %}
+      <div class="ts-card">
+        <div class="hd">{{ stock.cover.monthHeading if loop.first else stock.cover.ytdHeading }} <span>{{ blk.sublabel }}</span></div>
+        <table>
+          {% for row in stock.cover.totalsRows %}
+          <tr><td>{{ row.label }}</td><td class="num">${{ blk[row.key] | formatMoney }}</td></tr>
+          {% endfor %}
+        </table>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="ts-totnote">{{ stock.cover.totalsNote }}</div>
+
+    <div class="ts-moop">
+      <div class="l">
+        <div class="ts-h3">{{ stock.cover.moopTitle }}</div>
+        <p>{{ stock.cover.moopText }}</p>
+        <div class="nod">{{ stock.cover.noDeductible }}</div>
+      </div>
+      <div class="r">
+        <div class="ts-meter"><div class="fill" style="width: {{ view.oopPct }}%;"></div></div>
+        <div class="fig">
+          <div>{{ stock.cover.moopUsedLabel }}<b>${{ fsum.oopUsed | formatMoney }}</b></div>
+          <div>{{ stock.cover.moopLeftLabel }}<b>${{ view.oopLeft | formatMoney }}</b></div>
+          <div style="text-align: right;">{{ stock.cover.moopLimitLabel }}<b>${{ fsum.oopMax | formatMoney }}</b></div>
+        </div>
+        <div class="nod">{{ fsum.oopAsOfDate }}</div>
+      </div>
+    </div>
+
+    <div class="ts-h2" style="margin-top: 10pt;">{{ stock.cover.glanceTitle }}</div>
+    <table class="ts-glance">
+      <thead><tr><th>{{ stock.cover.glanceColumns.provider }}</th><th>{{ stock.cover.glanceColumns.claim }}</th><th>{{ stock.cover.glanceColumns.dates }}</th><th class="num">{{ stock.cover.glanceColumns.owe }}</th></tr></thead>
+      <tbody>
+        {% for g in view.glance %}<tr><td>{{ g.providerName }}</td><td>{{ g.claimNumber }}</td><td>{{ g.dates }}</td><td class="num">${{ g.owe | formatMoney }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+    <div class="ts-glnote">{{ stock.cover.glanceNote }}</div>
+
+    <div class="ts-call">
+      <div class="t">{{ stock.cover.callTitle }}</div>
+      <div class="d"><b>{{ stock.cover.callText }}</b><br>{{ stock.cover.callHours }} &nbsp;|&nbsp; {{ stock.cover.callWeb }}</div>
+    </div>
+  </div>
+
+  {{ ts.footer(stock, metadata, 1) }}
+</div>
+{% endblock %}

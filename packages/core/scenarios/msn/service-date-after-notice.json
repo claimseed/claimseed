@@ -1,0 +1,16 @@
+{
+  "type": "msn",
+  "slug": "service-date-after-notice",
+  "status": "published",
+  "description": "The first line of the first claim carries a date of service 60 days later than the rest of the claim, which places it after the 'Claims Processed Between' window and after the date of the notice itself. The provider list on page 1 still shows the original date, so page 1 and page 3 disagree. Tests date-range and cross-page consistency checks.",
+  "period": { "start": "2026-03-01", "end": "2026-03-31" },
+  "claimCount": 3,
+  "mutations": [
+    { "op": "shift-date", "args": { "claim": 0, "line": 0, "days": 60 } }
+  ],
+  "sources": [
+    { "what": "The MSN states the processing period and the date of each service", "source": "https://medicare.gov/media/document/summarynoticeb.pdf" },
+    { "what": "Date of service defines the claim and starts the filing period", "source": "CMS Medicare Claims Processing Manual, Pub. 100-04, ch. 1 §70.1, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c01.pdf" },
+    { "what": "MSN content specifications (dates printed per claim)", "source": "CMS Medicare Claims Processing Manual, Pub. 100-04, ch. 21 §10.3, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c21.pdf" }
+  ]
+}

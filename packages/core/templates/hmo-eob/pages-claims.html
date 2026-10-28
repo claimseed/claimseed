@@ -1,0 +1,102 @@
+{% extends "base-portrait.html" %}
+{% import "partials/hmo-eob-common.html" as ts %}
+
+{% block extra_styles %}
+{{ ts.styles(stock) }}
+    .ts-ctitle { font-family: 'Noto Serif', serif; font-size: 14pt; font-weight: 700; color: {{ stock.colors.ink }}; height: 22pt; }
+    .ts-cintro { font-size: 7.8pt; color: {{ stock.colors.muted }}; height: 22pt; line-height: 1.35; }
+
+    .ts-claim { margin-bottom: 6pt; }
+    .ts-chead { height: 38pt; padding-top: 9pt; }
+    .ts-chead .prov { font-family: 'Noto Serif', serif; font-size: 10.5pt; font-weight: 700; color: {{ stock.colors.ink }}; }
+    .ts-chead .prov .cont { font-family: 'Noto Sans', sans-serif; font-weight: 400; font-size: 7.5pt; color: {{ stock.colors.muted }}; margin-left: 4pt; }
+    .ts-chead .meta { font-size: 7.4pt; color: {{ stock.colors.muted }}; margin-top: 1pt; }
+    .ts-chead .meta b { color: {{ stock.colors.text }}; }
+
+    table.ts-lines { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    table.ts-lines col.svc { width: 2.8in; }
+    table.ts-lines col.amt { width: 0.93in; }
+    table.ts-lines col.owe { width: 1.05in; }
+    table.ts-lines col.notes { width: 0.5in; }
+    table.ts-lines th { height: 26pt; background: {{ stock.colors.tableHeaderBg }}; color: {{ stock.colors.tableHeaderText }}; font-size: 7pt; font-weight: 700; padding: 2pt 5pt; text-align: right; vertical-align: bottom; line-height: 1.2; border-top: 1.25pt solid {{ stock.colors.ink }}; }
+    table.ts-lines th:first-child { text-align: left; }
+    table.ts-lines th.owe { background: {{ stock.colors.ink }}; color: #fff; }
+    table.ts-lines th.ctr, table.ts-lines td.ctr { text-align: center; }
+    table.ts-lines td { font-size: 7.9pt; padding: 4pt 5pt; border-bottom: 0.5pt solid {{ stock.colors.rule }}; vertical-align: top; line-height: 10.5pt; }
+    table.ts-lines td .sub { display: block; font-size: 6.9pt; color: {{ stock.colors.muted }}; line-height: 10pt; }
+    table.ts-lines td.owe { background: {{ stock.colors.inkSoft }}; font-weight: 700; }
+    table.ts-lines tr.total td { height: 19pt; vertical-align: middle; font-weight: 700; background: {{ stock.colors.sand }}; border-bottom: 1.25pt solid {{ stock.colors.ink }}; }
+    table.ts-lines tr.total td.owe { background: {{ stock.colors.sandDeep }}; }
+
+    .ts-cont { font-size: 7.4pt; font-weight: 700; color: {{ stock.colors.ink }}; text-align: right; margin-top: 3pt; }
+    .ts-notes { position: absolute; left: 0; right: 0; bottom: 0; border-top: 1pt solid {{ stock.colors.ink }}; padding-top: 4pt; }
+    .ts-notes .t { font-family: 'Noto Serif', serif; font-size: 8.5pt; font-weight: 700; color: {{ stock.colors.ink }}; height: 14pt; }
+    .ts-notes .n { font-size: 7.4pt; line-height: 12pt; display: flex; }
+    .ts-notes .n b { flex: 0 0 18pt; color: {{ stock.colors.ink }}; }
+{% endblock %}
+
+{% block body %}
+{% for page in claimPages %}
+<div class="page">
+  {{ ts.innerHeader(stock, metadata, page.pageNumber) }}
+  <div class="ts-content">
+    {% if page.first %}
+    <div class="ts-ctitle">{{ stock.claims.title }}</div>
+    <div class="ts-cintro">{{ stock.claims.intro }}</div>
+    {% endif %}
+
+    {% for block in page.blocks %}
+    <div class="ts-claim">
+      <div class="ts-chead">
+        <div class="prov">{{ block.claim.providerName }}{% if block.continuedFromPrev %}<span class="cont">{{ stock.claims.continuedFrom }}</span>{% endif %}</div>
+        <div class="meta">{{ stock.claims.claimLabel }} <b>{{ block.claim.claimNumber }}</b> &nbsp;|&nbsp; {{ block.claim.networkStatus }}</div>
+      </div>
+      <table class="ts-lines">
+        <colgroup><col class="svc"><col class="amt"><col class="amt"><col class="amt"><col class="owe"><col class="notes"></colgroup>
+        <thead><tr>
+          <th>{{ stock.claims.columns.service }}</th>
+          <th>{{ stock.claims.columns.charged }}</th>
+          <th>{{ stock.claims.columns.approved }}</th>
+          <th>{{ stock.claims.columns.paid }}</th>
+          <th class="owe">{{ stock.claims.columns.owe }}</th>
+          <th class="ctr">{{ stock.claims.columns.notes }}</th>
+        </tr></thead>
+        <tbody>
+          {% for l in block.lines %}
+          <tr>
+            <td>{{ l.description }}<span class="sub">{{ stock.claims.codeLabel }} {{ l.billingCode }} &nbsp;|&nbsp; {{ stock.claims.dateLabel }} {{ l.dateOfService }}</span></td>
+            <td class="num">${{ l.providersCharged | formatMoney }}</td>
+            <td class="num">${{ l.planApproved | formatMoney }}</td>
+            <td class="num">${{ l.amountPlanPaid | formatMoney }}</td>
+            <td class="num owe">${{ l.maxYouMayBeBilled | formatMoney }}</td>
+            <td class="ctr">{{ l.notes | join(", ") }}</td>
+          </tr>
+          {% endfor %}
+          {% if block.showTotals %}
+          <tr class="total">
+            <td>{{ stock.claims.totalLabel }}</td>
+            <td class="num">${{ block.claim.claimTotal.providersCharged | formatMoney }}</td>
+            <td class="num">${{ block.claim.claimTotal.planApproved | formatMoney }}</td>
+            <td class="num">${{ block.claim.claimTotal.amountPlanPaid | formatMoney }}</td>
+            <td class="num owe">${{ block.claim.claimTotal.maxYouMayBeBilled | formatMoney }}</td>
+            <td></td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+      {% if block.continuesNext %}<div class="ts-cont">{{ stock.claims.continuesOn }} &raquo;</div>{% endif %}
+    </div>
+    {% endfor %}
+    {% if page.moreClaimsFollow and not page.continues %}<div class="ts-cont">{{ stock.claims.pageContinues }} &raquo;</div>{% endif %}
+
+    {% if page.notes.length %}
+    <div class="ts-notes">
+      <div class="t">{{ stock.claims.notesTitle }}</div>
+      {% for n in page.notes %}<div class="n"><b>{{ n.id }}</b><span>{{ n.text }}</span></div>{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {{ ts.footer(stock, metadata, page.pageNumber) }}
+</div>
+{% endfor %}
+{% endblock %}

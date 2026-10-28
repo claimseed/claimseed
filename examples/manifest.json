@@ -1,0 +1,202 @@
+{
+  "seed": "example",
+  "note": "written by packages/core/scripts/examples.js --update; checked in CI",
+  "examples": [
+    {
+      "type": "msn",
+      "scenario": "baseline-clean",
+      "seed": "example",
+      "file": "msn_baseline-clean_example.pdf",
+      "pages": 6,
+      "errors": [],
+      "textSha256": "4e0402ec8bfcaed56d49182a7b3042df9d231cc205bcdc78d30154181d544411",
+      "groundTruthSha256": "fa0a612c54a50f0e985bd0046e8d85a7a136d38846cbfb07a2e00e755cfc3bd4"
+    },
+    {
+      "type": "msn",
+      "scenario": "claim-total-math-error",
+      "seed": "example",
+      "file": "msn_claim-total-math-error_example.pdf",
+      "pages": 5,
+      "errors": [
+        "math-error"
+      ],
+      "textSha256": "293c8588e739e5ed4ec14208951920536ab3d1fc421912760b57591607639d07",
+      "groundTruthSha256": "38744199e70f462acc2f8600999dec44dab314b4f092fb5ae147889cedc7fc34"
+    },
+    {
+      "type": "msn",
+      "scenario": "combined-three-errors",
+      "seed": "example",
+      "file": "msn_combined-three-errors_example.pdf",
+      "pages": 6,
+      "errors": [
+        "duplicate-charge",
+        "cost-sharing-error",
+        "math-error"
+      ],
+      "textSha256": "e375c73721ed560698a47e3a35e01a763c67fce418a96c53d538c0d2aa9cb0fc",
+      "groundTruthSha256": "3b596b83e0180b13347d9872834022653e7e3aa8e44e51ade1d492525c8a7c85"
+    },
+    {
+      "type": "msn",
+      "scenario": "control-clean-january",
+      "seed": "example",
+      "file": "msn_control-clean-january_example.pdf",
+      "pages": 7,
+      "errors": [],
+      "textSha256": "9bbc87da311944269b76ab38135cc8c8030c6b46efa7cb122d38961991134043",
+      "groundTruthSha256": "91b8ca3827c0bddaacbaca06e57ff0fff5b81b82cfbd1ac15986cce303ff5039"
+    },
+    {
+      "type": "msn",
+      "scenario": "deductible-applied-after-met",
+      "seed": "example",
+      "file": "msn_deductible-applied-after-met_example.pdf",
+      "pages": 6,
+      "errors": [
+        "deductible-misapplied"
+      ],
+      "textSha256": "85f4d22c1a2847bd98e0b2a7a5521300460e4e36679deac581464abec83ed2a1",
+      "groundTruthSha256": "48a1ea9f88b25b3cf777a90c0c6b0063c853d2e51d08dc77f968517e1b3b1a2e"
+    },
+    {
+      "type": "msn",
+      "scenario": "denied-not-reasonable-necessary",
+      "seed": "example",
+      "file": "msn_denied-not-reasonable-necessary_example.pdf",
+      "pages": 5,
+      "errors": [
+        "coverage-denial"
+      ],
+      "textSha256": "a7f50ea3b322b729adc4964d72afb808002696ad04e4cc119a8890ac7551cfd8",
+      "groundTruthSha256": "86498a04453543b6e94a6a2c881392d8e4cbd56f109c04169f4099dc0f1b86dd"
+    },
+    {
+      "type": "msn",
+      "scenario": "duplicate-office-visit",
+      "seed": "example",
+      "file": "msn_duplicate-office-visit_example.pdf",
+      "pages": 6,
+      "errors": [
+        "duplicate-charge"
+      ],
+      "textSha256": "c818ff01a1fa6cd76377ecc204bce2f11bd20499e838f3c9364b52c641ed04aa",
+      "groundTruthSha256": "9717d5a2e0979df850cdaf66f2feaf3097f8632e1c2b78331e2bac4cb63ebfb9"
+    },
+    {
+      "type": "msn",
+      "scenario": "eye-exam-above-fee-schedule",
+      "seed": "example",
+      "file": "msn_eye-exam-above-fee-schedule_example.pdf",
+      "pages": 6,
+      "errors": [
+        "fee-schedule-overcharge"
+      ],
+      "textSha256": "46582ef6467f106fca57f380cfb5118f258c122b81954b5ba39a4c0c90ffdab5",
+      "groundTruthSha256": "3fb578285b1f9fd05e544de4c149bec56b40a94e04271ec55ad96f6405f8ec54"
+    },
+    {
+      "type": "msn",
+      "scenario": "lab-coinsurance-charged",
+      "seed": "example",
+      "file": "msn_lab-coinsurance-charged_example.pdf",
+      "pages": 7,
+      "errors": [
+        "cost-sharing-error"
+      ],
+      "textSha256": "c3867e4fade6bc3da48f5ed68fd7a470323c66bfb168bc19df905e98b5e07e5d",
+      "groundTruthSha256": "e1030a691a9bd78c50d64ed87f0e6b7155b8a43003e90bfe27378607a3cbc9a4"
+    },
+    {
+      "type": "msn",
+      "scenario": "preventive-visit-cost-sharing",
+      "seed": "example",
+      "file": "msn_preventive-visit-cost-sharing_example.pdf",
+      "pages": 6,
+      "errors": [
+        "preventive-cost-sharing"
+      ],
+      "textSha256": "a5260d7b2b1e5277b58c8ccbc6158ca093ed867524c4a5db14d3ddb0008e2f86",
+      "groundTruthSha256": "4d338b7078fd211a80499325f79cd3d82d6ed41c5b602ad7e9d1a2e8bd74faa4"
+    },
+    {
+      "type": "msn",
+      "scenario": "service-date-after-notice",
+      "seed": "example",
+      "file": "msn_service-date-after-notice_example.pdf",
+      "pages": 6,
+      "errors": [
+        "service-date-anomaly"
+      ],
+      "textSha256": "c9d56e947fe186fa32821d971cb7c7aa82520bd0d0f7529b3754032b61a393dd",
+      "groundTruthSha256": "e840cb2275acbe59749fbe279b6047e81a5073ba938e5a27583e4db591fd4877"
+    },
+    {
+      "type": "itemized-bill",
+      "scenario": "balance-billing",
+      "seed": "example",
+      "file": "itemized-bill_balance-billing_example.pdf",
+      "pages": 3,
+      "errors": [
+        "assignment-violation"
+      ],
+      "textSha256": "182fc116090d4ce9ec0d2cc45d4ee7007f828ecd90ef30458141d08f932475de",
+      "groundTruthSha256": "0d3f04d0015edd52cd72135ca035f8ddeb40bcee06e023caafc45042b15501ac"
+    },
+    {
+      "type": "itemized-bill",
+      "scenario": "baseline-clean",
+      "seed": "example",
+      "file": "itemized-bill_baseline-clean_example.pdf",
+      "pages": 3,
+      "errors": [],
+      "textSha256": "c8a88e62e2d54ab8ff1ff84fe9294800b4edecdfb0277d0ecaa5c7452baadfd8",
+      "groundTruthSha256": "72bc5a137803ab4594ff6a802cd8c9a06133b723b3ef86f599ba9a7289cf0de8"
+    },
+    {
+      "type": "itemized-bill",
+      "scenario": "duplicate-charge",
+      "seed": "example",
+      "file": "itemized-bill_duplicate-charge_example.pdf",
+      "pages": 3,
+      "errors": [
+        "duplicate-charge"
+      ],
+      "textSha256": "aaa654e75373cfe1119f18e560b41c65859cd15a0c3fb72c9d2a3bc5fbd7c37e",
+      "groundTruthSha256": "32cabe00560c40474b12bf9f6a83826f8b2fee1889dca94851585301309dd462"
+    },
+    {
+      "type": "itemized-bill",
+      "scenario": "subtotals-mismatch",
+      "seed": "example",
+      "file": "itemized-bill_subtotals-mismatch_example.pdf",
+      "pages": 3,
+      "errors": [
+        "subtotals-mismatch"
+      ],
+      "textSha256": "730c551156229dc8adf0496e79fa917a1ecc459e8ca707f1337162a1db419233",
+      "groundTruthSha256": "b8136dbde30de93564935abd6a1f122081a37495f38792e8bf2a4a6dfdc6cf97"
+    },
+    {
+      "type": "ppo-eob",
+      "scenario": "baseline-clean",
+      "seed": "example",
+      "file": "ppo-eob_baseline-clean_example.pdf",
+      "pages": 4,
+      "errors": [],
+      "textSha256": "bdf45f7963a1b3ab636e226942f7124eb9944b9b14d758e3910c6baac8732400",
+      "groundTruthSha256": "d9841473b6a5f09fd79f4742c0ee27bc88bfaf9d4f3582e42176ea1a50ed8c42"
+    },
+    {
+      "type": "hmo-eob",
+      "scenario": "baseline-clean",
+      "seed": "example",
+      "file": "hmo-eob_baseline-clean_example.pdf",
+      "pages": 5,
+      "errors": [],
+      "textSha256": "f9751eae90bbf65af6a1db8442841b3b9f8d0125728bd324ee90df05fe570483",
+      "groundTruthSha256": "8bd74d0468715a0c28eeffcc2d607938ea526eec9df64d89352714401266479f"
+    }
+  ]
+}

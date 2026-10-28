@@ -1,0 +1,28 @@
+{
+  "type": "msn",
+  "slug": "denied-not-reasonable-necessary",
+  "status": "published",
+  "description": "The first claim is a dermatology visit with a skin biopsy. Medicare denied the biopsy as not reasonable and necessary; because the patient had signed an advance written notice that Medicare might not pay, the provider may bill the full charge. The notice correctly shows 'Did Medicare approve all services? NO', one denied service, and a denial note with the 120-day redetermination deadline. This is a correctly processed denial, not a billing error: a reviewer should surface it as an appealable denial rather than as an overcharge.",
+  "period": { "start": "2026-03-01", "end": "2026-03-31" },
+  "claimCount": 3,
+  "claimShapes": ["DERM"],
+  "mutations": [
+    {
+      "op": "deny-line",
+      "args": {
+        "claim": 0,
+        "line": 1,
+        "note": {
+          "text": "This service was denied. The information provided does not support the need for this service or item. Medicare pays only for care that is reasonable and necessary for your condition. Before the service, your provider warned you in writing that Medicare would probably not pay, so you can be charged for it by the provider. You have 120 days to appeal; the last page explains how.",
+          "rule": "SSA §1862(a)(1)(A); liability under §1879 and 42 CFR 411.404; appeal under 42 CFR 405.942"
+        }
+      }
+    }
+  ],
+  "sources": [
+    { "what": "Exclusion of items and services not reasonable and necessary", "source": "Social Security Act §1862(a)(1)(A), https://www.ssa.gov/OP_Home/ssact/title18/1862.htm" },
+    { "what": "Beneficiary is liable when given written notice that the service was not covered", "source": "42 CFR 411.404, https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-411/subpart-K/section-411.404" },
+    { "what": "Advance Beneficiary Notice of Noncoverage (Form CMS-R-131)", "source": "CMS Medicare Claims Processing Manual, Pub. 100-04, ch. 30 §50, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c30.pdf" },
+    { "what": "120 calendar days to request a redetermination", "source": "42 CFR 405.942, https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-405/subpart-I/subject-group-ECFR3ec6343ada14c59/section-405.942" }
+  ]
+}

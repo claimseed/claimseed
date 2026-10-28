@@ -1,0 +1,41 @@
+{
+  "type": "msn",
+  "slug": "duplicate-office-visit",
+  "status": "published",
+  "description": "The first claim (a cardiology office visit with an electrocardiogram) lists the office visit twice with the same date, code and charge, and Medicare approved both lines. The patient's share on the claim is doubled; a reviewer should flag the second line as a duplicate charge.",
+  "period": {
+    "start": "2026-03-01",
+    "end": "2026-03-31"
+  },
+  "claimCount": 3,
+  "claimShapes": [
+    "CARD"
+  ],
+  "mutations": [
+    {
+      "op": "duplicate-line",
+      "args": {
+        "claim": 0,
+        "line": 0
+      }
+    }
+  ],
+  "sources": [
+    {
+      "what": "Detection of duplicate claims (exact and suspect duplicates)",
+      "source": "CMS Medicare Claims Processing Manual, Pub. 100-04, ch. 1 §120, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c01.pdf"
+    },
+    {
+      "what": "Medically Unlikely Edits limit units of a code per day",
+      "source": "https://www.cms.gov/medicare/coding-billing/national-correct-coding-initiative-ncci-edits"
+    },
+    {
+      "what": "Part B coinsurance of 20% after the deductible on physician fee schedule services",
+      "source": "Social Security Act §1833(a)(1), https://www.ssa.gov/OP_Home/ssact/title18/1833.htm"
+    },
+    {
+      "what": "MSN column meanings",
+      "source": "https://medicare.gov/media/document/summarynoticeb.pdf"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "type": "msn",
+  "slug": "claim-total-math-error",
+  "status": "published",
+  "description": "Every line on the notice is correct, but the printed 'Maximum You May Be Billed' total for the first claim is $12.50 higher than the sum of its lines. The page-1 summary total inherits the same $12.50 overstatement. Tests whether a reader re-adds columns rather than trusting printed totals.",
+  "period": { "start": "2026-03-01", "end": "2026-03-31" },
+  "claimCount": 3,
+  "mutations": [
+    { "op": "break-claim-total", "args": { "claim": 0, "field": "maxYouMayBeBilled", "by": 12.5 } }
+  ],
+  "sources": [
+    { "what": "MSN claim-total rows and the 'Maximum You May Be Billed' column", "source": "https://medicare.gov/media/document/summarynoticeb.pdf" },
+    { "what": "MSN content and format specifications (totals per claim)", "source": "CMS Medicare Claims Processing Manual, Pub. 100-04, ch. 21 §10.3, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c21.pdf" },
+    { "what": "Error definition: math-error is an internal-consistency check, no external rule", "source": "docs/error-taxonomy.md" }
+  ]
+}

@@ -1,0 +1,110 @@
+{% extends "base-portrait.html" %}
+{% import "partials/hmo-eob-common.html" as ts %}
+
+{% block extra_styles %}
+{{ ts.styles(stock) }}
+    .ts-btitle { font-family: 'Noto Serif', serif; font-size: 15pt; font-weight: 700; color: {{ stock.colors.ink }}; }
+    .ts-sec { margin-top: 12pt; }
+    .ts-sec p, .ts-sec li { font-size: 8.2pt; line-height: 1.45; }
+    .ts-sec p { margin-bottom: 4pt; }
+    .ts-terms { border-top: 1.25pt solid {{ stock.colors.ink }}; }
+    .ts-term { display: flex; border-bottom: 0.5pt solid {{ stock.colors.rule }}; padding: 4pt 0; font-size: 8pt; line-height: 1.4; }
+    .ts-term b { flex: 0 0 1.7in; color: {{ stock.colors.ink }}; }
+    .ts-steps { counter-reset: step; list-style: none; }
+    .ts-steps li { position: relative; padding-left: 20pt; margin-bottom: 4pt; }
+    .ts-steps li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 12pt; height: 12pt; line-height: 12pt; text-align: center; border-radius: 6pt; background: {{ stock.colors.ink }}; color: #fff; font-size: 7pt; font-weight: 700; }
+    .ts-box { background: {{ stock.colors.sand }}; padding: 8pt 11pt; }
+    .ts-box.alert { background: #FBF1E6; border-left: 4pt solid #9A4A12; }
+    .ts-fraud { border: 1pt solid {{ stock.colors.ink }}; border-top-width: 4pt; padding: 7pt 11pt; }
+    .ts-cols { display: flex; gap: 18pt; }
+    .ts-cols > div { flex: 1; }
+    table.ts-ct { width: 100%; border-collapse: collapse; }
+    table.ts-ct td { font-size: 8pt; padding: 2.5pt 0; border-bottom: 0.5pt solid {{ stock.colors.rule }}; }
+    table.ts-ct td.k { color: {{ stock.colors.muted }}; width: 0.8in; }
+    .ts-addr { font-size: 8pt; line-height: 1.45; }
+    .ts-small p { font-size: 8pt; line-height: 1.45; }
+    .ts-nd { margin: 0 0 4pt 13pt; padding: 0; font-size: 8pt; line-height: 1.45; }
+    .ts-nd > li { margin-bottom: 1.5pt; }
+    .ts-nd ul { margin: 0.5pt 0 0 12pt; padding: 0; list-style: circle; }
+    .ts-tags { columns: 2; column-gap: 16pt; }
+    .ts-tags div { break-inside: avoid; font-size: 7.4pt; line-height: 1.4; margin-bottom: 5pt; }
+    .ts-tags b { color: {{ stock.colors.ink }}; }
+    .ts-note { font-size: 6.6pt; color: {{ stock.colors.muted }}; margin-top: 4pt; }
+{% endblock %}
+
+{% block body %}
+<div class="page">
+  {{ ts.innerHeader(stock, metadata, view.backStart) }}
+  <div class="ts-content">
+    <div class="ts-btitle">{{ stock.info.title }}</div>
+
+    <div class="ts-sec">
+      <div class="ts-h2">{{ stock.info.termsTitle }}</div>
+      <div class="ts-terms">{% for t in stock.info.terms %}<div class="ts-term"><b>{{ t.term }}</b><span>{{ t.text }}</span></div>{% endfor %}</div>
+    </div>
+
+    <div class="ts-sec">
+      <div class="ts-h2">{{ stock.info.hmoTitle }}</div>
+      {% for p in stock.info.hmo %}<p>{{ p }}</p>{% endfor %}
+    </div>
+
+    {% if hasDenial %}
+    <div class="ts-sec ts-box alert">
+      <div class="ts-h2">{{ stock.info.deniedTitle }}</div>
+      {% for p in stock.info.denied %}<p>{{ p }}</p>{% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="ts-sec ts-box">
+      <div class="ts-h2">{{ stock.info.questionsTitle }}</div>
+      <ol class="ts-steps">{% for p in stock.info.questions %}<li>{{ p }}</li>{% endfor %}</ol>
+    </div>
+
+    <div class="ts-sec ts-fraud">
+      <div class="ts-h2">{{ stock.info.fraudTitle }}</div>
+      {% for p in stock.info.fraud %}<p>{{ p }}</p>{% endfor %}
+    </div>
+
+    <div class="ts-sec ts-cols">
+      <div>
+        <div class="ts-h2">{{ stock.info.contactTitle }}</div>
+        <table class="ts-ct">{% for r in stock.info.contactRows %}<tr><td class="k">{{ r.label }}</td><td>{{ r.value }}</td></tr>{% endfor %}</table>
+      </div>
+      <div>
+        <div class="ts-h2">{{ stock.info.mailTitle }}</div>
+        <div class="ts-addr"><div>{{ metadata.issuer.name }}</div>{% for l in metadata.issuer.address %}<div>{{ l }}</div>{% endfor %}</div>
+      </div>
+    </div>
+  </div>
+  {{ ts.footer(stock, metadata, view.backStart) }}
+</div>
+
+<div class="page">
+  {{ ts.innerHeader(stock, metadata, view.backStart + 1) }}
+  <div class="ts-content">
+    <div class="ts-btitle">{{ stock.notices.title }}</div>
+
+    <div class="ts-sec ts-small">
+      <div class="ts-h2">{{ stock.notices.nondiscriminationTitle }}</div>
+      {% for p in stock.notices.nondiscrimination %}<p>{{ p }}</p>{% endfor %}
+      {% if stock.notices.nondiscriminationServices %}<ul class="ts-nd">{% for s in stock.notices.nondiscriminationServices %}<li>{% if s.lead %}<b>{{ s.lead }}</b> {% endif %}{{ s.text }}{% if s.items %}<ul>{% for i in s.items %}<li>{{ i }}</li>{% endfor %}</ul>{% endif %}</li>{% endfor %}</ul>{% endif %}
+      {% for p in stock.notices.nondiscriminationAfter %}<p>{{ p }}</p>{% endfor %}
+    </div>
+
+    <div class="ts-sec ts-cols ts-small">
+      <div style="flex: 1.7;">
+        <div class="ts-h3">{{ stock.notices.grievanceTitle }}</div>
+        {% for p in stock.notices.grievance %}<p>{{ p }}</p>{% endfor %}
+      </div>
+      <div class="ts-addr" style="font-size: 7.6pt;">{% for l in stock.notices.coordinator %}<div>{% if loop.first %}<b>{{ l }}</b>{% else %}{{ l }}{% endif %}</div>{% endfor %}</div>
+    </div>
+
+    <div class="ts-sec">
+      <div class="ts-h2">{{ stock.notices.languageTitle }}</div>
+      <div class="ts-tags">{% for t in stock.notices.taglines %}<div><b>{{ t.lang }}</b> &nbsp;{{ t.text }}</div>{% endfor %}</div>
+      <div class="ts-note">{{ stock.notices.specimenNote }}</div>
+    </div>
+  </div>
+  {{ ts.footer(stock, metadata, view.backStart + 1) }}
+</div>
+{% endblock %}

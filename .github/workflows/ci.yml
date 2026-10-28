@@ -1,0 +1,55 @@
+name: ci
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "17 6 1 * *"
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      # Actions pinned to commit SHAs (tag in the comment); bump deliberately.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 22, cache: npm }
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
+      - run: npm ci
+      - run: npm run check                     # every workspace's check: brands/identifiers/binaries (check-synthetic), NPI prefixes, stock-text provenance (verify-stock-sources)
+      - run: npm test                          # includes renderer security, fonts/determinism/markers, schema
+        env:
+          CI: 'true'
+          CLAIMSEED_CHROME: /usr/bin/google-chrome   # preinstalled on ubuntu-latest runners
+      - run: node packages/core/scripts/scan-rendered.js --seeds 2   # rendered text of every scenario
+        env:
+          CLAIMSEED_CHROME: /usr/bin/google-chrome
+      - run: node packages/core/scripts/examples.js --check   # one document per published scenario against examples/manifest.json
+        env:
+          CLAIMSEED_CHROME: /usr/bin/google-chrome
+      - run: node packages/core/scripts/check-release-ready.js
+        if: startsWith(github.ref, 'refs/tags/v')   # required on release tags; informational elsewhere
+      - run: node packages/core/scripts/check-release-ready.js || true
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+  docker:
+    # the MCP server image: build it and drive it over stdio, without network, as the README tells users to run it
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: docker build -t claimseed-mcp .
+      - run: |
+          mkdir -p out
+          node packages/mcp/scripts/smoke.js --host-dir out --container-dir /work -- \
+            docker run -i --rm --network none --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
+            --user "$(id -u):$(id -g)" -v "$PWD/out:/work" claimseed-mcp
+  nppes-monthly:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 22 }
+      - run: node packages/core/scripts/verify-synthetic-npi.js --nppes

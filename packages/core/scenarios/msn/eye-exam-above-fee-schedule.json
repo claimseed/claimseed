@@ -1,0 +1,17 @@
+{
+  "type": "msn",
+  "slug": "eye-exam-above-fee-schedule",
+  "status": "published",
+  "description": "The first claim is a comprehensive eye exam (CPT 92014). Its Medicare-approved amount is printed at 1.5 times the national physician fee schedule amount for 2026, so Medicare's payment and the patient's 20% coinsurance are both inflated. A reviewer with fee-schedule data should flag the approved amount; one without it cannot, which makes this a good capability test.",
+  "period": { "start": "2026-03-01", "end": "2026-03-31" },
+  "claimCount": 3,
+  "claimShapes": ["OPH"],
+  "mutations": [
+    { "op": "overprice-line", "args": { "claim": 0, "line": 0, "factor": 1.5 } }
+  ],
+  "sources": [
+    { "what": "Look up the Medicare physician fee schedule amount for a code, year and locality", "source": "https://www.cms.gov/medicare/physician-fee-schedule/search" },
+    { "what": "Services paid under the Medicare physician fee schedule", "source": "CMS Medicare Claims Processing Manual, Pub. 100-04, ch. 23 §30, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c23.pdf" },
+    { "what": "Payment basis for physician services: 80% of the fee schedule amount after the deductible", "source": "Social Security Act §1833(a)(1), https://www.ssa.gov/OP_Home/ssact/title18/1833.htm" }
+  ]
+}

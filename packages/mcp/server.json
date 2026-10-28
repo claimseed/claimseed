@@ -1,0 +1,36 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.claimseed/claimseed",
+  "title": "claimseed",
+  "description": "Synthetic US medical-billing documents (PDF and ground truth) for testing extractors and agents",
+  "repository": {
+    "url": "https://github.com/claimseed/claimseed",
+    "source": "github",
+    "subfolder": "packages/mcp"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@claimseed/mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "CLAIMSEED_WORKSPACE",
+          "description": "Folder the server writes PDFs and ground truth to (it writes nowhere else)",
+          "isRequired": true,
+          "format": "filepath"
+        },
+        {
+          "name": "CLAIMSEED_CHROME",
+          "description": "Chrome or Chromium binary used for rendering, if not installed in a usual place",
+          "isRequired": false,
+          "format": "filepath"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,366 @@
+CMS "What is in your Medicare Summary Notice? Part B" — sample Part B MSN with callouts, published by HHS/CMS (public domain). Source: https://www.hhs.gov/guidance/sites/default/files/hhs-guidance-documents/CMS/Sample-Part-B-Medicare-Summary-Notice.pdf — text extracted 2026-10-26 from the PDF (pdf.js), 6 pages. Edits, each marked in square brackets: the name of the real Medigap insurer in note B (page 3) is redacted twice; the sample's provider name, phone, practice name and address (a real practice) are redacted; the sample beneficiary's name is redacted; the two CPT-style service descriptions on the claims page are redacted (CPT descriptor text is AMA-copyrighted). Everything else is as extracted.
+
+=== PAGE 1 ===
+What is in your
+"Medicare Summary Notice"?
+Part B
+
+=== PAGE 2 ===
+Your New MSN: Part B | Page 2
+Your New MSN for Part B – Overview
+Your Medicare Part B MSN shows all of the services
+billed by Medicare for doctors' services, hospital
+outpatient care, home health care, preventive services,
+and other medical services.
+Each Page with Specific Information:
+Page 1: Your dashboard, which is a summary of
+your notice,
+Page 2: Helpful tips on how to review your notice,
+Page 3: Your claims information,
+Last page: Find out how to handle denied claims.
+Bigger Print for Easy Reading
+Page titles and subsection titles are now much larger.
+Using a larger print throughout makes the notice
+easier to read.
+Helpful Tips for Reading the Notice
+The redesigned MSN explains what you need to know
+with user-friendly language.
+Page 1 of 4
+Medicare Summary Notice
+for Part B (Medical Insurance)
+The Official Summary of Your Medicare Claims from the Centers for Medicare & Medicaid Services
+Your Deductible Status
+Your deductible is what you must pay for most health
+services before Medicare begins to pay.
+Part B Deductible: You have now met $85.00 of
+your $147.00 deductible for 2020.
+Be Informed!
+Welcome to your new Medicare Summary Notice!
+It has clear language, larger print, and a personal
+summary of your claims and deductibles. This
+improved notice better explains how to get help with
+your questions, report fraud, or file an appeal. It also
+includes important information from Medicare!
+THIS IS NOT A BILL
+[sample beneficiary name, redacted in this snapshot]
+TEMPORARY ADDRESS NAME
+STREET ADDRESS
+CITY, ST 12345-6789
+Your Claims & Costs This Period
+Did Medicare Approve All Services? NO
+Number of Services Medicare Denied 1
+See claims starting on page 3. Look for NO in
+the "Service Approved?" column. See the last
+page for how to handle a denied claim.
+Total You May Be Billed $90.15
+Providers with Claims This Period
+January 21, 2020
+[provider name in the sample, redacted in this snapshot]
+¿Sabía que puede recibir este aviso y otro tipo de ayuda de Medicare en español? Llame y hable con un agente en español.
+如果需要国语帮助， 请致电联邦医疗保险， 请先说 "agent" , 然后说" Mandarin" . 1-800-MEDICARE (1-800-633-4227)
+Notice for [sample beneficiary name, redacted in this snapshot]
+Medicare Number 1A23BC4DE56
+Date of This Notice March 1, 2020
+Claims Processed
+Between
+January 1 –
+March 1, 2020
+Page 1
+THIS IS NOT A BILL | Page 2 of 4 [sample beneficiary name, redacted in this snapshot]
+Making the Most of Your Medicare
+How to Check This Notice
+Do you recognize the name of each doctor or
+provider? Check the dates. Did you have an
+appointment that day?
+Did you get the services listed? Do they match
+those listed on your receipts and bills?
+If you already paid the bill, did you pay the
+right amount? Check the maximum you may be
+billed. See if the claim was sent to your Medicare
+supplement insurance (Medigap) plan or other
+insurer. That plan may pay your share.
+How to Report Fraud
+If you think a provider or business is involved in
+fraud, call us at 1-800-MEDICARE
+(1-800-633-4227).
+Some examples of fraud include offers for free
+medical services or billing you for Medicare services
+you didn't get. If we determine that your tip led to
+uncovering fraud, you may qualify for a reward.
+You can make a difference! Last year, Medicare
+saved tax-payers $4.2 billion —the largest sum ever
+recovered in a single year—thanks to people who
+reported suspicious activity to Medicare.
+How to Get Help with Your Questions
+1-800-MEDICARE (1-800-633-4227)
+Ask for "doctors services." Your customer-service
+code is 05535.
+TTY 1-877-486-2048 (for hearing impaired)
+Contact your State Health Insurance Program (SHIP)
+for free, local health insurance counseling. Call
+1-555-555-5555 .
+Your Messages from Medicare
+Get a pneumococcal shot. You may only need it once
+in a lifetime. Contact your health care provider about
+getting this shot. You pay nothing if your health care
+provider accepts Medicare assignment.
+To report a change of address, call Social Security
+at 1-800-772-1213. TTY users should call
+1-800-325-0778.
+Early detection is your best protection. Schedule
+your mammogram today, and remember that
+Medicare helps pay for screening mammograms.
+Want to see your claims right away? Access your
+Original Medicare claims at www.Medicare.gov,
+usually within 24 hours after Medicare processes the
+claim. You can use the "Blue Button" feature to help
+keep track of your personal health records.
+Medicare Preventive Services
+Medicare covers many free or low-cost exams
+and screenings to help you stay healthy. For more
+information about preventive services:
+• Talk to your doctor.
+• Look at your "Medicare & You" handbook for a
+complete list.
+• Visit www.MyMedicare.gov for a personalized list.
+Page 2
+[sample beneficiary name, redacted in this snapshot] THIS IS NOT A BILL | Page 3 of 4
+Part B Medical Insurance helps pay for doctors'
+services, diagnostic tests, ambulance services, and
+other health care services.
+Definitions of Columns
+Service Approved? : This column tells you if Medicare
+covered this service.
+Amount Provider Charged : This is your provider's
+fee for this service.
+Medicare-Approved Amount : This is the amount a
+provider can be paid for a Medicare service. It may be
+less than the actual amount the provider charged.
+Your provider has agreed to accept this amount as
+full payment for covered services. Medicare usually
+pays 80% of the Medicare-approved amount.
+Amount Medicare Paid : This is the amount
+Medicare paid your provider. This is usually 80% of
+the Medicare-approved amount.
+Maximum You May Be Billed : This is the total
+amount the provider is allowed to bill you, and can
+include a deductible, coinsurance, and other charges
+not covered. If you have Medicare Supplement
+Insurance (Medigap policy) or other insurance, it
+may pay all or part of this amount.
+Your Claims for Part B (Medical Insurance)
+Service Provided & Billing Code
+Service
+Approved?
+Amount Provider
+Charged
+Medicare- Approved
+Amount
+Amount Medicare
+Paid
+Maximum You May
+Be Billed
+See Notes
+Below
+[service description in the sample, redacted in this snapshot: CPT-style descriptor text] (92014)
+Yes $143.00 $107.97 $86.38 $21.59
+[service description in the sample, redacted in this snapshot: CPT-style descriptor text] (17000) NO 68.56 0.00 0.00 68.56 A
+Total for Claim #02-10195-592-390 $211.56 $107.97 $86.38 $90.15 B
+January 21, 2020
+[provider name, phone, practice name and address in the sample, redacted in this snapshot]
+Notes for Claims Above
+A This service was denied. The information provided does not support the need for this service or item.
+B Your claim was sent to your Medicare Supplement Insurance (Medigap policy), [name of a
+real Medigap insurer, redacted in this snapshot]. Send any questions regarding your benefits to them.
+Page 3
+[sample beneficiary name, redacted in this snapshot] THIS IS NOT A BILL | Page 4 of 4
+How to Handle Denied Claims or File an Appeal
+Get More Details
+If a claim was denied, call or write the provider
+and ask for an itemized statement for any claim.
+Make sure they sent in the right information. If they
+didn't, ask the provider to contact our claims office
+to correct the error. You can ask the provider for an
+itemized statement for any service or claim.
+Call 1-800-MEDICARE (1-800-633-4227) for more
+information about a coverage or payment decision
+on this notice, including laws or policies used to
+make the decision.
+If You Need Help Filing Your Appeal
+Contact us: Call 1-800-MEDICARE or your State
+Health Insurance Program (see page 2) for help
+before you file your written appeal, including help
+appointing a representative.
+Call your provider: Ask your provider for any
+information that may help you.
+Ask a friend to help: You can appoint someone,
+such as a family member or friend, to be your
+representative in the appeals process.
+Find Out More About Appeals
+For more information about appeals, read your
+"Medicare & You" handbook or visit us online at
+www.medicare.gov/appeals.
+If You Disagree with a Coverage
+Decision, Payment Decision, or Payment
+Amount on this Notice, You Can Appeal
+Appeals must be filed in writing. Use the form to
+the right. Our claims office must receive your appeal
+within 120 days from the date you get this notice.
+We must receive your appeal by:
+July 13, 2021
+File an Appeal in Writing
+Follow these steps:
+1 Circle the service(s) or claim(s) you disagree
+with on this notice.
+2 Explain in writing why you disagree with
+the decision. Include your explanation on this
+notice or, if you need more space, attach a
+separate page to this notice.
+3 Fill in all of the following:
+Your or your representative's full name (print)
+Your telephone number
+Your complete Medicare number
+4 Include any other information you have
+about your appeal. You can ask your provider
+for any information that will help you.
+5 Write your Medicare number on all
+documents that you send.
+6 Make copies of this notice and all supporting
+documents for your records.
+7 Mail this notice and all supporting
+documents to the following address:
+Medicare Claims Office
+c/o Contractor Name
+Street Address
+City, ST 12345-6789
+Last Page
+
+=== PAGE 3 ===
+Your New MSN: Part B | Page 3
+Page 1 – Your Dashboard
+1 DHHS Logo
+The redesigned MSN has
+the official Department of
+Health & Human Services
+(DHHS) logo.
+2 Your Information
+Check your name and the
+last 4 numbers of your
+Medicare number, as well
+as the date your MSN was
+printed and the dates of the
+claims listed.
+3 Your Deductible Info
+You pay a yearly deductible
+for services before Medicare
+pays. You can check your
+deductible information right
+on page 1 of your notice!
+4 Title of your MSN
+The title at the top of the
+page is larger and bold.
+5 Total You May Be Billed
+A new feature on page 1,
+this summary shows your
+approved and denied claims,
+as well as the total you may
+be billed.
+6 Providers You Saw
+Check the list of dates and
+the doctors you saw during
+this claim period.
+7 Help in Your Language
+For help in a language other
+than English or Spanish,
+call 1-800-MEDICARE and
+say "Agent." Tell them the
+language you need for free
+translation services.
+
+=== PAGE 4 ===
+Your New MSN: Part B | Page 4
+Page 2 – Making the Most of Your Medicare
+1 Section Title
+This helps you navigate and
+find where you are in the
+notice. The section titles are
+on the top of each page.
+2 How to Check
+Medicare offers helpful tips
+on what to check when you
+review your notice.
+3 How to Report
+Help Medicare save money
+by reporting fraud!
+4 How to Get Help
+This section gives you phone
+numbers for where to get
+your Medicare questions
+answered.
+5 Preventive Services
+Remember, Medicare
+covers many preventive
+tests and screenings to
+keep you healthy.
+6 General Messages
+These messages get updated
+regularly, so make sure to
+check them!
+
+=== PAGE 5 ===
+Page 3 – Your Claims for Part B (Medical Insurance)
+Your New MSN: Part B | Page 5
+1 Type of Claim
+Claims can either be
+assigned or unassigned.
+2 Definitions
+Don't know what some of
+the words on your MSN
+mean? Read the definitions
+to find out more.
+3 Your Visit
+This is the date you went to
+your doctor. Keep your bills
+and compare them to your
+notice to be sure you got all
+the services listed.
+4 Service Descriptions
+User-friendly service
+descriptions will make it
+easier for you to know what
+you were treated for.
+5 Approved Column
+This column lets you
+know if your claim was
+approved or denied.
+6 Max You May Be Billed
+This is the total amount the
+provider is able to bill you.
+It's highlighted and in bold
+for easy reading.
+7 Notes
+Refer to the bottom of the
+page for explanations of the
+services you got.
+
+=== PAGE 6 ===
+Your New MSN: Part B | Page 6
+Last Page – How to Handle Denied Claims
+1 Get More Details
+Find out your options on
+what to do about denied
+claims.
+2 If You Decide to Appeal
+You have 120 days to
+appeal your claims.
+The date listed in the box
+is when your appeal must
+be received by us.
+3 If You Need Help
+Helpful tips to guide you
+through filing an appeal.
+4 Appeals Form
+You must file an appeal in
+writing. Follow the step-by-
+step directions when filling
+out the form.

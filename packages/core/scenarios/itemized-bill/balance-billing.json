@@ -1,0 +1,44 @@
+{
+  "type": "itemized-bill",
+  "slug": "balance-billing",
+  "status": "published",
+  "description": "A participating hospital bills the patient its full charge for the eye exam minus what Medicare paid, instead of the Medicare-approved deductible and coinsurance. The balance due therefore exceeds the deductible plus coinsurance printed in the same insurance summary; a reviewer should flag the difference as an assignment violation.",
+  "period": {
+    "start": "2026-03-01",
+    "end": "2026-03-31"
+  },
+  "claimCount": 3,
+  "claimShapes": [
+    "OPH",
+    "LAB",
+    "IM"
+  ],
+  "mutations": [
+    {
+      "op": "bill-above-approved",
+      "args": {
+        "claim": 0,
+        "line": 0,
+        "mode": "unpaid-balance"
+      }
+    }
+  ],
+  "sources": [
+    {
+      "what": "Assignment: the reasonable charge is the full charge for the service (participating provider may not bill above the approved amount)",
+      "source": "42 U.S.C. §1395u(b)(3)(B)(ii) (Social Security Act §1842(b)(3)(B)(ii)), https://www.ssa.gov/OP_Home/ssact/title18/1842.htm"
+    },
+    {
+      "what": "Under assignment the provider accepts the approved amount as full payment and collects only the deductible and coinsurance",
+      "source": "42 CFR 424.55(b), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-424/subpart-F/section-424.55"
+    },
+    {
+      "what": "Participating providers accept the Medicare-approved amount as payment in full; limiting charge for non-participating providers",
+      "source": "https://www.medicare.gov/basics/costs/medicare-costs/provider-accept-Medicare"
+    },
+    {
+      "what": "Participation agreement and assignment on carrier claims",
+      "source": "CMS Medicare Claims Processing Manual, Pub. 100-04, ch. 1 §30.3, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c01.pdf"
+    }
+  ]
+}

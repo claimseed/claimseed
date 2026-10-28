@@ -1,0 +1,173 @@
+{% extends "base-portrait.html" %}
+{% import "partials/ppo-eob-common.html" as cv %}
+
+{% block extra_styles %}
+{{ cv.styles(stock) }}
+    .page { padding: 0.42in 0.5in 0.7in 0.5in; }
+    .cv-top { display: flex; justify-content: space-between; align-items: flex-start; }
+    .cv-top-right { text-align: right; font-size: 7.5pt; color: {{ stock.colors.muted }}; }
+    .cv-top-right .pg { font-weight: 700; color: {{ stock.colors.ink }}; margin-top: 4pt; }
+
+    .cv-mailing { display: flex; justify-content: space-between; margin-top: 14pt; }
+    .cv-return { font-size: 7pt; line-height: 1.35; color: {{ stock.colors.muted }}; }
+    .cv-to { margin-top: 18pt; font-size: 9.5pt; line-height: 1.4; font-family: 'Courier Prime', monospace; }
+    .cv-info { width: 3.05in; border: 0.75pt solid {{ stock.colors.rule }}; border-top: 3pt solid {{ stock.colors.ink }}; padding: 6pt 8pt; font-size: 7.8pt; }
+    .cv-info table { width: 100%; }
+    .cv-info td { padding: 1.6pt 0; vertical-align: top; }
+    .cv-info td.k { color: {{ stock.colors.muted }}; width: 1.05in; }
+    .cv-info td.v { font-weight: 600; }
+
+    .cv-titlebar { margin-top: 16pt; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 0.75pt solid {{ stock.colors.rule }}; padding-bottom: 5pt; }
+    .cv-title { font-size: 17pt; font-weight: 700; color: {{ stock.colors.ink }}; line-height: 1.1; }
+    .cv-title .month { display: block; font-size: 11pt; font-weight: 600; color: {{ stock.colors.accent }}; margin-top: 2pt; }
+    .cv-nab-big { background: {{ stock.colors.ink }}; color: #fff; font-weight: 700; letter-spacing: 0.5pt; font-size: 11pt; padding: 5pt 12pt; border-radius: 2pt; }
+    .cv-specimen-line { margin-top: 4pt; font-size: 7.5pt; font-weight: 700; color: #8A3D16; letter-spacing: 0.3pt; }
+    .cv-intro { margin-top: 6pt; font-size: 8.3pt; line-height: 1.4; }
+
+    .cv-grid { display: flex; gap: 14pt; margin-top: 12pt; }
+    .cv-col-main { flex: 1.45; }
+    .cv-col-side { flex: 1; }
+    .cv-sumintro { font-size: 7.3pt; color: {{ stock.colors.muted }}; margin-bottom: 5pt; line-height: 1.35; }
+    table.cv-sum { width: 100%; border-collapse: collapse; }
+    table.cv-sum th { font-size: 7.3pt; text-align: right; color: {{ stock.colors.muted }}; font-weight: 600; padding: 2pt 4pt 3pt 4pt; border-bottom: 1pt solid {{ stock.colors.ink }}; }
+    table.cv-sum th:first-child { text-align: left; }
+    table.cv-sum td { padding: 4pt 4pt; border-bottom: 0.5pt solid {{ stock.colors.rule }}; font-size: 8.5pt; vertical-align: top; }
+    table.cv-sum td .help { display: block; font-size: 6.6pt; color: {{ stock.colors.muted }}; margin-top: 1pt; }
+    table.cv-sum tr.yours td { background: {{ stock.colors.accentSoft }}; font-weight: 700; border-bottom: 1pt solid {{ stock.colors.accent }}; }
+    table.cv-sum td.num { font-size: 9.5pt; font-weight: 600; width: 0.95in; }
+    table.cv-sum tr.yours td.num { font-weight: 700; }
+
+    .cv-prog { border: 0.75pt solid {{ stock.colors.rule }}; padding: 7pt 8pt; margin-bottom: 8pt; }
+    .cv-prog .lbl { font-size: 8pt; font-weight: 700; color: {{ stock.colors.ink }}; display: flex; justify-content: space-between; }
+    .cv-prog .lbl span.amt { font-weight: 600; color: {{ stock.colors.text }}; }
+    .cv-bar { height: 7pt; background: {{ stock.colors.inkSoft }}; margin: 4pt 0 4pt 0; position: relative; }
+    .cv-bar .fill { position: absolute; left: 0; top: 0; bottom: 0; background: {{ stock.colors.accent }}; }
+    .cv-prog .txt { font-size: 7pt; line-height: 1.35; color: {{ stock.colors.muted }}; }
+    .cv-prog .left { font-size: 7.5pt; margin-top: 2pt; }
+    .cv-prog .left b { color: {{ stock.colors.ink }}; }
+    .cv-asof { font-size: 6.8pt; color: {{ stock.colors.muted }}; margin-top: -2pt; margin-bottom: 4pt; }
+
+    table.cv-pay { width: 100%; border-collapse: collapse; margin-top: 2pt; }
+    table.cv-pay th { background: {{ stock.colors.inkSoft }}; color: {{ stock.colors.ink }}; font-size: 7.2pt; text-align: left; padding: 3pt 5pt; font-weight: 700; }
+    table.cv-pay td { font-size: 7.8pt; padding: 2.6pt 5pt; border-bottom: 0.5pt solid {{ stock.colors.rule }}; }
+    table.cv-pay th.num, table.cv-pay td.num { text-align: right; }
+
+    .cv-bottom { display: flex; gap: 14pt; margin-top: 12pt; }
+    .cv-help { flex: 1.45; background: {{ stock.colors.inkSoft }}; padding: 8pt 10pt; border-left: 3pt solid {{ stock.colors.ink }}; font-size: 8pt; line-height: 1.45; }
+    .cv-inside { flex: 1; font-size: 7.6pt; line-height: 1.5; }
+    .cv-inside ol { margin-left: 12pt; }
+{% endblock %}
+
+{% block body %}
+{% set fsum = financialSummary %}
+<div class="page">
+  <div class="cv-top">
+    <div class="cv-brand">
+      <div><span class="cv-mark"></span><span class="cv-word">{{ stock.brand.wordmark }}</span><span class="cv-desc">{{ stock.brand.descriptor }}</span></div>
+      <span class="specimen-badge">SPECIMEN</span>
+    </div>
+    <div class="cv-top-right">
+      <div>{{ metadata.planName }}</div>
+      <div class="pg">{{ stock.header.pageLabel }} 1 of {{ metadata.pageCount }}</div>
+    </div>
+  </div>
+
+  <div class="cv-mailing">
+    <div>
+      <div class="cv-return">
+        <div>{{ metadata.issuer.name }}</div>
+        {% for l in metadata.issuer.address %}<div>{{ l }}</div>{% endfor %}
+      </div>
+      <div class="cv-to">
+        {% for l in metadata.memberAddress %}<div>{{ l }}</div>{% endfor %}
+      </div>
+    </div>
+    <div class="cv-info">
+      <div class="cv-h3">{{ stock.cover.infoTitle }}</div>
+      <table>
+        <tr><td class="k">{{ stock.cover.infoLabels.statementDate }}</td><td class="v">{{ metadata.statementDate }}</td></tr>
+        <tr><td class="k">{{ stock.cover.infoLabels.memberId }}</td><td class="v">{{ metadata.memberId }}</td></tr>
+        <tr><td class="k">{{ stock.cover.infoLabels.plan }}</td><td class="v">{{ metadata.planName }}</td></tr>
+        <tr><td class="k">{{ stock.cover.infoLabels.period }}</td><td class="v">{{ metadata.processingPeriod.start }} to {{ metadata.processingPeriod.end }}</td></tr>
+        <tr><td class="k">{{ stock.cover.infoLabels.documentId }}</td><td class="v">{{ metadata.documentId }}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="cv-titlebar">
+    <div class="cv-title">{{ stock.cover.title }}<span class="month">{{ metadata.processingPeriod.month }}</span></div>
+    <div class="cv-nab-big">{{ stock.cover.notABill }}</div>
+  </div>
+  <div class="cv-specimen-line">{{ stock.cover.specimenLine }}</div>
+  <div class="cv-intro">{{ stock.cover.intro }}</div>
+
+  <div class="cv-grid">
+    <div class="cv-col-main">
+      <div class="cv-h2">{{ stock.cover.summaryTitle }}</div>
+      <div class="cv-rule-accent"></div>
+      <div class="cv-sumintro">{{ stock.cover.summaryIntro }}</div>
+      <table class="cv-sum">
+        <thead><tr><th></th><th>{{ fsum.monthly.label }}<br><span style="font-weight:400">{{ metadata.processingPeriod.month }}</span></th><th>{{ fsum.ytd.label }}<br><span style="font-weight:400">{{ metadata.processingPeriod.year }}</span></th></tr></thead>
+        <tbody>
+          {% for row in stock.cover.summaryRows %}
+          <tr class="{% if row.key == 'yourShare' %}yours{% endif %}">
+            <td>{{ row.label }}<span class="help">{{ row.help }}</span></td>
+            <td class="num">${{ fsum.monthly[row.key] | formatMoney }}</td>
+            <td class="num">${{ fsum.ytd[row.key] | formatMoney }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="cv-col-side">
+      <div class="cv-h2">{{ stock.cover.progressTitle }}</div>
+      <div class="cv-rule-accent"></div>
+      <div class="cv-asof">{{ stock.cover.asOfLabel }} {{ fsum.oopAsOfDate }}</div>
+      <div class="cv-prog">
+        <div class="lbl">{{ stock.cover.deductibleLabel }} <span class="amt">${{ fsum.deductibleMet | formatMoney }} {{ stock.cover.ofLabel }} ${{ fsum.deductible | formatMoney }}</span></div>
+        <div class="cv-bar"><div class="fill" style="width: {{ view.deductiblePct }}%;"></div></div>
+        <div class="txt">{{ fsum.deductibleType }}</div>
+        {% if fsum.deductibleFullyMet %}
+        <div class="left"><b>{{ stock.cover.deductibleMetText }}</b></div>
+        {% else %}
+        <div class="left">{{ stock.cover.deductibleRemainingText }} <b>${{ view.deductibleLeft | formatMoney }}</b></div>
+        {% endif %}
+      </div>
+      <div class="cv-prog">
+        <div class="lbl">{{ stock.cover.oopLabel }} <span class="amt">${{ fsum.oopUsed | formatMoney }} {{ stock.cover.ofLabel }} ${{ fsum.oopMax | formatMoney }}</span></div>
+        <div class="cv-bar"><div class="fill" style="width: {{ view.oopPct }}%;"></div></div>
+        <div class="txt">{{ stock.cover.oopText }}</div>
+        <div class="left">{{ stock.cover.oopRemainingText }} <b>${{ view.oopLeft | formatMoney }}</b></div>
+      </div>
+    </div>
+  </div>
+
+  {% if paymentSummary and paymentSummary.length %}
+  <div style="margin-top: 10pt;">
+    <div class="cv-h2">{{ stock.cover.paymentsTitle }}</div>
+    <table class="cv-pay">
+      <thead><tr><th>{{ stock.cover.paymentsColumns.date }}</th><th>{{ stock.cover.paymentsColumns.to }}</th><th>{{ stock.cover.paymentsColumns.provider }}</th><th class="num">{{ stock.cover.paymentsColumns.amount }}</th></tr></thead>
+      <tbody>
+        {% for p in paymentSummary %}
+        <tr><td>{{ p.sendDate }}</td><td>{{ p.sendTo }}</td><td>{{ p.provider }}</td><td class="num">${{ p.amount | formatMoney }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <div class="cv-bottom">
+    <div class="cv-help">
+      <div class="cv-h3">{{ stock.cover.helpTitle }}</div>
+      <div>{{ stock.cover.helpText }}</div>
+      <div>{{ stock.cover.helpWeb }}</div>
+    </div>
+    <div class="cv-inside">
+      <div class="cv-h3">{{ stock.cover.insideTitle }}</div>
+      <ol>{% for i in stock.cover.inside %}<li>{{ i }}</li>{% endfor %}</ol>
+    </div>
+  </div>
+
+  {{ cv.footer(stock, metadata, 1) }}
+</div>
+{% endblock %}

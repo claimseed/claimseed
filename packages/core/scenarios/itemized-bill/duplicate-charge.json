@@ -1,0 +1,43 @@
+{
+  "type": "itemized-bill",
+  "slug": "duplicate-charge",
+  "status": "published",
+  "description": "The laboratory department group lists its first test twice with the same date, code and charge. Both lines were also paid by Medicare, so the group subtotal, total charges and balance due all include the duplicate. A reviewer should flag the second line.",
+  "period": {
+    "start": "2026-03-01",
+    "end": "2026-03-31"
+  },
+  "claimCount": 3,
+  "claimShapes": [
+    "LAB",
+    "IM",
+    "CARD"
+  ],
+  "mutations": [
+    {
+      "op": "duplicate-line",
+      "args": {
+        "claim": 0,
+        "line": 0
+      }
+    }
+  ],
+  "sources": [
+    {
+      "what": "Detection of duplicate claims (exact and suspect duplicates)",
+      "source": "CMS Medicare Claims Processing Manual, Pub. 100-04, ch. 1 §120, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c01.pdf"
+    },
+    {
+      "what": "Medically Unlikely Edits limit units of a code per day",
+      "source": "https://www.cms.gov/medicare/coding-billing/national-correct-coding-initiative-ncci-edits"
+    },
+    {
+      "what": "Right to an itemized statement from any provider or supplier within 30 days of a request",
+      "source": "Social Security Act §1806(b), https://www.ssa.gov/OP_Home/ssact/title18/1806.htm"
+    },
+    {
+      "what": "Hospital statements group charges by revenue-code category; laboratory is 0300–0319",
+      "source": "CMS Medicare Claims Processing Manual, Pub. 100-04, ch. 25 §75.4, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c25.pdf"
+    }
+  ]
+}

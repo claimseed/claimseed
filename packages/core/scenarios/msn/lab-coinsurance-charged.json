@@ -1,0 +1,17 @@
+{
+  "type": "msn",
+  "slug": "lab-coinsurance-charged",
+  "status": "published",
+  "description": "The first claim is from a clinical laboratory. Its first test is priced on the Clinical Laboratory Fee Schedule, so the patient should owe $0 for it, yet it shows a 20% coinsurance in 'Maximum You May Be Billed' while the attached note still says Medicare covers the test in full. Other lab lines on the same claim are correctly $0, giving a reader the contrast.",
+  "period": { "start": "2026-03-01", "end": "2026-03-31" },
+  "claimCount": 3,
+  "claimShapes": ["LAB"],
+  "mutations": [
+    { "op": "apply-cost-share-to-exempt-line", "args": { "claim": 0, "line": 0, "rate": 0.2 } }
+  ],
+  "sources": [
+    { "what": "Clinical diagnostic laboratory tests on an assigned basis: no deductible, paid at 100% of the fee schedule", "source": "Social Security Act §1833(a)(1)(D) and (b)(3), https://www.ssa.gov/OP_Home/ssact/title18/1833.htm" },
+    { "what": "Neither deductible nor coinsurance applies to codes paid under the laboratory fee schedule", "source": "CMS Medicare Claims Processing Manual, Pub. 100-04, ch. 16 §§10.2, 30.2, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c16.pdf" },
+    { "what": "Clinical laboratory fee schedule administration", "source": "CMS Medicare Claims Processing Manual, Pub. 100-04, ch. 23 §40, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c23.pdf" }
+  ]
+}

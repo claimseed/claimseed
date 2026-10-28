@@ -1,0 +1,125 @@
+{% extends "base-portrait.html" %}
+{% import "partials/ppo-eob-common.html" as cv %}
+
+{% block extra_styles %}
+{{ cv.styles(stock) }}
+{{ cv.innerHeaderStyles(stock) }}
+    .page { padding: 0.42in 0.5in 0.7in 0.5in; }
+    .cv-back-title { font-size: 14pt; font-weight: 700; color: {{ stock.colors.ink }}; margin-top: 2pt; }
+    .cv-sec { margin-top: 11pt; }
+    .cv-sec p { font-size: 8.2pt; line-height: 1.45; margin-bottom: 4pt; }
+    .cv-defs { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16pt; row-gap: 5pt; }
+    .cv-def { font-size: 7.8pt; line-height: 1.4; border-left: 2pt solid {{ stock.colors.inkSoft }}; padding-left: 6pt; }
+    .cv-def b { display: block; color: {{ stock.colors.ink }}; font-size: 8pt; }
+    .cv-check { list-style: none; }
+    .cv-check li { font-size: 8.2pt; line-height: 1.45; padding-left: 14pt; position: relative; margin-bottom: 2pt; }
+    .cv-check li::before { content: ''; position: absolute; left: 0; top: 2.5pt; width: 6pt; height: 6pt; border: 1pt solid {{ stock.colors.accent }}; }
+    .cv-callout { background: {{ stock.colors.inkSoft }}; border-left: 3pt solid {{ stock.colors.ink }}; padding: 7pt 10pt; }
+    .cv-callout.alert { background: #FBF1E6; border-left-color: #9A4A12; }
+    .cv-fraud { border: 1pt solid {{ stock.colors.accent }}; padding: 7pt 10pt; }
+    .cv-two { display: flex; gap: 16pt; }
+    .cv-two > div { flex: 1; }
+    table.cv-contact { border-collapse: collapse; width: 100%; }
+    table.cv-contact td { font-size: 8pt; padding: 2.5pt 0; border-bottom: 0.5pt solid {{ stock.colors.rule }}; vertical-align: top; }
+    table.cv-contact td.k { color: {{ stock.colors.muted }}; width: 1.1in; }
+    .cv-addr { font-size: 8pt; line-height: 1.45; }
+    .cv-small p { font-size: 7.6pt; line-height: 1.42; margin-bottom: 3.5pt; }
+    .cv-nd { margin: 0 0 3.5pt 13pt; padding: 0; font-size: 7.6pt; line-height: 1.42; }
+    .cv-nd > li { margin-bottom: 1.5pt; }
+    .cv-nd ul { margin: 0.5pt 0 0 12pt; padding: 0; list-style: circle; }
+    .cv-tag { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14pt; row-gap: 3pt; }
+    .cv-tag div { font-size: 6.8pt; line-height: 1.3; }
+    .cv-tag b { color: {{ stock.colors.ink }}; }
+    .cv-note { font-size: 6.6pt; color: {{ stock.colors.muted }}; margin-top: 6pt; }
+{% endblock %}
+
+{% block body %}
+{# ---- Page A: understanding the statement, appeals, fraud ---- #}
+<div class="page">
+  {{ cv.innerHeader(stock, metadata, view.backStart, false) }}
+  <div class="cv-back-title">{{ stock.info.title }}</div>
+  <div class="cv-rule-accent"></div>
+
+  <div class="cv-sec">
+    <div class="cv-h2">{{ stock.info.definitionsTitle }}</div>
+    <div class="cv-defs">
+      {% for d in stock.info.definitions %}<div class="cv-def"><b>{{ d.term }}</b>{{ d.text }}</div>{% endfor %}
+    </div>
+  </div>
+
+  <div class="cv-sec">
+    <div class="cv-h2">{{ stock.info.checkTitle }}</div>
+    <ul class="cv-check">{% for i in stock.info.checkItems %}<li>{{ i }}</li>{% endfor %}</ul>
+  </div>
+
+  {% if hasDenial %}
+  <div class="cv-sec cv-callout alert">
+    <div class="cv-h2">{{ stock.info.deniedTitle }}</div>
+    {% for p in stock.info.denied %}<p>{{ p }}</p>{% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="cv-sec cv-callout">
+    <div class="cv-h2">{{ stock.info.disagreeTitle }}</div>
+    {% for p in stock.info.disagree %}<p>{{ p }}</p>{% endfor %}
+  </div>
+
+  <div class="cv-sec cv-fraud">
+    <div class="cv-h2">{{ stock.info.fraudTitle }}</div>
+    {% for p in stock.info.fraud %}<p>{{ p }}</p>{% endfor %}
+  </div>
+
+  {{ cv.footer(stock, metadata, view.backStart) }}
+</div>
+
+{# ---- Page B: contact, nondiscrimination notice, language taglines ---- #}
+<div class="page">
+  {{ cv.innerHeader(stock, metadata, view.backStart + 1, false) }}
+  <div class="cv-back-title">{{ stock.notices.title }}</div>
+  <div class="cv-rule-accent"></div>
+
+  <div class="cv-sec cv-two">
+    <div>
+      <div class="cv-h2">{{ stock.info.contactTitle }}</div>
+      <table class="cv-contact">
+        {% for r in stock.info.contactRows %}<tr><td class="k">{{ r.label }}</td><td>{{ r.value }}</td></tr>{% endfor %}
+      </table>
+    </div>
+    <div>
+      <div class="cv-h2">{{ stock.info.writeTitle }}</div>
+      <div class="cv-addr">
+        <div>{{ metadata.issuer.name }}</div>
+        {% for l in metadata.issuer.address %}<div>{{ l }}</div>{% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="cv-sec cv-small">
+    <div class="cv-h2">{{ stock.notices.nondiscriminationTitle }}</div>
+    {% for p in stock.notices.nondiscrimination %}<p>{{ p }}</p>{% endfor %}
+    {% if stock.notices.nondiscriminationServices %}<ul class="cv-nd">{% for s in stock.notices.nondiscriminationServices %}<li>{% if s.lead %}<b>{{ s.lead }}</b> {% endif %}{{ s.text }}{% if s.items %}<ul>{% for i in s.items %}<li>{{ i }}</li>{% endfor %}</ul>{% endif %}</li>{% endfor %}</ul>{% endif %}
+    {% for p in stock.notices.nondiscriminationAfter %}<p>{{ p }}</p>{% endfor %}
+  </div>
+
+  <div class="cv-sec cv-two cv-small">
+    <div style="flex: 1.6;">
+      <div class="cv-h3">{{ stock.notices.grievanceTitle }}</div>
+      {% for p in stock.notices.grievance %}<p>{{ p }}</p>{% endfor %}
+    </div>
+    <div class="cv-addr" style="font-size: 7.6pt;">
+      {% for l in stock.notices.coordinator %}<div>{% if loop.first %}<b>{{ l }}</b>{% else %}{{ l }}{% endif %}</div>{% endfor %}
+    </div>
+  </div>
+
+  <div class="cv-sec">
+    <div class="cv-h2">{{ stock.notices.languageTitle }}</div>
+    <p style="font-size: 8pt; margin-bottom: 5pt;">{{ stock.notices.languageIntro }}</p>
+    <div class="cv-tag">
+      {% for t in stock.notices.taglines %}<div><b>{{ t.lang }}</b> &nbsp;{{ t.text }}</div>{% endfor %}
+    </div>
+    <div class="cv-note">{{ stock.notices.specimenNote }}</div>
+  </div>
+
+  {{ cv.footer(stock, metadata, view.backStart + 1) }}
+</div>
+{% endblock %}

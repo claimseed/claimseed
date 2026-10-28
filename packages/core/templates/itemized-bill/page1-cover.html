@@ -1,0 +1,245 @@
+{% extends "base-portrait.html" %}
+
+{% block extra_styles %}
+    .page {
+      padding: 0.4in 0.55in 0.7in 0.55in;
+    }
+
+    /* Hospital header bar */
+    .hospital-header {
+      margin-bottom: 8pt;
+    }
+
+    .hospital-header-bar {
+      background: {{ stock.colors.headerBg }};
+      color: {{ stock.colors.headerText }};
+      padding: 8pt 12pt;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .hospital-name {
+      font-size: {{ stock.fonts.hospitalNameSize }};
+      font-weight: bold;
+      letter-spacing: -0.3pt;
+    }
+
+    .hospital-address {
+      font-size: {{ stock.fonts.smallSize }};
+      margin-top: 2pt;
+      opacity: 0.9;
+    }
+
+    .hospital-contact-block {
+      font-size: {{ stock.fonts.smallSize }};
+      text-align: right;
+      line-height: 1.5;
+    }
+
+    /* Info card */
+    .info-card {
+      background: {{ stock.colors.infoBg }};
+      border: 1.5pt solid {{ stock.colors.infoBorder }};
+      border-radius: 3pt;
+      padding: 10pt 14pt;
+      margin: 12pt 0;
+    }
+
+    .info-card table {
+      width: 100%;
+    }
+
+    .info-card td {
+      padding: 2.5pt 0;
+      font-size: {{ stock.fonts.bodySize }};
+      vertical-align: top;
+    }
+
+    .info-card .label {
+      font-weight: bold;
+      width: 165pt;
+      color: {{ stock.colors.headerBg }};
+    }
+
+    .info-card .value {
+      color: {{ stock.colors.text }};
+    }
+
+    .info-card .section-divider {
+      border-top: 1pt solid {{ stock.colors.infoBorder }};
+      padding-top: 4pt;
+      margin-top: 4pt;
+    }
+
+    /* Title */
+    .cover-title {
+      font-size: {{ stock.fonts.titleSize }};
+      font-weight: bold;
+      color: {{ stock.colors.headerBg }};
+      text-align: center;
+      margin: 14pt 0 4pt 0;
+      letter-spacing: 0.5pt;
+    }
+
+    .cover-subtitle {
+      font-size: {{ stock.fonts.bodySize }};
+      text-align: center;
+      color: #666666;
+      margin-bottom: 16pt;
+    }
+
+    /* Disclaimers */
+    .disclaimer-section {
+      margin-top: 12pt;
+      padding-top: 10pt;
+      border-top: 1pt solid #CCCCCC;
+    }
+
+    .disclaimer-block {
+      margin-bottom: 10pt;
+    }
+
+    .disclaimer-block p {
+      font-size: {{ stock.fonts.bodySize }};
+      line-height: 1.45;
+      color: #333333;
+    }
+
+    /* "i" in a circle drawn with CSS (no symbol glyph needed; bundled fonts are Latin-only). */
+    .disclaimer-icon {
+      display: inline-block;
+      width: 9pt;
+      height: 9pt;
+      line-height: 9pt;
+      border-radius: 50%;
+      border: 1pt solid {{ stock.colors.headerBg }};
+      color: {{ stock.colors.headerBg }};
+      font-size: 7pt;
+      font-weight: bold;
+      text-align: center;
+      vertical-align: 1pt;
+      margin-right: 4pt;
+    }
+
+    /* Not a bill banner */
+    .not-a-bill-banner {
+      background: {{ stock.colors.noticeBg }};
+      border: 1pt solid {{ stock.colors.noticeBorder }};
+      border-radius: 2pt;
+      padding: 6pt 10pt;
+      text-align: center;
+      font-size: {{ stock.fonts.bodySize }};
+      font-weight: bold;
+      color: #333333;
+      margin: 10pt 0;
+    }
+
+    /* Footer */
+    .page-footer {
+      position: absolute;
+      bottom: 0.35in;
+      left: 0.55in;
+      right: 0.55in;
+      font-size: {{ stock.fonts.tinySize }};
+      color: #999999;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-top: 0.5pt solid #CCCCCC;
+      padding-top: 4pt;
+    }
+{% endblock %}
+
+{% block body %}
+<div class="page">
+  {% include "partials/itemized-bill-header.html" %}
+
+  <div class="cover-title">{{ metadata.titleOverride or stock.labels.title }}</div>
+  <div class="cover-subtitle">{{ metadata.serviceDateRange }}</div>
+
+  <div class="info-card">
+    <table>
+      <tr>
+        <td class="label">{{ stock.labels.statementDate }}:</td>
+        <td class="value">{{ metadata.statementDate }}</td>
+      </tr>
+      <tr>
+        <td class="label">{{ stock.labels.accountNumber }}:</td>
+        <td class="value">{{ metadata.accountNumber }}</td>
+      </tr>
+      {% if metadata.claimNumber %}
+      <tr>
+        <td class="label">Insurance Claim #:</td>
+        <td class="value">{{ metadata.claimNumber }}</td>
+      </tr>
+      {% endif %}
+      <tr>
+        <td class="label">{{ stock.labels.patient }}:</td>
+        <td class="value">{{ metadata.patientName }}</td>
+      </tr>
+      <tr>
+        <td class="label">{{ stock.labels.admissionDate }}:</td>
+        <td class="value">{{ metadata.admissionDate }}</td>
+      </tr>
+      <tr>
+        <td class="label">{{ stock.labels.dischargeDate }}:</td>
+        <td class="value">{{ metadata.dischargeDate }} ({{ metadata.lengthOfStay }})</td>
+      </tr>
+      <tr class="section-divider">
+        <td class="label">{{ stock.labels.attendingPhysician }}:</td>
+        <td class="value">{{ metadata.attendingPhysician }}</td>
+      </tr>
+      <tr>
+        <td class="label">{{ stock.labels.admittingDiagnosis }}:</td>
+        <td class="value">{{ metadata.admittingDiagnosis }}</td>
+      </tr>
+      {% if metadata.admissionType %}
+      <tr>
+        <td class="label">Admission Type:</td>
+        <td class="value">{{ metadata.admissionType }}</td>
+      </tr>
+      {% endif %}
+      <tr class="section-divider">
+        <td class="label">{{ stock.labels.insurance }}:</td>
+        <td class="value">{{ metadata.insurance }}</td>
+      </tr>
+      <tr>
+        <td class="label">{{ stock.labels.medicareNumber }}:</td>
+        <td class="value">{{ metadata.medicareNumber }}</td>
+      </tr>
+      <tr>
+        <td class="label">{{ stock.labels.medigap }}:</td>
+        <td class="value">{{ metadata.medigap }}</td>
+      </tr>
+      {% if metadata.secondaryCoverage %}
+      <tr>
+        <td class="label">Secondary Coverage:</td>
+        <td class="value">{{ metadata.secondaryCoverage }}</td>
+      </tr>
+      {% endif %}
+    </table>
+  </div>
+
+  <div class="not-a-bill-banner">
+    THIS IS AN ITEMIZED STATEMENT &mdash; NOT A BILL
+  </div>
+
+  <div class="disclaimer-section">
+    <div class="disclaimer-block">
+      <p><span class="disclaimer-icon">i</span> {{ stock.disclaimers.notABill }}</p>
+    </div>
+    <div class="disclaimer-block">
+      <p><span class="disclaimer-icon">i</span> {{ stock.disclaimers.separateBills }}</p>
+    </div>
+    <div class="disclaimer-block">
+      <p><span class="disclaimer-icon">i</span> {{ stock.disclaimers.contactInfo }} Call {{ metadata.billingPhone }} or visit {{ metadata.websiteUrl }}.</p>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div>{{ stock.footer.confidentiality }}</div>
+    <div>Account: {{ metadata.accountNumber }} &nbsp;|&nbsp; Page 1 of {{ metadata.pageCount }}</div>
+  </div>
+</div>
+{% endblock %}

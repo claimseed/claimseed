@@ -1,0 +1,353 @@
+{% extends "base-portrait.html" %}
+
+{% block extra_styles %}
+    .page {
+      padding: 0.4in 0.55in 0.7in 0.55in;
+    }
+
+    /* Hospital header bar */
+    .hospital-header {
+      margin-bottom: 8pt;
+    }
+
+    .hospital-header-bar {
+      background: {{ stock.colors.headerBg }};
+      color: {{ stock.colors.headerText }};
+      padding: 6pt 12pt;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .hospital-name {
+      font-size: {{ stock.fonts.logoSize }};
+      font-weight: bold;
+      letter-spacing: -0.3pt;
+    }
+
+    .hospital-address {
+      font-size: {{ stock.fonts.tinySize }};
+      margin-top: 1pt;
+      opacity: 0.9;
+    }
+
+    .hospital-contact-block {
+      font-size: {{ stock.fonts.tinySize }};
+      text-align: right;
+      line-height: 1.4;
+    }
+
+    /* Insurance summary section */
+    .section-title {
+      background: {{ stock.colors.summaryHeaderBg }};
+      color: {{ stock.colors.summaryHeaderText }};
+      font-size: {{ stock.fonts.sectionTitleSize }};
+      font-weight: bold;
+      padding: 5pt 10pt;
+      letter-spacing: 0.5pt;
+      margin-bottom: 0;
+    }
+
+    .summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 12pt;
+    }
+
+    .summary-table td {
+      font-size: {{ stock.fonts.bodySize }};
+      padding: 4pt 10pt;
+      border-bottom: 0.5pt solid #EEEEEE;
+    }
+
+    .summary-table .row-label {
+      width: 60%;
+    }
+
+    .summary-table .row-amount {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      width: 40%;
+    }
+
+    .summary-table .deductible-note {
+      font-size: {{ stock.fonts.smallSize }};
+      color: #666666;
+      font-style: italic;
+      padding-left: 20pt;
+    }
+
+    .summary-table .balance-row td {
+      font-weight: bold;
+      font-size: {{ stock.fonts.sectionTitleSize }};
+      background: {{ stock.colors.infoBg }};
+      border-top: 2pt solid {{ stock.colors.headerBg }};
+      padding: 6pt 10pt;
+    }
+
+    .summary-table .paid-row .row-amount {
+      color: #2E7D32;
+    }
+
+    /* Observation notice */
+    .observation-notice {
+      background: {{ stock.colors.noticeBg }};
+      border: 1.5pt solid {{ stock.colors.noticeBorder }};
+      border-radius: 3pt;
+      padding: 10pt 14pt;
+      margin: 12pt 0;
+    }
+
+    .observation-title {
+      font-size: {{ stock.fonts.sectionTitleSize }};
+      font-weight: bold;
+      color: #E65100;
+      margin-bottom: 6pt;
+    }
+
+    .observation-intro {
+      font-size: {{ stock.fonts.bodySize }};
+      margin-bottom: 6pt;
+      line-height: 1.4;
+    }
+
+    .observation-bullets {
+      margin: 0;
+      padding-left: 16pt;
+    }
+
+    .observation-bullets li {
+      font-size: {{ stock.fonts.bodySize }};
+      line-height: 1.4;
+      margin-bottom: 3pt;
+    }
+
+    .observation-moon {
+      font-size: {{ stock.fonts.smallSize }};
+      font-style: italic;
+      color: #666666;
+      margin-top: 6pt;
+      line-height: 1.4;
+    }
+
+    /* Payment options */
+    .payment-section {
+      margin-top: 10pt;
+    }
+
+    .payment-section .section-title-small {
+      font-size: {{ stock.fonts.sectionTitleSize }};
+      font-weight: bold;
+      color: {{ stock.colors.headerBg }};
+      margin-bottom: 4pt;
+      padding-bottom: 2pt;
+      border-bottom: 1pt solid {{ stock.colors.headerBg }};
+    }
+
+    .payment-grid {
+      display: flex;
+      gap: 16pt;
+      margin-bottom: 10pt;
+    }
+
+    .payment-method {
+      font-size: {{ stock.fonts.bodySize }};
+      line-height: 1.45;
+      flex: 1;
+    }
+
+    .payment-method .method-label {
+      font-weight: bold;
+      color: {{ stock.colors.headerBg }};
+    }
+
+    .payment-ref {
+      font-size: {{ stock.fonts.bodySize }};
+      margin-bottom: 10pt;
+    }
+
+    .payment-ref .ref-label {
+      font-weight: bold;
+    }
+
+    /* Aging summary */
+    .aging-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10pt;
+    }
+
+    .aging-table th {
+      background: {{ stock.colors.columnHeaderBg }};
+      color: {{ stock.colors.columnHeaderText }};
+      font-size: {{ stock.fonts.smallSize }};
+      font-weight: bold;
+      padding: 3pt 8pt;
+      text-align: center;
+    }
+
+    .aging-table td {
+      font-size: {{ stock.fonts.bodySize }};
+      padding: 4pt 8pt;
+      text-align: center;
+      border-bottom: 0.5pt solid #EEEEEE;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .aging-table .total-col {
+      font-weight: bold;
+    }
+
+    /* Financial assistance */
+    .financial-assistance {
+      background: {{ stock.colors.infoBg }};
+      border-left: 3pt solid {{ stock.colors.headerBg }};
+      padding: 8pt 12pt;
+      margin-top: 8pt;
+    }
+
+    .financial-assistance .fa-title {
+      font-size: {{ stock.fonts.bodySize }};
+      font-weight: bold;
+      color: {{ stock.colors.headerBg }};
+      margin-bottom: 3pt;
+    }
+
+    .financial-assistance p {
+      font-size: {{ stock.fonts.smallSize }};
+      line-height: 1.4;
+      color: #333333;
+    }
+
+    .contact-line {
+      font-size: {{ stock.fonts.bodySize }};
+      margin-top: 8pt;
+      font-weight: bold;
+      color: {{ stock.colors.headerBg }};
+    }
+
+    /* Footer */
+    .page-footer {
+      position: absolute;
+      bottom: 0.35in;
+      left: 0.55in;
+      right: 0.55in;
+      font-size: {{ stock.fonts.tinySize }};
+      color: #999999;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-top: 0.5pt solid #CCCCCC;
+      padding-top: 4pt;
+    }
+{% endblock %}
+
+{% block body %}
+<div class="page">
+  {% include "partials/itemized-bill-header.html" %}
+
+  <div class="section-title">{{ stock.labels.insuranceSummaryTitle }}</div>
+  <table class="summary-table">
+    <tr>
+      <td class="row-label">{{ stock.labels.totalCharges }}:</td>
+      <td class="row-amount">${{ insuranceSummary.totalCharges | formatMoney }}</td>
+    </tr>
+    <tr>
+      <td class="row-label">{{ stock.labels.medicareApproved }}:</td>
+      <td class="row-amount">${{ insuranceSummary.medicareApproved | formatMoney }}</td>
+    </tr>
+    <tr class="paid-row">
+      <td class="row-label">{{ stock.labels.medicarePaid }}:</td>
+      <td class="row-amount">-${{ insuranceSummary.medicarePaid | formatMoney }}</td>
+    </tr>
+    <tr>
+      <td class="row-label">{{ stock.labels.deductibleApplied }}:</td>
+      <td class="row-amount">${{ insuranceSummary.deductibleApplied | formatMoney }}</td>
+    </tr>
+    {% if insuranceSummary.deductibleNote %}
+    <tr>
+      <td colspan="2" class="deductible-note">({{ insuranceSummary.deductibleNote }})</td>
+    </tr>
+    {% endif %}
+    <tr>
+      <td class="row-label">{{ stock.labels.coinsurance }}:</td>
+      <td class="row-amount">${{ insuranceSummary.coinsurance | formatMoney }}</td>
+    </tr>
+    <tr class="balance-row">
+      <td class="row-label">{{ stock.labels.balanceDue }}:</td>
+      <td class="row-amount">${{ insuranceSummary.balanceDue | formatMoney }}</td>
+    </tr>
+  </table>
+
+  {% if observationNotice.show %}
+  <div class="observation-notice">
+    <div class="observation-title">{{ stock.labels.observationNoticeTitle }}</div>
+    <div class="observation-intro">
+      {{ stock.labels.observationIntro | replace("{stayDates}", observationNotice.stayDates) | replace("{stayLength}", observationNotice.stayLength) | replace("{classification}", observationNotice.classification) }}
+    </div>
+    <ul class="observation-bullets">
+      {% for bullet in observationNotice.bullets %}
+      <li>{{ bullet }}</li>
+      {% endfor %}
+    </ul>
+    <div class="observation-moon">{{ observationNotice.moonNote }}</div>
+  </div>
+  {% endif %}
+
+  <div class="payment-section">
+    <div class="section-title-small">{{ stock.labels.paymentOptionsTitle }}</div>
+    <div class="payment-grid">
+      <div class="payment-method">
+        <span class="method-label">Pay Online:</span><br>
+        {{ paymentOptions.online }}
+      </div>
+      <div class="payment-method">
+        <span class="method-label">By Phone:</span><br>
+        {{ paymentOptions.phone }}
+      </div>
+      <div class="payment-method">
+        <span class="method-label">By Mail:</span><br>
+        Send a check made out to<br>
+        {{ paymentOptions.mail.payableTo }}<br>
+        {{ paymentOptions.mail.address }}<br>
+        {{ paymentOptions.mail.cityStateZip }}
+      </div>
+    </div>
+    <div class="payment-ref"><span class="ref-label">Reference Account #:</span> {{ paymentOptions.referenceAccount }}</div>
+  </div>
+
+  <div class="payment-section">
+    <div class="section-title-small">{{ stock.labels.agingSummaryTitle }}</div>
+    <table class="aging-table">
+      <tr>
+        <th>Not yet due</th>
+        <th>31&ndash;60 days old</th>
+        <th>61&ndash;90 days old</th>
+        <th>Over 90 days old</th>
+        <th>Balance</th>
+      </tr>
+      <tr>
+        <td>${{ agingSummary.current | formatMoney }}</td>
+        <td>${{ agingSummary.days30 | formatMoney }}</td>
+        <td>${{ agingSummary.days60 | formatMoney }}</td>
+        <td>${{ agingSummary.days90plus | formatMoney }}</td>
+        <td class="total-col">${{ agingSummary.total | formatMoney }}</td>
+      </tr>
+    </table>
+  </div>
+
+  {% if financialAssistance.show %}
+  <div class="financial-assistance">
+    <div class="fa-title">{{ stock.labels.financialAssistanceTitle }}</div>
+    <p>{{ financialAssistance.text }} Call {{ metadata.billingPhone }} or visit {{ metadata.financialAssistanceUrl }}.</p>
+  </div>
+  {% endif %}
+
+  <div class="contact-line">Questions? Call {{ metadata.billingPhone }}</div>
+
+  <div class="page-footer">
+    <div>{{ stock.footer.confidentiality }}</div>
+    <div>Account: {{ metadata.accountNumber }} &nbsp;|&nbsp; Page {{ summaryPageNumber }} of {{ metadata.pageCount }}</div>
+  </div>
+</div>
+{% endblock %}

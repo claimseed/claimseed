@@ -1,0 +1,316 @@
+{
+  "carrier": "ppo-eob",
+  "payer": {
+    "name": "Corvane Medicare Advantage",
+    "legalName": "Corvane Health Insurance Company",
+    "planName": "Corvane Medicare Advantage Choice (PPO)",
+    "address": [
+      "Corvane Health Insurance Company",
+      "100 Specimen Way, Suite 400",
+      "Columbus, OH 43215"
+    ],
+    "phone": "614-555-0150",
+    "tty": "711",
+    "hours": "8 a.m. to 8 p.m. Eastern, seven days a week",
+    "website": "members.corvane.example",
+    "fax": "614-555-0151"
+  },
+  "fonts": {
+    "family": "'Inter', 'Noto Sans', 'Noto Sans SC', 'Noto Sans KR', sans-serif",
+    "bodySize": "8.5pt",
+    "logoSize": "15pt"
+  },
+  "colors": {
+    "text": "#1C2230",
+    "ink": "#2E3A59",
+    "inkSoft": "#E7EAF1",
+    "accent": "#6F8F2E",
+    "accentSoft": "#EEF3E2",
+    "rule": "#B9C0CF",
+    "muted": "#5A6273",
+    "tableHeaderBg": "#2E3A59",
+    "tableHeaderText": "#FFFFFF",
+    "zebra": "#F5F6F9"
+  },
+  "brand": {
+    "wordmark": "CORVANE",
+    "descriptor": "Medicare Advantage"
+  },
+  "header": {
+    "memberLabel": "Member",
+    "memberIdLabel": "Member ID",
+    "statementDateLabel": "Statement date",
+    "pageLabel": "Page"
+  },
+  "cover": {
+    "title": "Your Explanation of Benefits",
+    "notABill": "THIS IS NOT A BILL",
+    "specimenLine": "Synthetic test document — not issued by any health plan",
+    "intro": "This statement lists the medical claims {legalName} processed for you during the period shown. It tells you what your providers billed, what the plan approved, what the plan paid, and what you may owe. Keep it with your health records. Any amount you owe is billed to you by the provider, not by us.",
+    "infoTitle": "Statement details",
+    "infoLabels": {
+      "statementDate": "Statement date",
+      "memberId": "Member ID",
+      "plan": "Plan",
+      "period": "Claims processed",
+      "documentId": "Document ID"
+    },
+    "summaryTitle": "Your costs at a glance",
+    "summaryIntro": "The plan-approved cost of a service is split between the plan's share and your share. Year-to-date figures cover every claim processed since January 1.",
+    "summaryRows": [
+      {
+        "key": "providerBilled",
+        "label": "Amount your providers billed",
+        "help": "Before any plan discount"
+      },
+      {
+        "key": "planApproved",
+        "label": "Total plan-approved cost",
+        "help": "The amount providers accept as payment in full"
+      },
+      {
+        "key": "planShare",
+        "label": "Plan's share",
+        "help": "What we paid your providers"
+      },
+      {
+        "key": "yourShare",
+        "label": "Your share",
+        "help": "Copayments, coinsurance and deductible you may owe"
+      }
+    ],
+    "progressTitle": "Your progress this year",
+    "deductibleLabel": "Deductible",
+    "deductibleMetText": "Your deductible for this year is fully met.",
+    "deductibleRemainingText": "Amount left before your deductible is met:",
+    "oopLabel": "Out-of-pocket maximum",
+    "oopText": "Once your share for covered in-network services reaches this amount, you pay nothing more for those services for the rest of the year.",
+    "oopRemainingText": "Amount left before you reach the maximum:",
+    "asOfLabel": "As of",
+    "appliedLabel": "applied",
+    "ofLabel": "of",
+    "paymentsTitle": "Payments we sent this period",
+    "paymentsColumns": {
+      "date": "Date sent",
+      "to": "Sent to",
+      "provider": "Provider",
+      "amount": "Amount"
+    },
+    "helpTitle": "Questions about this statement?",
+    "helpText": "Call Member Services at {phone} (TTY {tty}), {hours}. Calls are free.",
+    "helpWeb": "Online: {website}",
+    "insideTitle": "In this statement",
+    "inside": [
+      "Claim details, line by line",
+      "Notes and definitions",
+      "What to do if you disagree",
+      "How to report suspected fraud",
+      "Language help and your civil rights"
+    ]
+  },
+  "claims": {
+    "title": "Claim details",
+    "intro": "Each claim below lists the services a provider billed, the plan-approved amount, the plan's share and your share. A code in the Notes column is explained under the claims on the same page.",
+    "columns": {
+      "date": "Date of service",
+      "service": "Service",
+      "code": "Billing code",
+      "billed": "Provider billed",
+      "approved": "Plan-approved amount",
+      "planShare": "Plan's share",
+      "yourShare": "Your share",
+      "notes": "Notes"
+    },
+    "providerLabel": "Provider",
+    "claimLabel": "Claim number",
+    "totalLabel": "Claim total",
+    "continuedFrom": "continued from the previous page",
+    "continuesOn": "This claim continues on the next page",
+    "notesTitle": "Notes for the claims on this page",
+    "pageContinues": "Claim details continue on the next page"
+  },
+  "info": {
+    "title": "Understanding your statement",
+    "definitionsTitle": "Words used in this statement",
+    "definitions": [
+      {
+        "term": "Provider billed",
+        "text": "The amount your doctor, hospital or other provider charged for the service."
+      },
+      {
+        "term": "Plan-approved amount",
+        "text": "The total cost the plan allows for a covered service. In-network providers agree to accept it as payment in full."
+      },
+      {
+        "term": "Plan's share",
+        "text": "The part of the plan-approved amount we paid to the provider."
+      },
+      {
+        "term": "Your share",
+        "text": "The part of the plan-approved amount you are responsible for: a copayment, coinsurance, or an amount applied to your deductible."
+      },
+      {
+        "term": "Copayment",
+        "text": "A set dollar amount you pay for a type of service, such as an office visit."
+      },
+      {
+        "term": "Coinsurance",
+        "text": "A percentage of the plan-approved amount that you pay for certain services."
+      },
+      {
+        "term": "Deductible",
+        "text": "The amount you pay for certain covered services each year before the plan begins to pay its share for them."
+      },
+      {
+        "term": "Out-of-pocket maximum",
+        "text": "The most you pay in a year for covered in-network medical services. After you reach it, the plan pays 100% of the approved amount for those services."
+      },
+      {
+        "term": "In-network provider",
+        "text": "A provider who has a contract with the plan. You usually pay less when you see in-network providers."
+      }
+    ],
+    "checkTitle": "Check your statement",
+    "checkItems": [
+      "Compare the services and dates with your own records and any receipts.",
+      "Never pay a provider more than the figure in the Your share column.",
+      "If you already paid a provider more than your share, ask the provider for a refund."
+    ],
+    "disagreeTitle": "If you disagree with how a claim was processed",
+    "disagree": [
+      "Call Member Services first. Many questions can be answered over the phone, and we can review a claim that looks wrong.",
+      "If we decide not to pay for some of your care, or to pay less than you expected, you can appeal. For each such decision we mail you its own written notice with the steps to follow and the date by which you must act.",
+      "For free, independent help with appeals and benefits questions, the State Health Insurance Assistance Programs (SHIPs) help people with Medicare; or call 1-800-MEDICARE (1-800-633-4227); TTY users can call 1-877-486-2048."
+    ],
+    "deniedTitle": "Services on this statement that were denied",
+    "denied": [
+      "We did not pay for at least one service on this statement; the note next to it gives the reason. You will also receive a written denial notice that describes how to request a reconsideration (an appeal) and your deadline."
+    ],
+    "fraudTitle": "Help prevent fraud",
+    "fraud": [
+      "Review this statement for services you did not receive, dates when you did not see a provider, or providers you do not recognize.",
+      "If something looks wrong, call our fraud line at {fraudPhone} (TTY {tty}). You can also call 1-800-MEDICARE (1-800-633-4227); TTY users can call 1-877-486-2048.",
+      "Never give your member ID or Medicare number to anyone who calls or visits you uninvited."
+    ],
+    "contactTitle": "How to reach us",
+    "contactRows": [
+      {
+        "label": "Member Services",
+        "value": "{phone}"
+      },
+      {
+        "label": "TTY",
+        "value": "{tty}"
+      },
+      {
+        "label": "Hours",
+        "value": "{hours}"
+      },
+      {
+        "label": "Fraud line",
+        "value": "{fraudPhone}"
+      },
+      {
+        "label": "Fax",
+        "value": "{fax}"
+      },
+      {
+        "label": "Website",
+        "value": "{website}"
+      }
+    ],
+    "writeTitle": "Write to us",
+    "fraudPhone": "614-555-0152"
+  },
+  "notices": {
+    "title": "Your rights and language help",
+    "nondiscriminationTitle": "Notice of nondiscrimination",
+    "nondiscrimination": [
+      "{legalName} complies with applicable Federal civil rights laws and does not discriminate on the basis of race, color, national origin, age, disability, or sex. {legalName} does not exclude people or treat them differently because of race, color, national origin, age, disability, or sex.",
+      "{legalName}:"
+    ],
+    "nondiscriminationServices": [
+      {
+        "text": "Provides free aids and services to people with disabilities to communicate effectively with us, such as:",
+        "items": [
+          "Qualified sign language interpreters",
+          "Written information in other formats (large print, audio, accessible electronic formats, other formats)"
+        ]
+      },
+      {
+        "text": "Provides free language services to people whose primary language is not English, such as:",
+        "items": [
+          "Qualified interpreters",
+          "Information written in other languages"
+        ]
+      }
+    ],
+    "nondiscriminationAfter": [
+      "If you need these services, contact our Civil Rights Coordinator at 614-555-0153 (TTY 711)."
+    ],
+    "grievanceTitle": "If you believe you were treated unfairly",
+    "grievance": [
+      "If you believe that {legalName} has failed to provide these services or discriminated in another way on the basis of race, color, national origin, age, disability, or sex, you can file a grievance with: Civil Rights Coordinator, 100 Specimen Way, Suite 410, Columbus, OH 43215, 614-555-0153, TTY 711, Fax 614-555-0154, civilrights@corvane.example. You can file a grievance in person or by mail, fax, or email. If you need help filing a grievance, the Civil Rights Coordinator is available to help you.",
+      "You can also file a civil rights complaint with the U.S. Department of Health and Human Services, Office for Civil Rights electronically through the Office for Civil Rights Complaint Portal, available at https://ocrportal.hhs.gov/ocr/portal/lobby.jsf, or by mail or phone at: U.S. Department of Health and Human Services, 200 Independence Avenue SW., Room 509F, HHH Building, Washington, DC 20201, 1-800-368-1019, 800-537-7697 (TDD).",
+      "Complaint forms are available at http://www.hhs.gov/ocr/office/file/index.html."
+    ],
+    "coordinator": [
+      "Civil Rights Coordinator",
+      "Corvane Health Insurance Company",
+      "100 Specimen Way, Suite 410",
+      "Columbus, OH 43215",
+      "Phone 614-555-0153 (TTY 711)",
+      "Fax 614-555-0154",
+      "civilrights@corvane.example"
+    ],
+    "languageTitle": "Language assistance",
+    "languageIntro": "Free help in your language is available. Call {phone} (TTY {tty}).",
+    "taglines": [
+      {
+        "lang": "English",
+        "text": "Language assistance services, free of charge, are available to you. Call {phone} (TTY: {tty})."
+      },
+      {
+        "lang": "Español",
+        "text": "Usted tiene el derecho a recibir ayuda e información en su idioma sin costo alguno. Llame al {phone} (TTY: {tty})."
+      },
+      {
+        "lang": "中文",
+        "text": "你有權利免費用您的語言獲得幫助和資訊。請致電 {phone}（TTY：{tty}）。"
+      },
+      {
+        "lang": "Tiếng Việt",
+        "text": "Quý vị có quyền nhận sự giúp đỡ và thông tin bằng ngôn ngữ của mình miễn phí. Xin gọi số {phone} (TTY: {tty})."
+      },
+      {
+        "lang": "한국어",
+        "text": "한국어로 도움과 필요한 정보를 무료로 받을 수 있는 권리가 있습니다. {phone} (TTY: {tty}) 으로 전화하십시오."
+      },
+      {
+        "lang": "Tagalog",
+        "text": "Mayroon kang karapatan makakuha ng tulong at impormasyon sa iyong wika na walang gastos. Tumawag sa {phone} (TTY: {tty})."
+      },
+      {
+        "lang": "Français",
+        "text": "Vous avez le droit d'obtenir de l'aide et des renseignements dans votre langue sans aucun coût. Composez le {phone} (TTY : {tty})."
+      },
+      {
+        "lang": "Português",
+        "text": "Você tem o direito de obter ajuda e informação em seu idioma e sem nenhum custo adicional. Ligue para {phone} (TTY: {tty})."
+      },
+      {
+        "lang": "Deutsch",
+        "text": "Sie haben das Recht, Hilfe und Informationen kostenlos in Ihrer eigenen Sprache in Anspruch zu nehmen. Rufen Sie bitte diese Nummer an: {phone} (TTY: {tty})."
+      },
+      {
+        "lang": "Italiano",
+        "text": "Avete il diritto di ottenere assistenza e informazioni nella vostra lingua a titolo gratuito. Potete chiamare il numero {phone} (TTY: {tty})."
+      }
+    ],
+    "specimenNote": "Specimen layout: a notice issued by a real plan carries taglines in at least the 15 languages most commonly spoken in its service area; this specimen shows a shorter set written in languages its bundled fonts can display."
+  },
+  "footer": {
+    "left": "{legalName}",
+    "specimen": "Synthetic specimen"
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "name": "@claimseed/mcp",
+  "version": "0.1.0",
+  "mcpName": "io.github.claimseed/claimseed",
+  "description": "MCP server for claimseed: lets an agent list, generate and render synthetic medical-billing specimen documents into one workspace folder",
+  "license": "Apache-2.0",
+  "author": "claimseed maintainers <maintainers@gildage.co>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/claimseed/claimseed.git",
+    "directory": "packages/mcp"
+  },
+  "homepage": "https://github.com/claimseed/claimseed/tree/main/packages/mcp#readme",
+  "bugs": {
+    "url": "https://github.com/claimseed/claimseed/issues"
+  },
+  "type": "module",
+  "main": "src/server.js",
+  "exports": {
+    ".": "./src/server.js",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "claimseed-mcp": "src/cli.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "sync-resources": "node scripts/sync-resources.js"
+  },
+  "dependencies": {
+    "@claimseed/core": "0.1.0",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "zod": "4.6.7"
+  },
+  "files": [
+    "src",
+    "resources",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "devDependencies": {
+    "pdf-lib": "1.17.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

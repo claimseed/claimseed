@@ -1,0 +1,15 @@
+{
+  "type": "hmo-eob",
+  "slug": "baseline-clean",
+  "status": "published",
+  "description": "Clean monthly Medicare Advantage explanation of benefits with three in-network claims, no injected errors. Plan design is fictional: copays by service category, $0 labs and preventive care, a yearly out-of-pocket maximum.",
+  "period": { "start": "2026-03-01", "end": "2026-03-31" },
+  "claimCount": 3,
+  "referenceSurname": true,
+  "mutations": [],
+  "sources": [
+    { "what": "Required contents of a Medicare Advantage EOB", "source": "CMS Part C EOB model template and instructions (Medicare Managed Care Manual ch. 4 and the Part C EOB guidance), https://www.cms.gov/medicare/health-plans/managed-care-marketing" },
+    { "what": "Out-of-pocket maximum requirement", "source": "42 CFR 422.100(f), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.100" },
+    { "what": "Field vocabulary (adjudication categories, line structure)", "source": "CARIN Blue Button ExplanationOfBenefit implementation guide, https://hl7.org/fhir/us/carin-bb/" }
+  ]
+}

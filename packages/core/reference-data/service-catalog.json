@@ -1,0 +1,225 @@
+{
+  "description": "The small set of services claimseed scenarios draw from. Descriptions are written by claimseed in plain language and are NOT the AMA CPT descriptors; HCPCS Level II codes (G, J, Q) are public domain. Allowed amounts are national Medicare amounts for the stated year, taken from the public MPFS/CLFS files (scripts/fetch-reference-data.js, run on the maintainer's machine); each entry records its source and whether it was verified. scripts/check-release-ready.js refuses to publish examples built on unverified prices.",
+  "year": 2026,
+  "priceSource": "verified",
+  "services": [
+    {
+      "code": "99213",
+      "system": "CPT",
+      "lay": "Return visit with your doctor, low complexity",
+      "category": "visit",
+      "weight": 10,
+      "allowed": 95.19,
+      "verified": true,
+      "feeSchedule": "MPFS",
+      "source": "MPFS 2026 January release (RVU26A, released 12/29/2025): national non-facility total RVU \u00d7 conversion factor 33.4009; https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+      "rvuNonFacilityTotal": 2.85
+    },
+    {
+      "code": "99214",
+      "system": "CPT",
+      "lay": "Return visit with your doctor, moderate complexity",
+      "category": "visit",
+      "weight": 8,
+      "allowed": 135.61,
+      "verified": true,
+      "feeSchedule": "MPFS",
+      "source": "MPFS 2026 January release (RVU26A, released 12/29/2025): national non-facility total RVU \u00d7 conversion factor 33.4009; https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+      "rvuNonFacilityTotal": 4.06
+    },
+    {
+      "code": "99203",
+      "system": "CPT",
+      "lay": "First visit with a new doctor, low complexity",
+      "category": "visit",
+      "weight": 2,
+      "allowed": 117.57,
+      "verified": true,
+      "feeSchedule": "MPFS",
+      "source": "MPFS 2026 January release (RVU26A, released 12/29/2025): national non-facility total RVU \u00d7 conversion factor 33.4009; https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+      "rvuNonFacilityTotal": 3.52
+    },
+    {
+      "code": "G0439",
+      "system": "HCPCS",
+      "lay": "Yearly wellness visit (follow-up year)",
+      "category": "preventive",
+      "weight": 2,
+      "allowed": 137.61,
+      "verified": true,
+      "feeSchedule": "MPFS",
+      "preventiveNoCostShare": true,
+      "source": "MPFS 2026 January release (RVU26A, released 12/29/2025): national non-facility total RVU \u00d7 conversion factor 33.4009; https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+      "rvuNonFacilityTotal": 4.12
+    },
+    {
+      "code": "G0444",
+      "system": "HCPCS",
+      "lay": "Yearly depression screening, up to 15 minutes",
+      "category": "preventive",
+      "weight": 1,
+      "allowed": 18.7,
+      "verified": true,
+      "feeSchedule": "MPFS",
+      "preventiveNoCostShare": true,
+      "source": "MPFS 2026 January release (RVU26A, released 12/29/2025): national non-facility total RVU \u00d7 conversion factor 33.4009; https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+      "rvuNonFacilityTotal": 0.56
+    },
+    {
+      "code": "80053",
+      "system": "CPT",
+      "lay": "Broad blood chemistry panel (CMP)",
+      "category": "lab",
+      "weight": 6,
+      "allowed": 10.56,
+      "verified": true,
+      "feeSchedule": "CLFS",
+      "labNoCostShare": true,
+      "source": "CLFS 2026 Q1 (26CLABQ1), national rate, https://www.cms.gov/medicare/payment/fee-schedules/clinical-laboratory-fee-schedule-clfs/files/26clabq1"
+    },
+    {
+      "code": "85025",
+      "system": "CPT",
+      "lay": "Blood count with white-cell breakdown (CBC with differential)",
+      "category": "lab",
+      "weight": 6,
+      "allowed": 7.77,
+      "verified": true,
+      "feeSchedule": "CLFS",
+      "labNoCostShare": true,
+      "source": "CLFS 2026 Q1 (26CLABQ1), national rate, https://www.cms.gov/medicare/payment/fee-schedules/clinical-laboratory-fee-schedule-clfs/files/26clabq1"
+    },
+    {
+      "code": "83036",
+      "system": "CPT",
+      "lay": "Average blood sugar test (hemoglobin A1c)",
+      "category": "lab",
+      "weight": 4,
+      "allowed": 9.71,
+      "verified": true,
+      "feeSchedule": "CLFS",
+      "labNoCostShare": true,
+      "frequencyLimit": "NCD 190.21 \u2014 generally one per three months for diabetes monitoring",
+      "source": "CLFS 2026 Q1 (26CLABQ1), national rate, https://www.cms.gov/medicare/payment/fee-schedules/clinical-laboratory-fee-schedule-clfs/files/26clabq1"
+    },
+    {
+      "code": "80061",
+      "system": "CPT",
+      "lay": "Cholesterol and triglyceride panel (lipid panel)",
+      "category": "lab",
+      "weight": 4,
+      "allowed": 13.39,
+      "verified": true,
+      "feeSchedule": "CLFS",
+      "labNoCostShare": true,
+      "source": "CLFS 2026 Q1 (26CLABQ1), national rate, https://www.cms.gov/medicare/payment/fee-schedules/clinical-laboratory-fee-schedule-clfs/files/26clabq1"
+    },
+    {
+      "code": "84443",
+      "system": "CPT",
+      "lay": "Thyroid hormone level (TSH)",
+      "category": "lab",
+      "weight": 3,
+      "allowed": 16.8,
+      "verified": true,
+      "feeSchedule": "CLFS",
+      "labNoCostShare": true,
+      "source": "CLFS 2026 Q1 (26CLABQ1), national rate, https://www.cms.gov/medicare/payment/fee-schedules/clinical-laboratory-fee-schedule-clfs/files/26clabq1"
+    },
+    {
+      "code": "36415",
+      "system": "CPT",
+      "lay": "Drawing blood from a vein",
+      "category": "lab",
+      "weight": 6,
+      "allowed": 9.34,
+      "verified": true,
+      "feeSchedule": "CLFS",
+      "labNoCostShare": true,
+      "source": "CLFS 2026 Q1 (26CLABQ1), national rate, https://www.cms.gov/medicare/payment/fee-schedules/clinical-laboratory-fee-schedule-clfs/files/26clabq1"
+    },
+    {
+      "code": "93000",
+      "system": "CPT",
+      "lay": "Heart tracing (EKG) with the doctor's reading",
+      "category": "diagnostic",
+      "weight": 2,
+      "allowed": 15.36,
+      "verified": true,
+      "feeSchedule": "MPFS",
+      "source": "MPFS 2026 January release (RVU26A, released 12/29/2025): national non-facility total RVU \u00d7 conversion factor 33.4009; https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+      "rvuNonFacilityTotal": 0.46
+    },
+    {
+      "code": "71046",
+      "system": "CPT",
+      "lay": "X-ray of the chest, 2 views",
+      "category": "imaging",
+      "weight": 2,
+      "allowed": 33.07,
+      "verified": true,
+      "feeSchedule": "MPFS",
+      "source": "MPFS 2026 January release (RVU26A, released 12/29/2025): national non-facility total RVU \u00d7 conversion factor 33.4009; https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+      "rvuNonFacilityTotal": 0.99
+    },
+    {
+      "code": "97110",
+      "system": "CPT",
+      "lay": "Exercise therapy, per 15 minutes",
+      "category": "therapy",
+      "weight": 3,
+      "allowed": 29.06,
+      "verified": true,
+      "feeSchedule": "MPFS",
+      "unitsTypical": [
+        2,
+        4
+      ],
+      "source": "MPFS 2026 January release (RVU26A, released 12/29/2025): national non-facility total RVU \u00d7 conversion factor 33.4009; https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+      "rvuNonFacilityTotal": 0.87
+    },
+    {
+      "code": "92014",
+      "system": "CPT",
+      "lay": "Full eye exam, returning patient",
+      "category": "eye-exam",
+      "weight": 2,
+      "allowed": 127.26,
+      "verified": true,
+      "feeSchedule": "MPFS",
+      "source": "MPFS 2026 January release (RVU26A, released 12/29/2025): national non-facility total RVU \u00d7 conversion factor 33.4009; https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+      "rvuNonFacilityTotal": 3.81
+    },
+    {
+      "code": "11102",
+      "system": "CPT",
+      "lay": "Shave biopsy of one skin spot",
+      "category": "procedure",
+      "weight": 1,
+      "allowed": 95.53,
+      "verified": true,
+      "feeSchedule": "MPFS",
+      "source": "MPFS 2026 January release (RVU26A, released 12/29/2025): national non-facility total RVU \u00d7 conversion factor 33.4009; https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+      "rvuNonFacilityTotal": 2.86
+    }
+  ],
+  "sources": [
+    {
+      "what": "Part B coinsurance and deductible rules",
+      "source": "https://www.cms.gov/newsroom/fact-sheets/2026-medicare-parts-b-premiums-deductibles"
+    },
+    {
+      "what": "Lab tests under CLFS carry no Part B cost sharing",
+      "source": "Social Security Act \u00a71833(a)(1)(D), (b)(3)"
+    },
+    {
+      "what": "Preventive services with no cost sharing",
+      "source": "CMS MLN006559 Medicare Preventive Services"
+    },
+    {
+      "what": "Allowed amounts",
+      "source": "MPFS 2026 (RVU26A, conversion factor 33.4009) and CLFS 2026 Q1 (26CLABQ1) via scripts/fetch-reference-data.js; each service carries verified:true and its file of origin. Services priced under the Part B drug/vaccine ASP file are not in the catalog until that file is fetched the same way."
+    }
+  ],
+  "conversionFactor2026": 33.4009
+}

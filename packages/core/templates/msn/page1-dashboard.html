@@ -1,0 +1,303 @@
+{% extends "base-portrait.html" %}
+
+{% block extra_styles %}
+    .page {
+      padding: 0.35in 0.5in 0.45in 0.5in;
+    }
+
+    /* MSN header */
+    .msn-page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 6pt;
+    }
+
+    .agency-brand {
+      display: flex;
+      align-items: center;
+      gap: 6pt;
+    }
+
+    .agency-text {
+      line-height: 1.2;
+    }
+
+    .agency-dept {
+      font-size: 7pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      color: #003DA5;
+    }
+
+    .agency-sub {
+      font-size: 6.5pt;
+      color: #003DA5;
+    }
+
+    .msn-page-number {
+      font-size: 9pt;
+      text-align: right;
+    }
+
+    /* Blue title bar */
+    .title-bar {
+      background: {{ stock.colors.headerBlueBg }};
+      color: {{ stock.colors.headerBlueText }};
+      padding: 6pt 10pt;
+      margin-bottom: 2pt;
+    }
+
+    .title-bar .main-title {
+      font-size: 14pt;
+      font-weight: bold;
+      margin: 0;
+    }
+
+    .title-bar .subtitle {
+      font-size: 11pt;
+      margin: 0;
+    }
+
+    .tagline {
+      font-size: 8pt;
+      font-style: italic;
+      padding: 2pt 10pt 6pt 10pt;
+      border-bottom: 1pt solid #ccc;
+      margin-bottom: 6pt;
+    }
+
+    /* Not a bill */
+    .not-a-bill {
+      font-size: 16pt;
+      font-weight: bold;
+      text-align: center;
+      margin: 8pt 0;
+      letter-spacing: 0.3pt;
+    }
+
+    /* Member address block */
+    .address-block {
+      font-size: 10pt;
+      line-height: 1.5;
+      margin-bottom: 10pt;
+      margin-left: 0.3in;
+    }
+
+    /* Two-column layout */
+    .two-col {
+      display: flex;
+      gap: 12pt;
+      margin-bottom: 8pt;
+    }
+
+    .col-left {
+      flex: 1;
+    }
+
+    .col-right {
+      flex: 1;
+    }
+
+    /* Notice info box */
+    .notice-box {
+      border: 1.5pt solid {{ stock.colors.boxBorderBlue }};
+      padding: 0;
+      margin-bottom: 8pt;
+    }
+
+    .notice-box-header {
+      background: {{ stock.colors.headerBlueBg }};
+      color: {{ stock.colors.headerBlueText }};
+      padding: 4pt 8pt;
+      font-size: 10pt;
+      font-weight: bold;
+    }
+
+    .notice-box-body {
+      padding: 6pt 8pt;
+    }
+
+    /* label/value pairs are one flex row each (one line in extracted text, like the CMS sample) */
+    .notice-box-body .kv-row { display: flex; justify-content: space-between; align-items: flex-start; font-size: 9pt; padding: 2pt 0; }
+    .notice-box-body .kv-row .label { font-weight: bold; width: 55%; }
+    .notice-box-body .kv-row .value { text-align: right; }
+
+    /* Claims & costs box */
+    .costs-box {
+      border: 1.5pt solid {{ stock.colors.boxBorderBlue }};
+      padding: 0;
+      margin-bottom: 8pt;
+    }
+
+    .costs-box-header {
+      background: {{ stock.colors.headerBlueBg }};
+      color: {{ stock.colors.headerBlueText }};
+      padding: 4pt 8pt;
+      font-size: 10pt;
+      font-weight: bold;
+    }
+
+    .costs-box-body {
+      padding: 6pt 8pt;
+    }
+
+    .costs-box-body table {
+      width: 100%;
+      font-size: 9pt;
+    }
+
+    .costs-box-body .kv-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 2pt 0; }
+    .costs-box-body .kv-row .label { width: 65%; }
+    .costs-box-body .kv-row .value { text-align: right; font-weight: bold; }
+
+    .costs-box-body .total-row {
+      border-top: 1pt solid #000;
+      padding-top: 4pt;
+      font-weight: bold;
+      font-size: 10pt;
+    }
+
+    /* Deductible section */
+    .section-title {
+      font-size: 10pt;
+      font-weight: bold;
+      color: {{ stock.colors.headerBlueBg }};
+      margin: 8pt 0 3pt 0;
+      border-bottom: 1pt solid {{ stock.colors.headerBlueBg }};
+      padding-bottom: 2pt;
+    }
+
+    .deductible-text {
+      font-size: 9pt;
+      line-height: 1.4;
+    }
+
+    /* Providers list */
+    .providers-list {
+      font-size: 9pt;
+      line-height: 1.5;
+      margin-left: 10pt;
+    }
+
+    .providers-list .provider-entry {
+      margin-bottom: 2pt;
+    }
+
+    .provider-date {
+      display: inline-block;
+      width: 120pt;
+    }
+
+    /* Be informed box */
+    .be-informed-box {
+      border: 1.5pt solid {{ stock.colors.boxBorderBlue }};
+      padding: 0;
+      margin-top: 8pt;
+      margin-bottom: 8pt;
+    }
+
+    .be-informed-header {
+      background: {{ stock.colors.lightBlueBg }};
+      padding: 3pt 8pt;
+      font-size: 10pt;
+      font-weight: bold;
+      color: {{ stock.colors.headerBlueBg }};
+    }
+
+    .be-informed-body {
+      padding: 5pt 8pt;
+      font-size: 8.5pt;
+      line-height: 1.4;
+    }
+
+    /* Language line */
+    .language-line {
+      font-size: 7pt;
+      line-height: 1.3;
+      margin-top: 6pt;
+      border-top: 0.5pt solid #999;
+      padding-top: 4pt;
+    }
+
+    /* Footer */
+    .page-footer {
+      position: absolute;
+      bottom: 0.3in;
+      left: 0.5in;
+      right: 0.5in;
+      font-size: 7pt;
+      text-align: center;
+      color: #666;
+    }
+{% endblock %}
+
+{% block body %}
+<div class="page">
+  {% set currentPage = 1 %}
+  {% include "partials/msn-header.html" %}
+
+  <div class="title-bar">
+    <div class="main-title">{{ stock.page1.mainTitle }} <span class="title-specimen">&mdash; SPECIMEN</span></div>
+    <div class="subtitle">{{ stock.page1.subtitle }}</div>
+  </div>
+  <div class="tagline">{{ stock.page1.tagline }}</div>
+
+  <div class="not-a-bill">{{ stock.page1.notABill }}</div>
+
+  <div class="address-block">
+    {% for line in metadata.memberAddress %}{{ line }}<br>{% endfor %}
+  </div>
+
+  <div class="two-col">
+    <div class="col-left">
+      <!-- Notice info box -->
+      <div class="notice-box">
+        <div class="notice-box-header">{{ stock.page1.noticeForLabel }} {{ metadata.memberName }}</div>
+        <div class="notice-box-body">
+<div class="kv-row"><span class="label">{{ stock.page1.medicareNumberLabel }}</span><span class="value">{{ metadata.medicareNumber }}</span></div>
+            <div class="kv-row"><span class="label">{{ stock.page1.dateOfNoticeLabel }}</span><span class="value">{{ metadata.dateOfNotice }}</span></div>
+            <div class="kv-row"><span class="label">{{ stock.page1.claimsProcessedLabel }}</span><span class="value">{{ metadata.processingPeriod.start }}<br>through {{ metadata.processingPeriod.end }}</span></div>
+            {% if metadata.qmbIndicator %}
+            <div class="kv-row"><span class="label">Dual-eligible status:</span><span class="value">{{ metadata.qmbIndicator }}</span></div>
+            {% endif %}
+</div>
+      </div>
+    </div>
+    <div class="col-right">
+      <!-- Claims & costs box -->
+      <div class="costs-box">
+        <div class="costs-box-header">{{ stock.page1.claimsAndCostsTitle }}</div>
+        <div class="costs-box-body">
+<div class="kv-row"><span class="label">{{ stock.page1.allServicesApprovedLabel }}</span><span class="value">{{ summary.allServicesApproved }}</span></div>
+            <div class="kv-row"><span class="label">{{ stock.page1.deniedCountLabel }}</span><span class="value">{{ summary.deniedCount }}</span></div>
+            <div class="kv-row total-row"><span class="label">{{ stock.page1.totalYouMayBeBilledLabel }}</span><span class="value">${{ summary.totalYouMayBeBilled | formatMoney }}</span></div>
+</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">{{ stock.page1.deductibleStatusTitle }}</div>
+  <div class="deductible-text">
+    {{ stock.page1.deductibleStatusText }}<br>
+    <strong>{{ stock.page1.deductibleStatusLine | replace("{met}", deductible.met | formatMoney) | replace("{deductible}", deductible.annual | formatMoney) | replace("{year}", deductible.year) }}</strong>
+  </div>
+
+  <div class="section-title">{{ stock.page1.providersTitle }}</div>
+  <div class="providers-list">
+    {% for provider in providers %}
+    <div class="provider-entry">
+      <span class="provider-date">{{ provider.dateRange }}</span>
+      {{ provider.name }}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="be-informed-box">
+    <div class="be-informed-header">{{ stock.page1.beInformedTitle }}</div>
+    <div class="be-informed-body">{{ stock.page1.beInformedText }}</div>
+  </div>
+
+  <div class="language-line">{{ stock.page1.languageLine }}</div>
+</div>
+{% endblock %}

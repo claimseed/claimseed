@@ -1,0 +1,146 @@
+name: release
+# Stages every public package of the repository (@claimseed/core, @claimseed/mcp) on npm when a version tag (v1.2.3,
+# or v1.2.3-alpha.1 for the "next" dist-tag) is pushed; all packages carry the tag's version. The gates run first, on
+# the tagged commit. The publish jobs run in the "npm" environment (usable from v* tags only) and hold the only
+# id-token permission in the repository. They STAGE each version (npm stage publish): nothing is installable until a
+# maintainer approves it on npmjs.com with two-factor authentication. Authentication is npm trusted publishing (OIDC:
+# no long-lived token exists), and every version carries a provenance statement that ties it to this workflow and
+# commit. The publish jobs install nothing from the registry but npm itself. The container image job is off unless
+# the repository variable PUBLISH_IMAGE is "true".
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.versions.outputs.packages }}
+    steps:
+      # Actions pinned to commit SHAs (tag in the comment); bump deliberately, together with ci.yml.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 22, cache: npm }
+      - name: the tag names every package's version, and the packages depend on each other at that version
+        id: versions
+        run: |
+          node <<'JS'
+          const fs = require('fs');
+          const tag = process.env.GITHUB_REF_NAME; const v = tag.replace(/^v/, '');
+          const pkgs = fs.readdirSync('packages').filter((d) => fs.existsSync(`packages/${d}/package.json`))
+            .map((d) => [d, JSON.parse(fs.readFileSync(`packages/${d}/package.json`, 'utf-8'))]).filter(([, p]) => !p.private);
+          const names = new Set(pkgs.map(([, p]) => p.name)); const bad = [];
+          for (const [, p] of pkgs) {
+            if (p.version !== v) bad.push(`${p.name} is ${p.version}`);
+            for (const s of ['dependencies', 'peerDependencies', 'optionalDependencies'])
+              for (const [n, spec] of Object.entries(p[s] || {})) if (names.has(n) && spec !== v) bad.push(`${p.name} depends on ${n}@${spec}`);
+          }
+          const mcp = pkgs.find(([d]) => d === 'mcp');
+          if (mcp) {
+            const s = JSON.parse(fs.readFileSync('packages/mcp/server.json', 'utf-8'));
+            if (s.version !== v || s.packages.some((x) => x.version !== v)) bad.push('packages/mcp/server.json names another version');
+            if (mcp[1].mcpName !== s.name) bad.push('mcpName in packages/mcp/package.json differs from server.json');
+          }
+          if (bad.length) { console.error(`tag ${tag}: ${bad.join('; ')}`); process.exit(1); }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `packages=${JSON.stringify(pkgs.map(([, p]) => p.name))}\n`);
+          console.log(`releasing ${[...names].join(', ')} at ${v}`);
+          JS
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+        env:
+          CI: 'true'
+          CLAIMSEED_CHROME: /usr/bin/google-chrome   # preinstalled on ubuntu-latest runners
+      - run: node packages/core/scripts/scan-rendered.js --seeds 2
+        env:
+          CLAIMSEED_CHROME: /usr/bin/google-chrome
+      - run: node packages/core/scripts/examples.js --check
+        env:
+          CLAIMSEED_CHROME: /usr/bin/google-chrome
+      - run: node packages/core/scripts/check-release-ready.js
+      - run: npm pack --workspaces --dry-run   # the file lists that will be published, in the log
+  publish-core:
+    needs: gates
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write   # OIDC: npm trusted publishing and the provenance statement
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24, registry-url: 'https://registry.npmjs.org' }
+      - run: npm install -g npm@11.21.0   # staged publishing needs npm 11.15.0 or later, trusted publishing 11.5.1
+      - name: stage @claimseed/core (a maintainer approves it on npmjs.com)
+        working-directory: packages/core
+        run: |
+          v="$(node -p "require('./package.json').version")"
+          tag=latest; case "$v" in *-*) tag=next ;; esac
+          npm stage publish --provenance --access public --tag "$tag"
+        env:
+          # Only while a package's trusted publisher cannot exist yet (its first release): a one-day STAGE-ONLY granular
+          # token, stored as the NPM_TOKEN secret of the "npm" environment. npm tries the OIDC credential first.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  publish-mcp:
+    # after core, so a re-run of a failed job never stages core twice; approve core first, then mcp (it pins core)
+    needs: [gates, publish-core]
+    if: contains(fromJSON(needs.gates.outputs.packages), '@claimseed/mcp')
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24, registry-url: 'https://registry.npmjs.org' }
+      - run: npm install -g npm@11.21.0
+      - name: stage @claimseed/mcp (a maintainer approves it on npmjs.com)
+        working-directory: packages/mcp
+        run: |
+          v="$(node -p "require('./package.json').version")"
+          tag=latest; case "$v" in *-*) tag=next ;; esac
+          npm stage publish --provenance --access public --tag "$tag"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  image:
+    # The MCP server image on GitHub Container Registry, built from the tagged commit and smoke-tested before the push.
+    needs: gates
+    if: vars.PUBLISH_IMAGE == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: build
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          docker build -t claimseed-mcp \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.version=$v" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --label "org.opencontainers.image.licenses=Apache-2.0" .
+      - name: smoke test, as the README runs it
+        run: |
+          mkdir -p out
+          node packages/mcp/scripts/smoke.js --host-dir out --container-dir /work -- \
+            docker run -i --rm --network none --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
+            --user "$(id -u):$(id -g)" -v "$PWD/out:/work" claimseed-mcp
+      - name: push
+        run: |
+          v="${GITHUB_REF_NAME#v}"; image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/claimseed-mcp"
+          echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker tag claimseed-mcp "$image:$v" && docker push "$image:$v"
+          case "$v" in *-*) ;; *) docker tag claimseed-mcp "$image:latest" && docker push "$image:latest" ;; esac
+          docker logout ghcr.io
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

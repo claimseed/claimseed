@@ -1,0 +1,200 @@
+{% extends "base-portrait.html" %}
+
+{% block extra_styles %}
+    .page {
+      padding: 0.4in 0.55in 0.7in 0.55in;
+    }
+
+    /* Hospital header bar */
+    .hospital-header {
+      margin-bottom: 6pt;
+    }
+
+    .hospital-header-bar {
+      background: {{ stock.colors.headerBg }};
+      color: {{ stock.colors.headerText }};
+      padding: 6pt 12pt;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .hospital-name {
+      font-size: {{ stock.fonts.logoSize }};
+      font-weight: bold;
+      letter-spacing: -0.3pt;
+    }
+
+    .hospital-address {
+      font-size: {{ stock.fonts.tinySize }};
+      margin-top: 1pt;
+      opacity: 0.9;
+    }
+
+    .hospital-contact-block {
+      font-size: {{ stock.fonts.tinySize }};
+      text-align: right;
+      line-height: 1.4;
+    }
+
+    /* Charges table */
+    .charges-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    /* Column header bar */
+    .col-header-row td {
+      background: {{ stock.colors.columnHeaderBg }};
+      color: {{ stock.colors.columnHeaderText }};
+      font-size: {{ stock.fonts.tableSize }};
+      font-weight: bold;
+      padding: 4pt 6pt;
+      letter-spacing: 0.3pt;
+    }
+
+    /* Column widths */
+    .col-revcode { width: 70pt; }
+    .col-date { width: 58pt; }
+    .col-hcpcs { width: 52pt; }
+    .col-units { width: 36pt; text-align: center; }
+    .col-description { }
+    .col-amount { width: 72pt; text-align: right; }
+
+    /* Group header row */
+    .group-header-row td {
+      background: {{ stock.colors.groupHeaderBg }};
+      font-size: {{ stock.fonts.bodySize }};
+      font-weight: bold;
+      padding: 4pt 6pt 3pt 6pt;
+      border-top: 1pt solid #CCCCCC;
+      color: {{ stock.colors.headerBg }};
+    }
+
+    /* Line item rows */
+    .line-item-row td {
+      font-size: {{ stock.fonts.tableSize }};
+      padding: 2.5pt 6pt;
+      border-bottom: 0.25pt solid #EEEEEE;
+    }
+
+    .line-item-row.zebra td {
+      background: {{ stock.colors.zebraStripeBg }};
+    }
+
+    .line-item-row .amount-cell {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .line-item-row .units-cell {
+      text-align: center;
+    }
+
+    /* Subtotal row */
+    .subtotal-row td {
+      font-size: {{ stock.fonts.tableSize }};
+      padding: 3pt 6pt;
+      border-top: 0.75pt solid {{ stock.colors.subtotalBorder }};
+      font-weight: bold;
+    }
+
+    .subtotal-row .subtotal-label {
+      text-align: right;
+      padding-right: 8pt;
+      color: #666666;
+    }
+
+    .subtotal-row .subtotal-amount {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Grand total row */
+    .grand-total-row td {
+      background: {{ stock.colors.grandTotalBg }};
+      color: {{ stock.colors.grandTotalText }};
+      font-size: {{ stock.fonts.sectionTitleSize }};
+      font-weight: bold;
+      padding: 6pt 6pt;
+    }
+
+    .grand-total-row .total-label {
+      text-align: right;
+      padding-right: 8pt;
+      letter-spacing: 0.5pt;
+    }
+
+    .grand-total-row .total-amount {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Page footer */
+    .page-footer {
+      position: absolute;
+      bottom: 0.35in;
+      left: 0.55in;
+      right: 0.55in;
+      font-size: {{ stock.fonts.tinySize }};
+      color: #999999;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-top: 0.5pt solid #CCCCCC;
+      padding-top: 4pt;
+    }
+{% endblock %}
+
+{% block body %}
+{% for chargePage in chargePages %}
+<div class="page">
+  {% include "partials/itemized-bill-header.html" %}
+
+  <table class="charges-table">
+    {% if chargePage.showColumnHeaders %}
+    <tr class="col-header-row">
+      <td class="col-revcode">{{ stock.labels.columnRevCode }}</td>
+      <td class="col-date">{{ stock.labels.columnDate }}</td>
+      <td class="col-hcpcs">{{ stock.labels.columnHcpcs }}</td>
+      <td class="col-units">{{ stock.labels.columnUnits }}</td>
+      <td class="col-description">{{ stock.labels.columnDescription }}</td>
+      <td class="col-amount">{{ stock.labels.columnAmount }}</td>
+    </tr>
+    {% endif %}
+
+    {% for block in chargePage.blocks %}
+      {% if block.type == 'group-header' %}
+    <tr class="group-header-row">
+      <td colspan="6">{{ block.revCode }} &mdash; {{ block.description }}</td>
+    </tr>
+      {% elif block.type == 'line-item' %}
+    <tr class="line-item-row{% if block.zebraIndex % 2 == 1 %} zebra{% endif %}">
+      <td class="col-revcode"></td>
+      <td class="col-date">{{ block.date }}</td>
+      <td class="col-hcpcs">{{ block.hcpcs }}</td>
+      <td class="units-cell">{% if block.units %}{{ block.units }}{% endif %}</td>
+      <td class="col-description">{{ block.description }}</td>
+      <td class="amount-cell">${{ block.amount | formatMoney }}</td>
+    </tr>
+      {% elif block.type == 'subtotal' %}
+    <tr class="subtotal-row">
+      <td colspan="5" class="subtotal-label">{{ stock.labels.subtotalLabel }}</td>
+      <td class="subtotal-amount">${{ block.amount | formatMoney }}</td>
+    </tr>
+      {% elif block.type == 'grand-total' %}
+    <tr class="grand-total-row">
+      <td colspan="5" class="total-label">{{ stock.labels.totalChargesLabel }}</td>
+      <td class="total-amount">${{ block.amount | formatMoney }}</td>
+    </tr>
+      {% endif %}
+    {% endfor %}
+  </table>
+
+  <div class="page-footer">
+    <div>{{ stock.footer.confidentiality }}</div>
+    <div>Account: {{ metadata.accountNumber }} &nbsp;|&nbsp; Page {{ chargePage.pageNumber }} of {{ metadata.pageCount }}</div>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

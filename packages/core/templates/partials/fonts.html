@@ -1,0 +1,10 @@
+<style>
+{% for f in fontFaces %}@font-face { font-family: '{{ f.family }}'; font-style: normal; font-weight: {{ f.weight | int }}; src: url('{{ f.dataUri }}') format('woff2'); }
+{% endfor %}
+  /* claimseed specimen markers. The band and watermark that count are stamped into the PDF by finalizePdf()
+     (pdf-lib, after rendering) and cannot be affected by templates or data; the header badge below is a visual
+     extra. The band area at the bottom of every page is reserved so stamped text never overlaps content. */
+  .title-specimen { font-weight: 700; letter-spacing: 0.3pt; opacity: 0.95; }
+  .claims-specimen-line { color: #8A3D16; font-weight: 700; }
+  .specimen-badge { display: inline-flex; align-items: center; border: 1.5pt solid #B8531E; color: #B8531E; border-radius: 3pt; padding: 1pt 5pt; font-family: 'Inter', 'Noto Sans', sans-serif; font-size: 8pt; font-weight: 700; letter-spacing: 0.3pt; }
+</style>

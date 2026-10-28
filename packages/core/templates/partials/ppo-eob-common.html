@@ -1,0 +1,48 @@
+{#- Corvane (ppo-eob) shared styles and macros. Original claimseed design: slate ink with an olive accent,
+    a two-square CSS mark and a spaced wordmark. No images, no symbol glyphs. -#}
+{% macro styles(stock) %}
+    .cv-mark { display: inline-block; position: relative; width: 17pt; height: 17pt; margin-right: 6pt; vertical-align: middle; }
+    .cv-mark::before { content: ''; position: absolute; left: 0; top: 0; width: 11pt; height: 11pt; background: {{ stock.colors.ink }}; }
+    .cv-mark::after { content: ''; position: absolute; right: 0; bottom: 0; width: 11pt; height: 11pt; background: {{ stock.colors.accent }}; mix-blend-mode: multiply; }
+    .cv-word { font-family: 'Inter', sans-serif; font-weight: 700; font-size: {{ stock.fonts.logoSize }}; letter-spacing: 0.8pt; color: {{ stock.colors.ink }}; vertical-align: middle; }
+    .cv-desc { display: block; font-size: 6.5pt; letter-spacing: 0.2pt; text-transform: uppercase; color: {{ stock.colors.muted }}; margin-top: 1pt; margin-left: 23pt; }
+    .cv-brand { display: flex; align-items: center; gap: 10pt; }
+    .cv-brand .specimen-badge { margin-left: 4pt; }
+    .cv-footer { position: absolute; left: 0.5in; right: 0.5in; bottom: 0.3in; display: flex; justify-content: space-between; font-size: 6.5pt; color: {{ stock.colors.muted }}; border-top: 0.5pt solid {{ stock.colors.rule }}; padding-top: 3pt; }
+    .cv-h2 { font-size: 10.5pt; font-weight: 700; color: {{ stock.colors.ink }}; margin: 0 0 4pt 0; }
+    .cv-h3 { font-size: 9pt; font-weight: 700; color: {{ stock.colors.ink }}; margin: 0 0 3pt 0; }
+    .cv-rule-accent { height: 3pt; background: {{ stock.colors.accent }}; width: 36pt; margin: 2pt 0 6pt 0; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    th.num { white-space: normal; }   /* column headings wrap; only the figures stay on one line */
+    .nab { display: inline-block; background: {{ stock.colors.ink }}; color: #fff; font-weight: 700; letter-spacing: 0.4pt; font-size: 8pt; padding: 2.5pt 7pt; border-radius: 2pt; }
+{% endmacro %}
+
+{% macro innerHeader(stock, metadata, pageNumber, landscape) %}
+<div class="cv-inner-header">
+  <div class="cv-brand">
+    <div><span class="cv-mark"></span><span class="cv-word" style="font-size: 12pt;">{{ stock.brand.wordmark }}</span></div>
+    <span class="specimen-badge">SPECIMEN</span>
+    <span class="nab">{{ stock.cover.notABill }}</span>
+  </div>
+  <div class="cv-inner-meta">
+    <div><span class="lbl">{{ stock.header.memberLabel }}</span> {{ metadata.memberName }}</div>
+    <div><span class="lbl">{{ stock.header.memberIdLabel }}</span> {{ metadata.memberId }}<span class="sep"></span><span class="lbl">{{ stock.header.statementDateLabel }}</span> {{ metadata.statementDate }}</div>
+    <div class="pg">{{ stock.header.pageLabel }} {{ pageNumber }} of {{ metadata.pageCount }}</div>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro innerHeaderStyles(stock) %}
+    .cv-inner-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1.25pt solid {{ stock.colors.ink }}; padding-bottom: 5pt; margin-bottom: 8pt; height: 40pt; }
+    .cv-inner-meta { text-align: right; font-size: 7.5pt; line-height: 1.35; }
+    .cv-inner-meta .lbl { color: {{ stock.colors.muted }}; margin-right: 2pt; }
+    .cv-inner-meta .sep { display: inline-block; width: 10pt; }
+    .cv-inner-meta .pg { font-weight: 700; color: {{ stock.colors.ink }}; }
+{% endmacro %}
+
+{% macro footer(stock, metadata, pageNumber) %}
+<div class="cv-footer">
+  <div>{{ metadata.issuer.name }} &nbsp;|&nbsp; {{ metadata.planName }} &nbsp;|&nbsp; {{ stock.footer.specimen }}</div>
+  <div>{{ metadata.documentId }} &nbsp;|&nbsp; {{ stock.header.pageLabel }} {{ pageNumber }} of {{ metadata.pageCount }}</div>
+</div>
+{% endmacro %}

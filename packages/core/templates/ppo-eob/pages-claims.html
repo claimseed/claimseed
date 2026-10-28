@@ -1,0 +1,113 @@
+{% extends "base-landscape.html" %}
+{% import "partials/ppo-eob-common.html" as cv %}
+
+{% block extra_styles %}
+{{ cv.styles(stock) }}
+{{ cv.innerHeaderStyles(stock) }}
+    .page { padding: 0.32in 0.45in 0.62in 0.45in; }
+    .cv-footer { left: 0.45in; right: 0.45in; }
+    .cv-claims-title { font-size: 13pt; font-weight: 700; color: {{ stock.colors.ink }}; height: 18pt; }
+    .cv-claims-intro { font-size: 7.8pt; color: {{ stock.colors.muted }}; height: 24pt; line-height: 1.35; max-width: 8.4in; }
+
+    .cv-claim { margin-bottom: 4pt; }
+    .cv-claim-head { height: 34pt; padding-top: 7pt; display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 3pt; }
+    .cv-claim-head .prov { font-size: 9.5pt; font-weight: 700; color: {{ stock.colors.ink }}; }
+    .cv-claim-head .prov .cont { font-weight: 400; font-size: 7.5pt; color: {{ stock.colors.muted }}; margin-left: 5pt; }
+    .cv-claim-head .net { display: inline-block; font-size: 6.8pt; font-weight: 600; color: {{ stock.colors.accent }}; border: 0.75pt solid {{ stock.colors.accent }}; padding: 0.5pt 4pt; margin-left: 6pt; border-radius: 6pt; vertical-align: 1pt; }
+    .cv-claim-head .clm { font-size: 7.8pt; color: {{ stock.colors.muted }}; }
+    .cv-claim-head .clm b { color: {{ stock.colors.text }}; font-weight: 600; }
+
+    table.cv-lines { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    table.cv-lines col.date { width: 0.72in; }
+    table.cv-lines col.svc { width: 3.95in; }
+    table.cv-lines col.code { width: 0.68in; }
+    table.cv-lines col.amt { width: 1.03in; }
+    table.cv-lines col.notes { width: 0.62in; }
+    table.cv-lines th { height: 23pt; background: {{ stock.colors.tableHeaderBg }}; color: {{ stock.colors.tableHeaderText }}; font-size: 7pt; font-weight: 600; text-align: left; padding: 2pt 5pt; vertical-align: middle; line-height: 1.15; }
+    table.cv-lines th.num { text-align: right; }
+    table.cv-lines th.ctr, table.cv-lines td.ctr { text-align: center; }
+    table.cv-lines th.yours { background: {{ stock.colors.accent }}; }
+    table.cv-lines td { height: 15pt; font-size: 7.8pt; padding: 1.5pt 5pt; border-bottom: 0.5pt solid {{ stock.colors.rule }}; vertical-align: middle; line-height: 12pt; }
+    table.cv-lines tbody tr.line:nth-child(even) td { background: {{ stock.colors.zebra }}; }
+    table.cv-lines td.yours { background: {{ stock.colors.accentSoft }} !important; font-weight: 600; }
+    table.cv-lines tr.total td { height: 17pt; font-weight: 700; border-top: 1pt solid {{ stock.colors.ink }}; border-bottom: 1pt solid {{ stock.colors.ink }}; background: #fff; }
+
+    .cv-continues { font-size: 7.5pt; font-weight: 600; color: {{ stock.colors.ink }}; text-align: right; margin-top: 3pt; }
+    .cv-notes { position: absolute; left: 0.45in; right: 0.45in; bottom: 0.6in; border-top: 0.75pt solid {{ stock.colors.ink }}; padding-top: 3pt; }
+    .cv-notes .t { font-size: 7.5pt; font-weight: 700; color: {{ stock.colors.ink }}; height: 12pt; }
+    .cv-notes .n { font-size: 7.4pt; line-height: 11pt; }
+    .cv-notes .n b { display: inline-block; min-width: 18pt; color: {{ stock.colors.ink }}; }
+{% endblock %}
+
+{% block body %}
+{% for page in claimPages %}
+<div class="page">
+  {{ cv.innerHeader(stock, metadata, page.pageNumber, true) }}
+
+  {% if page.first %}
+  <div class="cv-claims-title">{{ stock.claims.title }} &nbsp;<span style="font-weight:400; font-size: 9pt; color: {{ stock.colors.muted }}">{{ metadata.processingPeriod.month }}</span></div>
+  <div class="cv-claims-intro">{{ stock.claims.intro }}</div>
+  {% endif %}
+
+  {% for block in page.blocks %}
+  <div class="cv-claim">
+    <div class="cv-claim-head">
+      <div class="prov">{{ block.claim.providerName }}<span class="net">{{ block.claim.networkStatus }}</span>{% if block.continuedFromPrev %}<span class="cont">({{ stock.claims.continuedFrom }})</span>{% endif %}</div>
+      <div class="clm">{{ stock.claims.claimLabel }} <b>{{ block.claim.claimNumber }}</b></div>
+    </div>
+    <table class="cv-lines">
+      <colgroup><col class="date"><col class="svc"><col class="code"><col class="amt"><col class="amt"><col class="amt"><col class="amt"><col class="notes"></colgroup>
+      <thead>
+        <tr>
+          <th>{{ stock.claims.columns.date }}</th>
+          <th>{{ stock.claims.columns.service }}</th>
+          <th>{{ stock.claims.columns.code }}</th>
+          <th class="num">{{ stock.claims.columns.billed }}</th>
+          <th class="num">{{ stock.claims.columns.approved }}</th>
+          <th class="num">{{ stock.claims.columns.planShare }}</th>
+          <th class="num yours">{{ stock.claims.columns.yourShare }}</th>
+          <th class="ctr">{{ stock.claims.columns.notes }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in block.lines %}
+        <tr class="line">
+          <td>{{ l.dateOfService }}</td>
+          <td>{{ l.description }}</td>
+          <td>{{ l.cptCode }}</td>
+          <td class="num">${{ l.providerBilled | formatMoney }}</td>
+          <td class="num">${{ l.planApproved | formatMoney }}</td>
+          <td class="num">${{ l.planShare | formatMoney }}</td>
+          <td class="num yours">${{ l.yourShare | formatMoney }}</td>
+          <td class="ctr">{{ l.notes | join(", ") }}</td>
+        </tr>
+        {% endfor %}
+        {% if block.showTotals %}
+        <tr class="total">
+          <td colspan="3">{{ stock.claims.totalLabel }}, {{ block.claim.claimNumber }}</td>
+          <td class="num">${{ block.claim.claimTotal.providerBilled | formatMoney }}</td>
+          <td class="num">${{ block.claim.claimTotal.planApproved | formatMoney }}</td>
+          <td class="num">${{ block.claim.claimTotal.planShare | formatMoney }}</td>
+          <td class="num yours">${{ block.claim.claimTotal.yourShare | formatMoney }}</td>
+          <td></td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+    {% if block.continuesNext %}<div class="cv-continues">{{ stock.claims.continuesOn }} &raquo;</div>{% endif %}
+  </div>
+  {% endfor %}
+
+  {% if page.moreClaimsFollow and not page.continues %}<div class="cv-continues">{{ stock.claims.pageContinues }} &raquo;</div>{% endif %}
+
+  {% if page.notes.length %}
+  <div class="cv-notes">
+    <div class="t">{{ stock.claims.notesTitle }}</div>
+    {% for n in page.notes %}<div class="n"><b>{{ n.id }}</b>{{ n.text }}</div>{% endfor %}
+  </div>
+  {% endif %}
+
+  {{ cv.footer(stock, metadata, page.pageNumber) }}
+</div>
+{% endfor %}
+{% endblock %}

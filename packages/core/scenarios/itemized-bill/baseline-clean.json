@@ -1,0 +1,36 @@
+{
+  "type": "itemized-bill",
+  "slug": "baseline-clean",
+  "status": "published",
+  "description": "Clean itemized statement from a fictional hospital outpatient department for the reference patient (surname Specimen): three department groups (clinic, laboratory, radiology), subtotals that match their lines, and a balance due equal to the Part B deductible plus coinsurance Medicare reported. The control a reviewer should pass.",
+  "period": {
+    "start": "2026-03-01",
+    "end": "2026-03-31"
+  },
+  "claimCount": 3,
+  "referenceSurname": true,
+  "claimShapes": [
+    "IM",
+    "LAB",
+    "RAD"
+  ],
+  "mutations": [],
+  "sources": [
+    {
+      "what": "Right to an itemized statement from any provider or supplier within 30 days of a request",
+      "source": "Social Security Act §1806(b), https://www.ssa.gov/OP_Home/ssact/title18/1806.htm"
+    },
+    {
+      "what": "Under assignment the provider accepts the approved amount as full payment and collects only the deductible and coinsurance",
+      "source": "42 CFR 424.55(b), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-424/subpart-F/section-424.55"
+    },
+    {
+      "what": "Hospital statements group charges by revenue-code category; laboratory is 0300–0319",
+      "source": "CMS Medicare Claims Processing Manual, Pub. 100-04, ch. 25 §75.4, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c25.pdf"
+    },
+    {
+      "what": "2026 Part B deductible and 20% coinsurance",
+      "source": "https://www.cms.gov/newsroom/fact-sheets/2026-medicare-parts-b-premiums-deductibles"
+    }
+  ]
+}

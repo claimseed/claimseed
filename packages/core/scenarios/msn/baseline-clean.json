@@ -1,0 +1,16 @@
+{
+  "type": "msn",
+  "slug": "baseline-clean",
+  "status": "published",
+  "description": "Clean Part B Medicare Summary Notice for the reference patient (surname Specimen): three assigned claims in one month, every service approved, all amounts consistent. Use it as the control a reviewer should pass without findings.",
+  "period": { "start": "2026-03-01", "end": "2026-03-31" },
+  "claimCount": 3,
+  "referenceSurname": true,
+  "mutations": [],
+  "sources": [
+    { "what": "What an MSN is, how often it is sent and what it shows", "source": "https://www.medicare.gov/basics/forms-publications-mailings/mailings/costs-and-coverage/medicare-summary-notice" },
+    { "what": "Section order and column meanings of the Part B MSN (CMS reading guide)", "source": "https://medicare.gov/media/document/summarynoticeb.pdf" },
+    { "what": "MSN content and format specifications", "source": "CMS Medicare Claims Processing Manual, Pub. 100-04, ch. 21 §10.3, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c21.pdf" },
+    { "what": "2026 Part B deductible ($283) and 20% coinsurance", "source": "https://www.cms.gov/newsroom/fact-sheets/2026-medicare-parts-b-premiums-deductibles" }
+  ]
+}

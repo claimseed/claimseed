@@ -1,0 +1,50 @@
+{#- Tessara (hmo-eob) shared styles and macros. Original claimseed design: oxblood ink on warm sand, a serif
+    lower-case wordmark and a four-tile CSS mark. No images, no symbol glyphs. -#}
+{% macro styles(stock) %}
+    .page { padding: 0; }
+    .ts-body { position: absolute; left: 0.55in; right: 0.55in; top: 0; bottom: 0; }
+    .ts-tiles { display: inline-grid; grid-template-columns: 7pt 7pt; grid-template-rows: 7pt 7pt; gap: 2pt; margin-right: 7pt; vertical-align: middle; }
+    .ts-tiles i { display: block; background: #fff; }
+    .ts-tiles i.s { background: {{ stock.colors.sandDeep }}; }
+    .ts-tiles.dark i { background: {{ stock.colors.ink }}; }
+    .ts-tiles.dark i.s { background: {{ stock.colors.sandDeep }}; }
+    .ts-word { font-family: 'Noto Serif', serif; font-weight: 700; font-size: {{ stock.fonts.logoSize }}; letter-spacing: 0.4pt; vertical-align: middle; }
+    .ts-desc { font-family: 'Noto Sans', sans-serif; font-size: 6.8pt; letter-spacing: 0.2pt; text-transform: uppercase; margin-left: 6pt; vertical-align: middle; }
+    .ts-h2 { font-family: 'Noto Serif', serif; font-size: 11pt; font-weight: 700; color: {{ stock.colors.ink }}; margin-bottom: 4pt; }
+    .ts-h3 { font-size: 8.6pt; font-weight: 700; color: {{ stock.colors.ink }}; margin-bottom: 2.5pt; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    th.num { white-space: normal; }   /* column headings wrap; only the figures stay on one line */
+    .ts-footer { position: absolute; left: 0.55in; right: 0.55in; bottom: 0.32in; display: flex; justify-content: space-between; font-size: 6.6pt; color: {{ stock.colors.muted }}; }
+    .ts-footer .pg { font-weight: 700; color: {{ stock.colors.ink }}; }
+    .ts-chip { display: inline-block; background: #fff; padding: 2pt 3pt; border-radius: 3pt; }
+
+    .ts-inner-top { position: absolute; left: 0; right: 0; top: 0; height: 7pt; background: {{ stock.colors.ink }}; }
+    .ts-inner-header { position: absolute; left: 0.55in; right: 0.55in; top: 0.3in; height: 44pt; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.75pt solid {{ stock.colors.rule }}; }
+    .ts-inner-header .brand { color: {{ stock.colors.ink }}; display: flex; align-items: center; gap: 10pt; }
+    .ts-inner-header .brand .ts-word { font-size: 13pt; }
+    .ts-inner-meta { text-align: right; font-size: 7.4pt; line-height: 1.4; }
+    .ts-inner-meta .lbl { color: {{ stock.colors.muted }}; }
+    .ts-inner-meta .pg { font-weight: 700; color: {{ stock.colors.ink }}; }
+    .ts-content { position: absolute; left: 0.55in; right: 0.55in; top: 1.08in; bottom: 0.7in; }
+{% endmacro %}
+
+{% macro tiles(dark) %}<span class="ts-tiles{% if dark %} dark{% endif %}"><i></i><i class="s"></i><i class="s"></i><i></i></span>{% endmacro %}
+
+{% macro innerHeader(stock, metadata, pageNumber) %}
+<div class="ts-inner-top"></div>
+<div class="ts-inner-header">
+  <div class="brand"><div>{{ tiles(true) }}<span class="ts-word">{{ stock.brand.wordmark }}</span></div><span class="specimen-badge">SPECIMEN</span></div>
+  <div class="ts-inner-meta">
+    <div>{{ metadata.memberName }} &nbsp;<span class="lbl">{{ stock.header.memberIdLabel }}</span> {{ metadata.memberId }}</div>
+    <div><span class="lbl">{{ stock.header.noticeDateLabel }}</span> {{ metadata.dateOfNotice }} &nbsp; <b>{{ stock.cover.notABill }}</b></div>
+    <div class="pg">{{ stock.header.pageLabel }} {{ pageNumber }} of {{ metadata.pageCount }}</div>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro footer(stock, metadata, pageNumber) %}
+<div class="ts-footer">
+  <div>{{ metadata.issuer.name }} &nbsp;&middot;&nbsp; {{ metadata.planName }} &nbsp;&middot;&nbsp; {{ metadata.documentId }}</div>
+  <div class="pg">{{ stock.header.pageLabel }} {{ pageNumber }} of {{ metadata.pageCount }}</div>
+</div>
+{% endmacro %}

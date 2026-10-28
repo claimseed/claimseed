@@ -1,0 +1,279 @@
+{
+  "carrier": "hmo-eob",
+  "payer": {
+    "name": "Tessara Health Plan",
+    "legalName": "Tessara Health Plan, Inc.",
+    "planName": "Tessara Complete (HMO)",
+    "address": [
+      "Tessara Health Plan",
+      "Member Correspondence",
+      "4100 Fictitious Road",
+      "Tucson, AZ 85701"
+    ],
+    "phone": "520-555-0160",
+    "tty": "711",
+    "hours": "8 a.m. to 8 p.m. local time, every day",
+    "website": "my.tessara.example"
+  },
+  "fonts": {
+    "family": "'Noto Sans', 'Inter', 'Noto Sans SC', 'Noto Sans KR', sans-serif",
+    "bodySize": "8.5pt",
+    "logoSize": "17pt"
+  },
+  "colors": {
+    "text": "#221A1C",
+    "ink": "#6B2737",
+    "inkSoft": "#F4ECEE",
+    "sand": "#EFE6D8",
+    "sandDeep": "#C9B79C",
+    "rule": "#CDBFC2",
+    "muted": "#5E5457",
+    "tableHeaderBg": "#EFE6D8",
+    "tableHeaderText": "#221A1C",
+    "zebra": "#FAF7F2"
+  },
+  "brand": {
+    "wordmark": "tessara",
+    "descriptor": "Health Plan"
+  },
+  "header": {
+    "noticeDateLabel": "Date of notice",
+    "memberIdLabel": "Member ID",
+    "pageLabel": "Page"
+  },
+  "cover": {
+    "kicker": "Explanation of Benefits",
+    "titlePrefix": "Your medical claims for",
+    "notABill": "This is not a bill",
+    "notABillText": "This notice explains how your plan handled the claims your providers sent us. Any balance you still owe is between you and the provider; we do not collect it.",
+    "specimenLine": "Synthetic test document — not issued by any health plan",
+    "greeting": "Dear Member,",
+    "intro": "Thank you for being a member of {planName}. This notice covers claims we processed between {periodStart} and {periodEnd}. Please look it over and keep it with your health records.",
+    "detailsLabels": {
+      "noticeDate": "Date of notice",
+      "memberName": "Member",
+      "memberId": "Member ID",
+      "plan": "Plan",
+      "period": "Claims processed",
+      "documentId": "Document ID"
+    },
+    "totalsTitle": "Your plan's totals",
+    "monthHeading": "This period",
+    "ytdHeading": "This year",
+    "totalsRows": [
+      {
+        "key": "providersCharged",
+        "label": "Providers charged"
+      },
+      {
+        "key": "planApproved",
+        "label": "Plan approved"
+      },
+      {
+        "key": "amountPlanPaid",
+        "label": "Plan paid"
+      },
+      {
+        "key": "maxYouMayBeBilled",
+        "label": "Most you may be billed"
+      }
+    ],
+    "totalsNote": "Plan approved = Plan paid + Most you may be billed. You never owe more than the plan-approved amount to a plan provider.",
+    "moopTitle": "Your yearly out-of-pocket limit",
+    "moopText": "Your copayments and coinsurance for covered medical services count toward this limit. When you reach it, you pay nothing more for the plan's covered medical services during the rest of the calendar year.",
+    "moopUsedLabel": "Counted so far",
+    "moopLimitLabel": "Yearly limit",
+    "moopLeftLabel": "Still to go",
+    "noDeductible": "Your plan has no medical deductible.",
+    "glanceTitle": "Your claims at a glance",
+    "glanceColumns": {
+      "provider": "Provider",
+      "claim": "Claim number",
+      "dates": "Service date",
+      "owe": "Most you may be billed"
+    },
+    "glanceNote": "Line-by-line details begin on page 2.",
+    "callTitle": "Questions? We are here to help.",
+    "callText": "Member Services: {phone} (TTY {tty})",
+    "callHours": "{hours}",
+    "callWeb": "{website}"
+  },
+  "claims": {
+    "title": "Details about your claims",
+    "intro": "For each claim we show every service on it. Each code in the Notes column is explained beneath the claims on the same page.",
+    "columns": {
+      "service": "Service you received",
+      "charged": "Provider's charge",
+      "approved": "Plan approved",
+      "paid": "Plan paid",
+      "owe": "Most you may be billed",
+      "notes": "Notes"
+    },
+    "codeLabel": "Code",
+    "dateLabel": "Date",
+    "claimLabel": "Claim",
+    "totalLabel": "Total for this claim",
+    "continuedFrom": "(continued)",
+    "continuesOn": "Continued on next page",
+    "notesTitle": "Notes",
+    "pageContinues": "More claims on the next page"
+  },
+  "info": {
+    "title": "About this notice",
+    "termsTitle": "What the columns mean",
+    "terms": [
+      {
+        "term": "Provider's charge",
+        "text": "What the provider billed for the service. This is often more than the plan approves."
+      },
+      {
+        "term": "Plan approved",
+        "text": "The amount the plan has agreed to pay plan providers for a covered service. A plan provider accepts it as full payment."
+      },
+      {
+        "term": "Plan paid",
+        "text": "What we paid the provider."
+      },
+      {
+        "term": "Most you may be billed",
+        "text": "Your copayment or coinsurance for the service. It is the most the provider may bill you."
+      }
+    ],
+    "hmoTitle": "Using your HMO plan",
+    "hmo": [
+      "Get your care from plan providers. Except for emergency and urgently needed care, services from providers outside the plan are generally not covered.",
+      "Your primary care provider coordinates your care. Some services need a referral or the plan's approval first."
+    ],
+    "questionsTitle": "If something does not look right",
+    "questions": [
+      "Call the provider's office if a bill does not match the amount in the column Most you may be billed.",
+      "Call us at {phone} (TTY {tty}) if a claim looks wrong. We can review it with you.",
+      "You can appeal when we decide not to pay, or to pay less, for your care. Each such decision comes with its own written notice that lists the steps and the time limit.",
+      "Free counseling about your Medicare coverage is available from the State Health Insurance Assistance Programs (SHIPs). You can also call 1-800-MEDICARE (1-800-633-4227); TTY users can call 1-877-486-2048."
+    ],
+    "deniedTitle": "About services we did not cover",
+    "denied": [
+      "We did not cover some services on this notice, and their notes say why. A written denial notice will follow, telling you how to appeal and how long you have to do it."
+    ],
+    "fraudTitle": "Spot and report fraud",
+    "fraud": [
+      "Watch for services you never received, the same service listed twice, or a provider you never saw.",
+      "Report anything suspicious to our Special Investigations line at {fraudPhone} (TTY {tty}), or call 1-800-MEDICARE (1-800-633-4227); TTY users can call 1-877-486-2048.",
+      "Keep your member ID card safe, as you would a credit card."
+    ],
+    "fraudPhone": "520-555-0162",
+    "contactTitle": "Contact us",
+    "contactRows": [
+      {
+        "label": "Call",
+        "value": "{phone}"
+      },
+      {
+        "label": "TTY",
+        "value": "{tty}"
+      },
+      {
+        "label": "Hours",
+        "value": "{hours}"
+      },
+      {
+        "label": "Online",
+        "value": "{website}"
+      }
+    ],
+    "mailTitle": "Mail"
+  },
+  "notices": {
+    "title": "Important information about your rights",
+    "nondiscriminationTitle": "We do not discriminate",
+    "nondiscrimination": [
+      "{legalName} complies with all applicable federal civil rights laws, including Section 1557 of the Affordable Care Act (Section 1557). {legalName} does not discriminate on the basis of race, color, national origin (including limited English proficiency and primary language), age, disability, or sex (consistent with the scope of sex discrimination described at 45 CFR § 92.101(a)(2)).",
+      "In compliance with Section 1557 and other federal civil rights laws, we provide individuals the following in a timely manner and free of charge:"
+    ],
+    "nondiscriminationServices": [
+      {
+        "lead": "Language assistance services.",
+        "text": "{legalName} will provide language assistance services for individuals with limited English proficiency (including individuals' companions with limited English proficiency) to ensure meaningful access to our programs, activities, services, and other benefits. Language assistance services may include:",
+        "items": [
+          "Electronic and written translated documents",
+          "Qualified interpreters"
+        ]
+      },
+      {
+        "lead": "Appropriate auxiliary aids and services.",
+        "text": "{legalName} will provide appropriate auxiliary aids and services for individuals with disabilities (including individuals' companions with disabilities) to ensure effective communication. Appropriate auxiliary aids and services may include:",
+        "items": [
+          "Qualified interpreters, including American Sign Language interpreters",
+          "Video remote interpreting",
+          "Information in alternate formats (including but not limited to large print, recorded audio, and accessible electronic formats)"
+        ]
+      },
+      {
+        "lead": "Reasonable modifications.",
+        "text": "{legalName} will provide reasonable modifications for qualified individuals with disabilities, when necessary to ensure accessibility and equal opportunity to participate in our programs, activities, services, or other benefits."
+      }
+    ],
+    "nondiscriminationAfter": [
+      "To ask for any of this help, call {phone} (TTY {tty}), {hours}.",
+      "For additional assistance, you may also contact our Section 1557 Coordinator at 520-555-0163 (TTY 711)."
+    ],
+    "grievanceTitle": "To file a grievance",
+    "grievance": [
+      "If you believe {legalName} has failed to provide these services or has discriminated in another way on the basis of race, color, national origin, sex, age, or disability, you can:",
+      "1. File a grievance with {legalName}. To do so, write to, call or email our Section 1557 Coordinator (details at right), or visit in person; the Coordinator can help you prepare it.",
+      "2. File a complaint with the U.S. Department of Health and Human Services, Office for Civil Rights: Electronically: https://ocrportal.hhs.gov/ocr/smartscreen/main.jsf. Via mail: U.S. Department of Health & Human Services, 200 Independence Avenue, S.W. – 509F, Washington, D.C. 20201."
+    ],
+    "coordinator": [
+      "Section 1557 Coordinator",
+      "Tessara Health Plan, Inc.",
+      "4100 Fictitious Road, Mail Stop 12",
+      "Tucson, AZ 85701",
+      "520-555-0163 (TTY 711)",
+      "rights@tessara.example"
+    ],
+    "languageTitle": "Free language help",
+    "taglines": [
+      {
+        "lang": "English",
+        "text": "Language assistance services, free of charge, are available to you. Call {phone} (TTY: {tty})."
+      },
+      {
+        "lang": "Español",
+        "text": "Usted tiene el derecho a recibir ayuda e información en su idioma sin costo alguno. Llame al {phone} (TTY: {tty})."
+      },
+      {
+        "lang": "中文",
+        "text": "你有權利免費用您的語言獲得幫助和資訊。請致電 {phone}（TTY：{tty}）。"
+      },
+      {
+        "lang": "Tiếng Việt",
+        "text": "Quý vị có quyền nhận sự giúp đỡ và thông tin bằng ngôn ngữ của mình miễn phí. Xin gọi số {phone} (TTY: {tty})."
+      },
+      {
+        "lang": "한국어",
+        "text": "한국어로 도움과 필요한 정보를 무료로 받을 수 있는 권리가 있습니다. {phone} (TTY: {tty}) 으로 전화하십시오."
+      },
+      {
+        "lang": "Tagalog",
+        "text": "Mayroon kang karapatan makakuha ng tulong at impormasyon sa iyong wika na walang gastos. Tumawag sa {phone} (TTY: {tty})."
+      },
+      {
+        "lang": "Français",
+        "text": "Vous avez le droit d'obtenir de l'aide et des renseignements dans votre langue sans aucun coût. Composez le {phone} (TTY : {tty})."
+      },
+      {
+        "lang": "Português",
+        "text": "Você tem o direito de obter ajuda e informação em seu idioma e sem nenhum custo adicional. Ligue para {phone} (TTY: {tty})."
+      },
+      {
+        "lang": "Deutsch",
+        "text": "Sie haben das Recht, Hilfe und Informationen kostenlos in Ihrer eigenen Sprache in Anspruch zu nehmen. Rufen Sie bitte diese Nummer an: {phone} (TTY: {tty})."
+      },
+      {
+        "lang": "Italiano",
+        "text": "Avete il diritto di ottenere assistenza e informazioni nella vostra lingua a titolo gratuito. Potete chiamare il numero {phone} (TTY: {tty})."
+      }
+    ],
+    "specimenNote": "Specimen layout: a real plan's notice lists at least the 15 languages most commonly spoken in its state; this specimen shows a shorter set written in languages its bundled fonts can display."
+  }
+}

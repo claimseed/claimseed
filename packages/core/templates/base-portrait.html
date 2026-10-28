@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @page {
+      size: 8.5in 11in;
+      margin: 0;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 8.5in;
+      height: 11in;
+    }
+
+    body {
+      font-family: {{ stock.fonts.family | safe }};
+      font-size: {{ stock.fonts.bodySize }};
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      line-height: 1.3;
+      color: {{ stock.colors.text }};
+      -webkit-font-smoothing: antialiased;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .page {
+      width: 8.5in;
+      height: 11in;
+      padding: 0.45in 0.5in 0.5in 0.5in;
+      page-break-after: always;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .page:last-child {
+      page-break-after: avoid;
+    }
+
+    /* ===== Common footer ===== */
+    .page-footer {
+      position: absolute;
+      bottom: 0.3in;
+      left: 0.5in;
+      right: 0.5in;
+      font-size: 7pt;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    /* ===== Tables ===== */
+    table {
+      border-collapse: collapse;
+    }
+
+    .table-header-bg {
+      background: {{ stock.colors.tableHeaderBg }};
+    }
+
+    {% block extra_styles %}{% endblock %}
+  </style>
+</head>
+<body>
+{% include "partials/fonts.html" %}
+  {% block body %}{% endblock %}
+</body>
+</html>

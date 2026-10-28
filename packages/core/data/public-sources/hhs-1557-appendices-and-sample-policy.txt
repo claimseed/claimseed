@@ -1,0 +1,102 @@
+HHS Section 1557 public texts, fetched verbatim on 2026-10-26 (page text / pdf.js). Three parts, each with its source URL.
+
+=== PART 1: 45 CFR Part 92, Appendix A (eCFR point-in-time 2019-01-01) ===
+Source: https://www.ecfr.gov/on/2019-01-01/title-45/subtitle-A/subchapter-A/part-92/appendix-Appendix%20A%20to%20Part%2092
+Appendix A to Part 92 - Sample Notice Informing Individuals About Nondiscrimination and Accessibility Requirements and Sample Nondiscrimination Statement: Discrimination is Against the Law
+
+[Name of covered entity] complies with applicable Federal civil rights laws and does not discriminate on the basis of race, color, national origin, age, disability, or sex. [Name of covered entity] does not exclude people or treat them differently because of race, color, national origin, age, disability, or sex.
+
+[Name of covered entity]:
+
+• Provides free aids and services to people with disabilities to communicate effectively with us, such as:
+
+○ Qualified sign language interpreters
+
+○ Written information in other formats (large print, audio, accessible electronic formats, other formats)
+
+• Provides free language services to people whose primary language is not English, such as:
+
+○ Qualified interpreters
+
+○ Information written in other languages
+
+If you need these services, contact [Name of Civil Rights Coordinator]
+
+If you believe that [Name of covered entity] has failed to provide these services or discriminated in another way on the basis of race, color, national origin, age, disability, or sex, you can file a grievance with: [Name and Title of Civil Rights Coordinator], [Mailing Address], [Telephone number ], [TTY number - if covered entity has one], [Fax], [Email]. You can file a grievance in person or by mail, fax, or email. If you need help filing a grievance, [Name and Title of Civil Rights Coordinator] is available to help you. You can also file a civil rights complaint with the U.S. Department of Health and Human Services, Office for Civil Rights electronically through the Office for Civil Rights Complaint Portal, available at https://ocrportal.hhs.gov/ocr/portal/lobby.jsf, or by mail or phone at: U.S. Department of Health and Human Services, 200 Independence Avenue SW., Room 509F, HHH Building, Washington, DC 20201, 1-800-368-1019, 800-537-7697 (TDD).
+
+Complaint forms are available at http://www.hhs.gov/ocr/office/file/index.html.
+
+Nondiscrimination statement for significant publications and signification communications that are small-size:
+
+[Name of covered entity] complies with applicable Federal civil rights laws and does not discriminate on the basis of race, color, national origin, age, disability, or sex.
+
+[81 FR 31465, May 18, 2016; 81 FR 46613, July 18, 2016]
+
+=== PART 2: 45 CFR Part 92, Appendix B (eCFR point-in-time 2019-01-01) ===
+Source: https://www.ecfr.gov/on/2019-01-01/title-45/subtitle-A/subchapter-A/part-92/appendix-Appendix%20B%20to%20Part%2092
+Appendix B to Part 92 - Sample Tagline Informing Individuals With Limited English Proficiency of Language Assistance Services
+
+ATTENTION: If you speak [insert language], language assistance services, free of charge, are available to you. Call 1-xxx-xxx-xxxx (TTY: 1-xxx-xxx-xxxx).
+
+=== PART 3: HHS OCR Sample Nondiscrimination Policy (2024 rule) ===
+Source: https://www.hhs.gov/sites/default/files/1557-sample-nondiscrimination-policy.pdf
+Please note: pursuant to decisions by various district courts regarding the 2024 Final Rule
+implementing Section 1557, entitled Nondiscrimination in Health Programs and Activities, 89
+Fed. Reg. 37,522 (May 6, 2024) ("2024 Final Rule"), certain provisions regarding gender
+identity are stayed nationwide. Other provisions are stayed or enjoined as indicated at
+www.hhs.gov/1557.
+SAMPLE NONDISCRIMINATION POLICY
+[Name of covered entity] complies with all applicable federal civil rights laws, including Section
+1557 of the Affordable Care Act (Section 1557). [Name of covered entity] does not discriminate
+on the basis of race, color, national origin (including limited English proficiency and primary
+language), age, disability, or sex (consistent with the scope of sex discrimination described at 45
+CFR § 92.101(a)(2)) [optional: (or sex, including sex characteristics, including intersex traits;
+pregnancy or related conditions; sexual orientation; gender identity, and sex stereotypes).]
+[Optional: [Name of the covered entity] currently holds a [religious and/or conscience]
+exemption from the HHS Office for Civil Rights, which exempts [name of the covered entity]
+from complying with [list provisions of Section 1557 to which the exemption applies, and the
+scope/terms of that exemption]].
+In compliance with Section 1557 and other federal civil rights laws, we provide individuals the
+following in a timely manner and free of charge:
+• Language assistance services. [Name of covered entity] will provide language
+assistance services for individuals with limited English proficiency (including
+individuals' companions with limited English proficiency) to ensure meaningful access to
+our programs, activities, services, and other benefits. Language assistance services may
+include:
+o Electronic and written translated documents
+o Qualified interpreters
+o [if applicable: Qualified bilingual/multilingual staff]
+• Appropriate auxiliary aids and services. [Name of covered entity] will provide
+appropriate auxiliary aids and services for individuals with disabilities (including
+individuals' companions with disabilities) to ensure effective communication.
+Appropriate auxiliary aids and services may include:
+o Qualified interpreters, including American Sign Language interpreters
+o Video remote interpreting
+o Information in alternate formats (including but not limited to large print, recorded
+audio, and accessible electronic formats)
+o [if applicable: Qualified readers]
+The enumeration following 92.101(a)(2) is recommended but not required.
+• Reasonable modifications. [Name of covered entity] will provide reasonable
+modifications for qualified individuals with disabilities, when necessary to ensure
+accessibility and equal opportunity to participate in our programs, activities, services, or
+other benefits.
+To access our language assistance services, auxiliary aids and services, and for assistance in
+getting a reasonable modification, please refer to [name of covered entity's] [title for covered
+entity's language access procedures], [title for covered entity's effective communication
+procedures], and [title for covered entity's reasonable modification procedures].
+[If applicable: For additional assistance, you may also contact [insert name and/or title and
+contact information for covered entity's Section 1557 Coordinator].
+[Optional: Entities may add additional information related to their nondiscrimination processes
+for: service animals, public health emergencies, telehealth, accessible diagnostic equipment,
+value assessment methods, patient care decision support tools (including, but not limited to crisis
+standards of care), etc.).]
+If you believe [name of covered entity] has failed to provide these services or has discriminated
+in another way on the basis of race, color, national origin, sex, age, or disability, you can:
+1. [AS APPLICABLE: File a grievance with [name of covered entity]]
+[Insert covered entity's relevant grievance information.]
+2. File a complaint with the U.S. Department of Health and Human Services, Office for
+Civil Rights:
+Electronically: https://ocrportal.hhs.gov/ocr/smartscreen/main.jsf
+Via mail: U.S. Department of Health & Human Services
+200 Independence Avenue, S.W. – 509F
+Washington, D.C. 20201

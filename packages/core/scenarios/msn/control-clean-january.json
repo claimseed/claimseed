@@ -1,0 +1,15 @@
+{
+  "type": "msn",
+  "slug": "control-clean-january",
+  "status": "published",
+  "description": "Second clean control: a January notice with five claims for a patient who has not yet met any of the year's Part B deductible, so the deductible is consumed across the first claims and coinsurance starts mid-notice. No errors; the longer claim list exercises multi-page pagination.",
+  "period": { "start": "2026-01-01", "end": "2026-01-31" },
+  "claimCount": 5,
+  "deductibleMetBefore": 0,
+  "mutations": [],
+  "sources": [
+    { "what": "What an MSN is and what it shows", "source": "https://www.medicare.gov/basics/forms-publications-mailings/mailings/costs-and-coverage/medicare-summary-notice" },
+    { "what": "Part B annual deductible applies once per calendar year, before coinsurance", "source": "42 CFR 410.160(a)–(b), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-410/subpart-I/section-410.160" },
+    { "what": "2026 Part B deductible ($283) and 20% coinsurance", "source": "https://www.cms.gov/newsroom/fact-sheets/2026-medicare-parts-b-premiums-deductibles" }
+  ]
+}

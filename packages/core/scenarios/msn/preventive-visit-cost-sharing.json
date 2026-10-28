@@ -1,0 +1,42 @@
+{
+  "type": "msn",
+  "slug": "preventive-visit-cost-sharing",
+  "status": "published",
+  "description": "The first claim is a primary-care preventive visit (an annual wellness visit with a depression screening). The first line is a covered preventive service that must cost the patient nothing, yet it shows a 20% coinsurance; the note on the line still says the patient pays nothing.",
+  "period": {
+    "start": "2026-03-01",
+    "end": "2026-03-31"
+  },
+  "claimCount": 3,
+  "claimShapes": [
+    "FP"
+  ],
+  "mutations": [
+    {
+      "op": "apply-cost-share-to-exempt-line",
+      "args": {
+        "claim": 0,
+        "line": 0,
+        "rate": 0.2
+      }
+    }
+  ],
+  "sources": [
+    {
+      "what": "Medicare pays 100% for listed preventive services (annual wellness visit, vaccines)",
+      "source": "42 CFR 410.152(l), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-410/subpart-I/section-410.152"
+    },
+    {
+      "what": "Part B deductible does not apply to the annual wellness visit or influenza vaccine",
+      "source": "42 CFR 410.160(b), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-410/subpart-I/section-410.160"
+    },
+    {
+      "what": "Definition of preventive services and personalized prevention plan services",
+      "source": "Social Security Act §1861(ddd), (hhh), https://www.ssa.gov/OP_Home/ssact/title18/1861.htm"
+    },
+    {
+      "what": "Patient cost sharing by preventive service (quick reference chart)",
+      "source": "CMS MLN006559 Medicare Preventive Services, https://www.cms.gov/medicare/prevention/prevntiongeninfo/medicare-preventive-services/mps-quickreferencechart-1.html"
+    }
+  ]
+}

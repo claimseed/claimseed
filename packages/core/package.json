@@ -1,0 +1,68 @@
+{
+  "name": "@claimseed/core",
+  "version": "0.1.0",
+  "description": "Render fully synthetic US medical-billing specimen documents (EOB, MSN, bills, notices) from seeded data",
+  "license": "Apache-2.0",
+  "author": "claimseed maintainers <maintainers@gildage.co>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/claimseed/claimseed.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/claimseed/claimseed/tree/main/packages/core#readme",
+  "bugs": {
+    "url": "https://github.com/claimseed/claimseed/issues"
+  },
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "claimseed-core": "src/cli.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "render": "node src/cli.js render",
+    "generate": "node src/cli.js generate",
+    "list": "node src/cli.js list",
+    "test": "node --test test/*.test.js",
+    "check": "node scripts/check-synthetic.js && node scripts/verify-synthetic-npi.js --offline && node scripts/verify-stock-sources.js",
+    "release-ready": "node scripts/check-release-ready.js",
+    "scan-rendered": "node scripts/scan-rendered.js"
+  },
+  "dependencies": {
+    "@fontsource/courier-prime": "^5.3.0",
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/noto-sans": "^5.3.0",
+    "@fontsource/noto-sans-kr": "^5.3.0",
+    "@fontsource/noto-sans-sc": "^5.3.0",
+    "@fontsource/noto-serif": "^5.3.0",
+    "nunjucks": "^3.2.4",
+    "pdf-lib": "^1.17.1",
+    "puppeteer-core": "^25.16.0"
+  },
+  "files": [
+    "src",
+    "templates",
+    "data/msn",
+    "data/itemized-bill",
+    "data/ppo-eob",
+    "data/hmo-eob",
+    "data/SOURCES.md",
+    "data/original-sentences.json",
+    "scenarios",
+    "reference-data",
+    "fonts",
+    "scripts",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

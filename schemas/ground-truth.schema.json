@@ -1,0 +1,403 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/claimseed/claimseed/blob/main/schemas/ground-truth.schema.json",
+  "title": "claimseed ground truth",
+  "description": "What a rendered specimen (or a set of paired specimens) contains and which errors were deliberately injected. Produced alongside every render; consumed by test harnesses to score an extractor or bill-review system.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "documents",
+    "errors",
+    "sources"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "seed": {
+      "type": "string",
+      "description": "The seed every value was derived from; same seed + same version = same output."
+    },
+    "scenario": {
+      "type": "string",
+      "description": "Scenario reference, <type>.<slug>, e.g. msn.duplicate-charge"
+    },
+    "documents": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "pages"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "description": "Document type slug: msn, itemized-bill, ppo-eob or hmo-eob"
+          },
+          "layout": {
+            "type": "string",
+            "description": "Layout slug the type was rendered with"
+          },
+          "pages": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "description": "Page count of the rendered PDF; null in `generate` output (known only after layout)"
+          },
+          "format": {
+            "enum": [
+              "pdf",
+              "png",
+              "jpg"
+            ]
+          },
+          "degradation": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Degradation recipe applied, or null for a clean render"
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "SHA-256 of the PDF bytes; null in `generate` output"
+          },
+          "fields": {
+            "type": "object",
+            "description": "Every rendered value, keyed by a stable path for this layout (e.g. claims[0].lineItems[1].amountProviderCharged). Values are the generated values: numbers for amounts (the page prints them formatted, e.g. 1,234.50), strings for text and dates as printed, booleans/null for flags. Internal keys (carrier, scenario, hasDenial, keys starting with _) are never included. metadata.pageCount is set from the finished PDF.",
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "entities": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "patient": {
+                "$ref": "#/$defs/person"
+              },
+              "providers": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/provider"
+                }
+              },
+              "payer": {
+                "$ref": "#/$defs/payer"
+              },
+              "identifiers": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "member id, claim numbers, account numbers, MBI as printed"
+              }
+            }
+          }
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "description": "Deliberately injected errors. Empty for a clean control.",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "documentId",
+          "severity"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "Slug from docs/error-taxonomy.md"
+          },
+          "documentId": {
+            "type": "string"
+          },
+          "lineRef": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Path into the top-level `claims` block (the adjudication model, same shape for every layout), e.g. claims[0].lines[1] or claims[2].totals.patientMayBeBilled; null for document-level errors"
+          },
+          "relatedDocumentId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "For cross-document errors, the document this one conflicts with"
+          },
+          "expected": {
+            "type": [
+              "string",
+              "number",
+              "null"
+            ],
+            "description": "Correct value"
+          },
+          "actual": {
+            "type": [
+              "string",
+              "number",
+              "null"
+            ],
+            "description": "Value as printed"
+          },
+          "delta": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Dollar impact to the patient, positive = overcharged"
+          },
+          "severity": {
+            "enum": [
+              "info",
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "rule": {
+            "type": "string",
+            "description": "Public rule the error violates (statute, CFR, NCCI, NCD, fee schedule), as cited in docs/error-taxonomy.md"
+          },
+          "note": {
+            "type": "string"
+          },
+          "fieldRef": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The same location as a path into documents[0].fields for this layout (e.g. claims[0].lineItems[1] on an MSN, revenueCodeGroups[0].lineItems[1] on an itemized bill); null when the error has no printed location"
+          }
+        }
+      }
+    },
+    "documentGaps": {
+      "type": "array",
+      "description": "Things a reviewer would need that the specimen deliberately does not contain (missing EOB for a bill, missing page, unreadable region).",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "documentId": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "adversarial": {
+      "type": "boolean",
+      "default": false,
+      "description": "True if the specimen contains text designed to manipulate an automated reader (prompt injection). Consumers that feed specimens to automated readers should filter on this flag."
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Public sources the scenario's structure, codes, amounts and rules were taken from. Required; CI rejects scenarios without one.",
+      "items": {
+        "type": "object",
+        "required": [
+          "what",
+          "source"
+        ],
+        "properties": {
+          "what": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "description": "URL or citation"
+          }
+        }
+      }
+    },
+    "pricing": {
+      "type": "object",
+      "description": "Status of the price data the amounts were computed from",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "year": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": true
+    },
+    "claims": {
+      "type": "array",
+      "description": "Adjudication model the document was assembled from: one entry per claim, with per-line charged/allowed/paid/patient amounts after any injected errors. lineRef paths resolve against this block.",
+      "items": {
+        "type": "object",
+        "required": [
+          "provider",
+          "dateOfService",
+          "lines",
+          "totals"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "claimNumber": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "type": "string"
+          },
+          "dateOfService": {
+            "type": "string"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "units": {
+                  "type": "integer"
+                },
+                "dateOfService": {
+                  "type": "string"
+                },
+                "charged": {
+                  "type": "number"
+                },
+                "allowed": {
+                  "type": "number"
+                },
+                "approved": {
+                  "type": "boolean"
+                },
+                "paid": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "toDeductible": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "patientMayBeBilled": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "totals": {
+            "type": "object",
+            "additionalProperties": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "person": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "dob": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "provider": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "npi": {
+          "type": "string",
+          "pattern": "^9[0-9]{9}$",
+          "description": "Synthetic NPIs always start with 9"
+        },
+        "specialty": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "participating": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "payer": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "planType": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string",
+          "pattern": "^\\(?[2-9][0-9]{2}\\)?[ -]?555-01[0-9]{2}$",
+          "description": "Geographic area code + 555-01xx only"
+        },
+        "planName": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

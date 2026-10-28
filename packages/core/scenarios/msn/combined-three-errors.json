@@ -1,0 +1,19 @@
+{
+  "type": "msn",
+  "slug": "combined-three-errors",
+  "status": "published",
+  "description": "An audit-style notice with three independent problems on three claims: a duplicated office-visit line on the cardiology claim, a 20% coinsurance on a laboratory test that should be $0, and a claim total that overstates the patient's share by $20. Use it to score recall when several error kinds appear on one document.",
+  "period": { "start": "2026-03-01", "end": "2026-03-31" },
+  "claimCount": 3,
+  "claimShapes": ["CARD", "LAB", "OPH"],
+  "mutations": [
+    { "op": "duplicate-line", "args": { "claim": 0, "line": 0 } },
+    { "op": "apply-cost-share-to-exempt-line", "args": { "claim": 1, "line": 0, "rate": 0.2 } },
+    { "op": "break-claim-total", "args": { "claim": 2, "field": "maxYouMayBeBilled", "by": 20 } }
+  ],
+  "sources": [
+    { "what": "Detection of duplicate claims", "source": "CMS Medicare Claims Processing Manual, Pub. 100-04, ch. 1 §120, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c01.pdf" },
+    { "what": "No deductible or coinsurance on laboratory fee schedule tests", "source": "CMS Medicare Claims Processing Manual, Pub. 100-04, ch. 16 §30.2, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c16.pdf" },
+    { "what": "MSN claim totals", "source": "https://medicare.gov/media/document/summarynoticeb.pdf" }
+  ]
+}
