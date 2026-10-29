@@ -22,6 +22,14 @@ node src/cli.js generate msn baseline-clean --seed demo
 node src/cli.js render msn baseline-clean --seed demo --out ./output
 node src/cli.js render itemized-bill balance-billing --seed demo --out ./output
 node src/cli.js render ppo-eob baseline-clean --seed demo --out ./output   # also hmo-eob
+
+# a set: PDFs, answer keys and manifest.jsonl (SHA-256 of each file, claimseed and Chrome versions) in a new DIR
+node src/cli.js batch --types msn,itemized-bill --seeds 50 --out ./set          # --scenarios all|S1,S2  --seed-prefix P
+
+# score an extractor's report (see "Scoring an extractor" below)
+node src/cli.js verify --manifest ./set/manifest.jsonl --outputs ./reports     # one <pdf name>.json per document
+node src/cli.js verify --answer-key ./set/X.ground-truth.json --output report.json
+node src/cli.js verify msn duplicate-office-visit --seed demo --output report.json   # rebuilds the key from the seed
 ```
 
 Rendering needs a Chrome or Chromium binary. The engine looks at `$CLAIMSEED_CHROME`, then
@@ -36,10 +44,12 @@ which every render function goes through, whether it is reached from the CLI or 
 ## Library
 
 ```js
-import { generateData, listScenarios, render, RENDERERS } from '@claimseed/core';
+import { generateData, listScenarios, render, RENDERERS, scoreExtraction, verifyFromSeed, renderBatch } from '@claimseed/core';
 listScenarios('msn');                                                             // ['baseline-clean', ...]
 const { data, groundTruth } = generateData({ type: 'msn', scenario: 'baseline-clean', seed: 'demo' });
 const out = await render({ type: 'msn', scenario: 'baseline-clean', seed: 'demo', outDir: './out' });  // { pdf, groundTruth, bytes }
+const score = scoreExtraction(groundTruth, { fields: { /* path: value */ }, errors: [ /* { kind, fieldRef } */ ] });
+await renderBatch({ types: ['msn'], scenarios: 'all', seeds: 20, outDir: './set' });                 // { count, manifest }
 ```
 
 `RENDERERS[type](data, stock, workDir, { band, title })` is the lower-level entry the CLI and `render()` use; it returns
@@ -72,6 +82,10 @@ which period, and which mutations to apply.
     { "op": "apply-cost-share-to-exempt-line", "args": { "claim": 0, "line": 0, "rate": 0.2 },
       "kind": null, "severity": null, "rule": null, "note": null }   // optional overrides of what the op reports
   ],
+  "decoys": [                           // optional, MSN and itemized bill only: correct lines that look wrong,
+    { "op": "repeat-service-other-date", "args": { "claim": 1, "line": 0, "days": 7 },   // applied after the mutations
+      "rule": "the public rule that makes the line correct (required)", "note": "optional" }
+  ],
   "sources": [                          // REQUIRED, 2–4 entries: where the structure, codes and rule came from.
     { "what": "No deductible or coinsurance on lab fee schedule tests", "source": "SSA §1833(a)(1)(D), https://www.ssa.gov/OP_Home/ssact/title18/1833.htm" }
   ]
@@ -93,6 +107,42 @@ Mutation ops (`src/generate/mutations.js`) and the error kind each reports:
 
 Indices are zero-based; `claim` must be below `claimCount`. Line 0 always exists; use `claimShapes` when a
 mutation needs a particular kind of line or a line beyond index 0 (for example `DERM` always has two lines).
+
+Decoy ops (same file) plant a line that looks like an error but follows the rules. Each is listed in the ground
+truth's `decoys[]` with its kind, place and the rule the scenario cites, never in `errors[]`; an op refuses a line
+that carries an error or another decoy, and decoys are refused on the Medicare Advantage layouts.
+
+| op | args | kind | what it does |
+| --- | --- | --- | --- |
+| `repeat-service-other-date` | claim, line, days | `repeat-service-different-date` | adds the same service `days` later (or earlier, to stay in the period), adjudicated as its own service; refuses preventive services, new-patient visits and HbA1c |
+| `charge-far-above-approved` | claim, line, factor (default 4) | `charge-above-approved` | raises only the provider's charge; the approved amount, payment and patient share stay put |
+
+## Scoring an extractor
+
+`verify` compares an extractor's or bill auditor's report with the answer key. The report is JSON in the shape of
+`schemas/extractor-output.schema.json`: `fields` maps answer-key field paths (the keys of
+`documents[0].fields`) to the values read, and `errors` lists `{ kind, fieldRef | lineRef }` for each problem
+flagged. Either part may be left out.
+
+- Fields: money is compared to the cent and may be printed text (`"$1,234.50"`); dates may be ISO, M/D/YYYY or
+  "April 11, 2026"; text ignores case and repeated spaces. The result counts correct, wrong and missing fields and
+  lists their paths.
+- Errors: a flag finds an error when its kind matches and its place names the same line or total (a field inside
+  the line counts; for a duplicate charge, either line of the pair). A second flag on a found error is a repeat,
+  not a false alarm. A flag on a decoy is a false alarm and is listed under `decoysFlagged`.
+- The report is size-capped (5,000 fields, 1,000 errors, 200-character paths, 1,000-character values) and
+  refused if it has any other shape; the result holds counts, rates and answer-key paths only, never the
+  report's own text.
+- `verify --manifest` scores a whole set against the answer keys saved with it, after checking each key's
+  SHA-256 against the manifest, so a set is always graded against the keys it was rendered with. It reads only
+  regular files with the names the manifest gives, in the set and report folders: a symbolic link there is not
+  followed, and a folder, FIFO or device is listed as an invalid report (or, in place of an answer key, refused).
+  Only a report that is not there counts as missing; one that holds JSON `null`, a list or malformed JSON is
+  listed as invalid.
+- An answer key is checked before scoring: field values must be strings, numbers, booleans or null, error kinds
+  and decoy ids lower-case letters, digits and hyphens, and references strings; any other key is refused.
+- Dates match in any of the supported forms on either side: a key that prints "March 5, 2026" accepts
+  `2026-03-05`, and the reverse.
 
 ## Adding a scenario
 

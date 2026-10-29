@@ -15,6 +15,8 @@ import { launchBrowser, findChrome } from './browser.js';
 
 export { generateData, listScenarios, loadScenario, RENDERERS, hardenHtml, renderHtmlToPdf, finalizePdf, mergePdfs, templateContext, launchBrowser, findChrome, BAND_TEXT, WATERMARK_TEXT, SPECIMEN_SUBJECT };
 
+export { scoreExtraction, verifyFromSeed, checkOutput, LIMITS as VERIFY_LIMITS } from './verify.js';
+export { renderBatch, planBatch, readManifest } from './batch.js';
 export const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
 export const SEED = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 

@@ -13,7 +13,11 @@
   "additionalProperties": false,
   "properties": {
     "schemaVersion": {
-      "const": "1.0"
+      "enum": [
+        "1.0",
+        "1.1"
+      ],
+      "description": "1.1 adds decoys and, on errors, relatedLineRef and relatedFieldRef. claimseed 0.3.0 and later write 1.1."
     },
     "seed": {
       "type": "string",
@@ -142,6 +146,13 @@
             ],
             "description": "Path into the top-level `claims` block (the adjudication model, same shape for every layout), e.g. claims[0].lines[1] or claims[2].totals.patientMayBeBilled; null for document-level errors"
           },
+          "relatedLineRef": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "For an error that involves a second line (the original line of a duplicate charge), that line's path in the claims block; a report naming either line finds the error"
+          },
           "relatedDocumentId": {
             "type": [
               "string",
@@ -193,6 +204,61 @@
               "null"
             ],
             "description": "The same location as a path into documents[0].fields for this layout (e.g. claims[0].lineItems[1] on an MSN, revenueCodeGroups[0].lineItems[1] on an itemized bill); null when the error has no printed location"
+          },
+          "relatedFieldRef": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The same second line as relatedLineRef, as a path into documents[0].fields"
+          }
+        }
+      }
+    },
+    "decoys": {
+      "type": "array",
+      "description": "Hard negatives: lines that look like errors but follow the rules, each with the public rule that makes it correct. A report that flags a decoy counts it as a false alarm. Empty when the scenario plants none.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "documentId",
+          "rule"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable within one answer key: decoy-1, decoy-2, ..."
+          },
+          "kind": {
+            "type": "string",
+            "description": "Decoy slug from docs/error-taxonomy.md (the Decoys section)"
+          },
+          "documentId": {
+            "type": "string"
+          },
+          "lineRef": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Path into the claims block"
+          },
+          "fieldRef": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The same place as a path into documents[0].fields"
+          },
+          "rule": {
+            "type": "string",
+            "description": "Public rule that makes the line correct"
+          },
+          "note": {
+            "type": "string"
           }
         }
       }

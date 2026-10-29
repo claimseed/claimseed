@@ -1,6 +1,11 @@
 {
   "seed": "example",
   "note": "written by packages/core/scripts/examples.js --update; checked in CI",
+  "environment": {
+    "chrome": "Chrome/153.0.8010.12",
+    "poppler": "pdftotext version 24.02.0",
+    "platform": "linux-x64"
+  },
   "examples": [
     {
       "type": "msn",
@@ -9,8 +14,9 @@
       "file": "msn_baseline-clean_example.pdf",
       "pages": 6,
       "errors": [],
+      "decoys": [],
       "textSha256": "4e0402ec8bfcaed56d49182a7b3042df9d231cc205bcdc78d30154181d544411",
-      "groundTruthSha256": "fa0a612c54a50f0e985bd0046e8d85a7a136d38846cbfb07a2e00e755cfc3bd4"
+      "groundTruthSha256": "a99ac7dcdd1cdf3b43eca507281f6dc8c76bfba6ca705ddc9a6e5512d5816aa7"
     },
     {
       "type": "msn",
@@ -21,8 +27,9 @@
       "errors": [
         "math-error"
       ],
+      "decoys": [],
       "textSha256": "293c8588e739e5ed4ec14208951920536ab3d1fc421912760b57591607639d07",
-      "groundTruthSha256": "38744199e70f462acc2f8600999dec44dab314b4f092fb5ae147889cedc7fc34"
+      "groundTruthSha256": "ee933d17ffbad7a9c5da9c4614ff3b7933a7958fc1fa67cab9dcd9d08928107e"
     },
     {
       "type": "msn",
@@ -35,8 +42,9 @@
         "cost-sharing-error",
         "math-error"
       ],
+      "decoys": [],
       "textSha256": "e375c73721ed560698a47e3a35e01a763c67fce418a96c53d538c0d2aa9cb0fc",
-      "groundTruthSha256": "3b596b83e0180b13347d9872834022653e7e3aa8e44e51ade1d492525c8a7c85"
+      "groundTruthSha256": "1ae560b8198325301e6cbc624360d75c214318e0bab55b705cc43729e0a88081"
     },
     {
       "type": "msn",
@@ -45,8 +53,23 @@
       "file": "msn_control-clean-january_example.pdf",
       "pages": 7,
       "errors": [],
+      "decoys": [],
       "textSha256": "9bbc87da311944269b76ab38135cc8c8030c6b46efa7cb122d38961991134043",
-      "groundTruthSha256": "91b8ca3827c0bddaacbaca06e57ff0fff5b81b82cfbd1ac15986cce303ff5039"
+      "groundTruthSha256": "f09bade8fac15eb9806f4a817131acb836a935c10bd3a63f05a0c64c27f84866"
+    },
+    {
+      "type": "msn",
+      "scenario": "decoys-repeat-visit-high-charge",
+      "seed": "example",
+      "file": "msn_decoys-repeat-visit-high-charge_example.pdf",
+      "pages": 5,
+      "errors": [],
+      "decoys": [
+        "repeat-service-different-date",
+        "charge-above-approved"
+      ],
+      "textSha256": "a5d732496561ac4c28ee1a401314006c9ac5f9dee2321d4400ab7a0a267fb9d1",
+      "groundTruthSha256": "9730b90f983a4c7d3a3f0e9a5ba3611bdaa3ee95ab4e02bb0066b587550ee1f7"
     },
     {
       "type": "msn",
@@ -57,8 +80,9 @@
       "errors": [
         "deductible-misapplied"
       ],
+      "decoys": [],
       "textSha256": "85f4d22c1a2847bd98e0b2a7a5521300460e4e36679deac581464abec83ed2a1",
-      "groundTruthSha256": "48a1ea9f88b25b3cf777a90c0c6b0063c853d2e51d08dc77f968517e1b3b1a2e"
+      "groundTruthSha256": "efd13819e74a474b2eb2d5a07865e8d6e6ad3090ba2358e2ba7bcd88d33f8c79"
     },
     {
       "type": "msn",
@@ -69,8 +93,24 @@
       "errors": [
         "coverage-denial"
       ],
+      "decoys": [],
       "textSha256": "a7f50ea3b322b729adc4964d72afb808002696ad04e4cc119a8890ac7551cfd8",
-      "groundTruthSha256": "86498a04453543b6e94a6a2c881392d8e4cbd56f109c04169f4099dc0f1b86dd"
+      "groundTruthSha256": "395e98b8290a16822439eef4a46c56d0432e0fbd1664a55f2dc61cd7f7210f8d"
+    },
+    {
+      "type": "msn",
+      "scenario": "duplicate-beside-repeat-visit",
+      "seed": "example",
+      "file": "msn_duplicate-beside-repeat-visit_example.pdf",
+      "pages": 6,
+      "errors": [
+        "duplicate-charge"
+      ],
+      "decoys": [
+        "repeat-service-different-date"
+      ],
+      "textSha256": "f94945f4203b312608c9b1c4bd88e7cc2e7cb5c28288147c8f227a43d297db8f",
+      "groundTruthSha256": "c5919ec1eea1ef9dca03ea6d23732b2387b34fd6a37fb2ea0dfedf8612314282"
     },
     {
       "type": "msn",
@@ -81,8 +121,9 @@
       "errors": [
         "duplicate-charge"
       ],
+      "decoys": [],
       "textSha256": "c818ff01a1fa6cd76377ecc204bce2f11bd20499e838f3c9364b52c641ed04aa",
-      "groundTruthSha256": "9717d5a2e0979df850cdaf66f2feaf3097f8632e1c2b78331e2bac4cb63ebfb9"
+      "groundTruthSha256": "1b42fee75677d5ab4dcadd668c2d525ba8be1307ab47084b8cb0a30151b8e197"
     },
     {
       "type": "msn",
@@ -93,8 +134,9 @@
       "errors": [
         "fee-schedule-overcharge"
       ],
+      "decoys": [],
       "textSha256": "46582ef6467f106fca57f380cfb5118f258c122b81954b5ba39a4c0c90ffdab5",
-      "groundTruthSha256": "3fb578285b1f9fd05e544de4c149bec56b40a94e04271ec55ad96f6405f8ec54"
+      "groundTruthSha256": "e587f92c44e49b9417f68c8dd48a5af2a28aeaa0ebcd7e3f05c18a88b189af8f"
     },
     {
       "type": "msn",
@@ -105,8 +147,9 @@
       "errors": [
         "cost-sharing-error"
       ],
+      "decoys": [],
       "textSha256": "c3867e4fade6bc3da48f5ed68fd7a470323c66bfb168bc19df905e98b5e07e5d",
-      "groundTruthSha256": "e1030a691a9bd78c50d64ed87f0e6b7155b8a43003e90bfe27378607a3cbc9a4"
+      "groundTruthSha256": "a2c093b7159d5abd4494b159585c713115cc21d491853479f56a73231e3d94ca"
     },
     {
       "type": "msn",
@@ -117,8 +160,9 @@
       "errors": [
         "preventive-cost-sharing"
       ],
+      "decoys": [],
       "textSha256": "a5260d7b2b1e5277b58c8ccbc6158ca093ed867524c4a5db14d3ddb0008e2f86",
-      "groundTruthSha256": "4d338b7078fd211a80499325f79cd3d82d6ed41c5b602ad7e9d1a2e8bd74faa4"
+      "groundTruthSha256": "b65bf1146c4a10dd3459029ce09d228cc1bd58992af75e09c52ffd0652a666a3"
     },
     {
       "type": "msn",
@@ -129,8 +173,9 @@
       "errors": [
         "service-date-anomaly"
       ],
+      "decoys": [],
       "textSha256": "c9d56e947fe186fa32821d971cb7c7aa82520bd0d0f7529b3754032b61a393dd",
-      "groundTruthSha256": "e840cb2275acbe59749fbe279b6047e81a5073ba938e5a27583e4db591fd4877"
+      "groundTruthSha256": "febacb018f2c87b80b0a58d4f443ce5ac63fe234e6648e9bf54437033cb90765"
     },
     {
       "type": "itemized-bill",
@@ -141,8 +186,9 @@
       "errors": [
         "assignment-violation"
       ],
+      "decoys": [],
       "textSha256": "182fc116090d4ce9ec0d2cc45d4ee7007f828ecd90ef30458141d08f932475de",
-      "groundTruthSha256": "0d3f04d0015edd52cd72135ca035f8ddeb40bcee06e023caafc45042b15501ac"
+      "groundTruthSha256": "73082bb86e87c20a39091e4927bfafba2c07c2f16542edd6531b8c86adc8bba2"
     },
     {
       "type": "itemized-bill",
@@ -151,8 +197,23 @@
       "file": "itemized-bill_baseline-clean_example.pdf",
       "pages": 3,
       "errors": [],
+      "decoys": [],
       "textSha256": "c8a88e62e2d54ab8ff1ff84fe9294800b4edecdfb0277d0ecaa5c7452baadfd8",
-      "groundTruthSha256": "72bc5a137803ab4594ff6a802cd8c9a06133b723b3ef86f599ba9a7289cf0de8"
+      "groundTruthSha256": "3afa1f7c3d0acba0a5a751dc047d9792bc00951a2d63fb433f31352abd9ddfb1"
+    },
+    {
+      "type": "itemized-bill",
+      "scenario": "decoys-repeat-therapy-high-charge",
+      "seed": "example",
+      "file": "itemized-bill_decoys-repeat-therapy-high-charge_example.pdf",
+      "pages": 3,
+      "errors": [],
+      "decoys": [
+        "repeat-service-different-date",
+        "charge-above-approved"
+      ],
+      "textSha256": "a468dbace6c22f3f422f818fcc1fe451faf1529c6f59ee79b5d7ccee5a0f3ca8",
+      "groundTruthSha256": "071a3fd5a6fde19518c4d407af85066fd9271474553a37d1685ff0e598d00125"
     },
     {
       "type": "itemized-bill",
@@ -163,8 +224,9 @@
       "errors": [
         "duplicate-charge"
       ],
+      "decoys": [],
       "textSha256": "aaa654e75373cfe1119f18e560b41c65859cd15a0c3fb72c9d2a3bc5fbd7c37e",
-      "groundTruthSha256": "32cabe00560c40474b12bf9f6a83826f8b2fee1889dca94851585301309dd462"
+      "groundTruthSha256": "01b6ca7a93f5c2e176a0f4a38fe535321ff8c601d464dccecf78bc5a412575cb"
     },
     {
       "type": "itemized-bill",
@@ -175,8 +237,9 @@
       "errors": [
         "subtotals-mismatch"
       ],
+      "decoys": [],
       "textSha256": "730c551156229dc8adf0496e79fa917a1ecc459e8ca707f1337162a1db419233",
-      "groundTruthSha256": "b8136dbde30de93564935abd6a1f122081a37495f38792e8bf2a4a6dfdc6cf97"
+      "groundTruthSha256": "152ef6b5f059a73877e0b6a87a84b0418d5bf54c4312165925c83792d97ea598"
     },
     {
       "type": "ppo-eob",
@@ -185,8 +248,9 @@
       "file": "ppo-eob_baseline-clean_example.pdf",
       "pages": 4,
       "errors": [],
+      "decoys": [],
       "textSha256": "bdf45f7963a1b3ab636e226942f7124eb9944b9b14d758e3910c6baac8732400",
-      "groundTruthSha256": "d9841473b6a5f09fd79f4742c0ee27bc88bfaf9d4f3582e42176ea1a50ed8c42"
+      "groundTruthSha256": "b98b0b7d709224935775c4126bac3cf9b4ae38271b348e512c70fbb0aec22105"
     },
     {
       "type": "hmo-eob",
@@ -195,8 +259,9 @@
       "file": "hmo-eob_baseline-clean_example.pdf",
       "pages": 5,
       "errors": [],
+      "decoys": [],
       "textSha256": "f9751eae90bbf65af6a1db8442841b3b9f8d0125728bd324ee90df05fe570483",
-      "groundTruthSha256": "8bd74d0468715a0c28eeffcc2d607938ea526eec9df64d89352714401266479f"
+      "groundTruthSha256": "f6da537d8f8b3a98c5ce880931b0aaae9dc0b8cdac307c3b448ca9982b8cbba3"
     }
   ]
 }

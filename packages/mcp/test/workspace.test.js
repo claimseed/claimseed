@@ -1,5 +1,5 @@
 // The workspace rules: server-chosen names, exclusive creation, no link followed, and quota clean-up that only ever
-// deletes the server's own unchanged outputs.
+// deletes the server's own unchanged outputs from the current run.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs'; import os from 'os'; import path from 'path'; import crypto from 'crypto';
@@ -61,6 +61,30 @@ test('a planted ledger cannot make the server delete a file it did not write', (
   const ws = openWorkspace(dir, { quotaBytes: 600 });
   ws.save('msn_baseline-clean_y', [{ ext: 'pdf', bytes: blob(500) }]);
   assert.ok(fs.existsSync(victim) && fs.existsSync(victim2));
+});
+
+test('a planted file with a server-style name and a matching ledger entry is never deleted; the save is refused instead', () => {
+  const dir = tmp(); const planted = path.join(dir, 'msn_baseline-clean_fictional_0123456789ab.pdf'); const bytes = blob(1024, 'F');
+  fs.writeFileSync(planted, bytes);
+  fs.writeFileSync(path.join(dir, LEDGER), JSON.stringify({ files: [{ name: path.basename(planted), bytes: 1024, sha256: sha(bytes), at: 0 }] }));
+  const ws = openWorkspace(dir, { quotaBytes: 1500 });
+  assert.throws(() => ws.save('itemized-bill_baseline-clean_fictional', [{ ext: 'pdf', bytes: blob(600) }]), /never deletes those/);
+  assert.ok(fs.existsSync(planted), 'the planted file was deleted');
+  assert.deepEqual(outputs(dir), [path.basename(planted)], 'nothing was written by the refused save');
+});
+
+test('outputs of an earlier run count toward the quota but are never deleted; once removed by hand, they stop counting', () => {
+  const dir = tmp();
+  const earlier = openWorkspace(dir, { quotaBytes: 1000 }).save('msn_baseline-clean_r1', [{ ext: 'pdf', bytes: blob(700) }]);
+  const now = openWorkspace(dir, { quotaBytes: 1000 });
+  assert.throws(() => now.save('msn_baseline-clean_r2', [{ ext: 'pdf', bytes: blob(400) }]), /never deletes those/);
+  assert.ok(fs.existsSync(earlier.paths.pdf));
+  fs.unlinkSync(earlier.paths.pdf);
+  const a = now.save('msn_baseline-clean_r2', [{ ext: 'pdf', bytes: blob(400) }]);
+  const b = now.save('msn_baseline-clean_r3', [{ ext: 'pdf', bytes: blob(400) }]);
+  const c = now.save('msn_baseline-clean_r4', [{ ext: 'pdf', bytes: blob(400) }]);   // over 1000: its own oldest output from this run goes
+  assert.ok(!fs.existsSync(a.paths.pdf) && fs.existsSync(b.paths.pdf) && fs.existsSync(c.paths.pdf));
+  assert.deepEqual(now.usage(), { files: 2, bytes: 800 });
 });
 
 test('links are never followed: a linked ledger is ignored and replaced, and the workspace cannot be swapped for a link', () => {

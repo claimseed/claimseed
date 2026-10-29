@@ -37,8 +37,10 @@ export function assembleMsn({ rng, beneficiary, adjudicated, period, dateOfNotic
         amountMedicarePaid: l.paid, maxYouMayBeBilled: l.patientMayBeBilled, noteLetters: letters,
       };
     });
-    const dr = providersSeen.get(c.provider.name) || { first: c.dateOfService, last: c.dateOfService };
-    dr.first = dr.first < c.dateOfService ? dr.first : c.dateOfService; dr.last = dr.last > c.dateOfService ? dr.last : c.dateOfService;
+    // the provider's date range covers its claims and any service a decoy repeated on another date
+    const ds = [c.dateOfService, ...c.lines.filter((l) => l.addedByDecoy).map((l) => l.dateOfService)];
+    const dr = providersSeen.get(c.provider.name) || { first: ds[0], last: ds[0] };
+    for (const d of ds) { if (d < dr.first) dr.first = d; if (d > dr.last) dr.last = d; }
     providersSeen.set(c.provider.name, dr);
     return {
       providerName: c.provider.nameUpper, providerPhone: c.provider.phone, providerAddress: c.provider.addressLines.join(', '),

@@ -1,0 +1,31 @@
+{
+  "type": "msn",
+  "slug": "duplicate-beside-repeat-visit",
+  "status": "published",
+  "description": "Two claims each list a service twice, and only one of them is an error. The first claim (a cardiology office visit with an electrocardiogram) lists the office visit twice with the same date, code and charge, and Medicare approved both lines, so the patient's share for the visit is doubled: a reviewer should flag the second line as a duplicate charge. The second claim (outpatient physical therapy) lists the same exercise-therapy service on two dates a week apart. Those are two therapy visits, each billed once and each with its own 20% coinsurance, and a reviewer should not flag them. What separates the two is the date of service.",
+  "period": { "start": "2026-03-01", "end": "2026-03-31" },
+  "claimCount": 3,
+  "claimShapes": ["CARD", "PT", "LAB"],
+  "deductibleMetBefore": 283,
+  "mutations": [
+    {
+      "op": "duplicate-line",
+      "args": { "claim": 0, "line": 0 },
+      "rule": "Duplicate payment: the same beneficiary, procedure code and service date billed by the same provider (CMS Recovery Audit topic 0091, https://www.cms.gov/research-statistics-data-and-systems/monitoring-programs/medicare-ffs-compliance-programs/recovery-audit-program/approved-rac-topics-items/0091-exact-duplicate-claims)"
+    }
+  ],
+  "decoys": [
+    {
+      "op": "repeat-service-other-date",
+      "args": { "claim": 1, "line": 0, "days": 7 },
+      "rule": "A service on another date is a separate service: Medicare treats as duplicates payments for the same beneficiary, procedure code and service date by the same provider (CMS Recovery Audit topic 0091, https://www.cms.gov/research-statistics-data-and-systems/monitoring-programs/medicare-ffs-compliance-programs/recovery-audit-program/approved-rac-topics-items/0091-exact-duplicate-claims), and Part B pays for each medically necessary outpatient therapy visit, the patient paying 20% of the approved amount after the deductible (https://www.medicare.gov/coverage/physical-therapy-services)",
+      "note": "Second therapy visit a week from the first; same code and charge, different date of service"
+    }
+  ],
+  "sources": [
+    { "what": "Duplicate payments are payments for the same beneficiary, procedure code and service date by the same provider", "source": "CMS Recovery Audit Program, approved topic 0091, https://www.cms.gov/research-statistics-data-and-systems/monitoring-programs/medicare-ffs-compliance-programs/recovery-audit-program/approved-rac-topics-items/0091-exact-duplicate-claims" },
+    { "what": "Medically Unlikely Edits count units of a code for the same beneficiary on the same date of service", "source": "https://www.cms.gov/medicare/coding-billing/national-correct-coding-initiative-ncci-edits/medicare-ncci-medically-unlikely-edits-mues" },
+    { "what": "Outpatient physical therapy: 20% of the Medicare-approved amount after the Part B deductible", "source": "https://www.medicare.gov/coverage/physical-therapy-services" },
+    { "what": "2026 Part B deductible ($283), met before this notice", "source": "https://www.cms.gov/newsroom/fact-sheets/2026-medicare-parts-b-premiums-deductibles" }
+  ]
+}

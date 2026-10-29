@@ -13,7 +13,7 @@ export const OPS = {
     const dup = { ...src, toDeductible: 0 };
     if (!dup.preventiveNoCostShare && !dup.labNoCostShare) { dup.coinsurance = r2(dup.allowed * ctx.params.partB.coinsuranceRate); dup.paid = r2(dup.allowed - dup.coinsurance); dup.patientMayBeBilled = dup.coinsurance; }
     c.lines.splice(line + 1, 0, dup); c.totals = sum(c.lines);
-    return { kind: 'duplicate-charge', lineRef: `claims[${claim}].lines[${line + 1}]`, expected: null, actual: dup.code,
+    return { kind: 'duplicate-charge', lineRef: `claims[${claim}].lines[${line + 1}]`, relatedLineRef: `claims[${claim}].lines[${line}]`, expected: null, actual: dup.code,
       delta: dup.patientMayBeBilled, severity: 'high', rule: 'CMS Claims Processing Manual ch.1 §120; NCCI MUE' };
   },
   // Printed total disagrees with the lines (math-error). Shifts one total field by `by` dollars.
@@ -97,4 +97,70 @@ export function applyMutations(ctx, mutations = []) {
     errors.push(e);
   }
   return errors;
+}
+
+// Decoys: hard negatives. A decoy op changes the claim set so that a line LOOKS wrong while following the rules, and
+// records where; it never makes an error. Decoys apply after the mutations and never insert a line before an existing
+// one, so every error's lineRef stays valid. The scenario names the public rule that makes the line correct (`rule`
+// is required); an op only checks that the line it touches is free of errors and of other decoys.
+const sameLine = (ref, claim, line) => ref === `claims[${claim}].lines[${line}]`;
+function freeLine(ctx, claim, line, op) {
+  const c = ctx.claims[claim]; if (!c) throw new Error(`${op}: no claims[${claim}]`);
+  const l = c.lines[line]; if (!l) throw new Error(`${op}: no claims[${claim}].lines[${line}]`);
+  for (const e of ctx.errors || []) if (sameLine(e.lineRef, claim, line) || sameLine(e.relatedLineRef, claim, line)) throw new Error(`${op}: claims[${claim}].lines[${line}] carries an error`);
+  for (const d of ctx.decoys || []) if (sameLine(d.lineRef, claim, line)) throw new Error(`${op}: claims[${claim}].lines[${line}] already carries a decoy`);
+  return { c, l };
+}
+export const DECOY_OPS = {
+  // The same service again on another date in the period (repeat-service-different-date): a separate service, not
+  // a duplicate. The copy goes `days` later, or `days` earlier when later would leave the period, is appended to the
+  // claim and is adjudicated as a service of its own: what is left of the year's deductible first, then coinsurance
+  // (none for a lab test). Refused where a repeat would itself be wrong: preventive services (frequency limits), a
+  // new-patient visit (99202-99205; a second one with the same doctor is miscoded) and HbA1c (83036; covered only at
+  // set intervals). Scenario authors still choose repeatable services, with claimShapes.
+  'repeat-service-other-date'(ctx, { claim, line, days }) {
+    const { c, l } = freeLine(ctx, claim, line, 'repeat-service-other-date');
+    if (l.preventiveNoCostShare) throw new Error('repeat-service-other-date: a preventive service repeated in the period is an error, not a decoy');
+    if (/^9920[2-5]$/.test(l.code) || l.code === '83036') throw new Error(`repeat-service-other-date: ${l.code} repeated in the period is an error, not a decoy`);
+    if (!Number.isInteger(days) || days < 1) throw new Error('repeat-service-other-date: days must be a whole number of at least 1');
+    const shift = (n) => { const d = new Date(l.dateOfService + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+    const inPeriod = (x) => !ctx.period || (x >= ctx.period.start && x <= ctx.period.end);
+    const date = inPeriod(shift(days)) ? shift(days) : shift(-days);
+    if (!inPeriod(date)) throw new Error(`repeat-service-other-date: neither ${days} days later nor earlier is inside the period`);
+    if (c.lines.some((x) => x.code === l.code && x.dateOfService === date)) throw new Error('repeat-service-other-date: that date already has the same service');
+    const copy = { ...l, dateOfService: date, toDeductible: 0, denialNote: undefined, addedByDecoy: true };
+    if (copy.labNoCostShare) { copy.coinsurance = 0; copy.paid = copy.allowed; copy.patientMayBeBilled = 0; }
+    else {
+      const used = ctx.claims.reduce((n, x) => n + x.lines.reduce((m, y) => m + (y.toDeductible || 0), 0), 0);
+      const left = Math.max(0, r2(ctx.params.partB.deductible - (ctx.deductibleMetBefore || 0) - used));
+      copy.toDeductible = r2(Math.min(left, copy.allowed));
+      copy.coinsurance = r2((copy.allowed - copy.toDeductible) * ctx.params.partB.coinsuranceRate);
+      copy.paid = r2(copy.allowed - copy.toDeductible - copy.coinsurance); copy.patientMayBeBilled = r2(copy.toDeductible + copy.coinsurance);
+    }
+    delete copy.providerBilledPatient;
+    c.lines.push(copy); c.totals = sum(c.lines);
+    return { kind: 'repeat-service-different-date', lineRef: `claims[${claim}].lines[${c.lines.length - 1}]` };
+  },
+  // A charge far above the approved amount (charge-above-approved): what a provider charges is not what Medicare
+  // approves, and on an assigned claim the patient owes only the cost sharing on the approved amount.
+  'charge-far-above-approved'(ctx, { claim, line, factor = 4 }) {
+    const { c, l } = freeLine(ctx, claim, line, 'charge-far-above-approved');
+    if (!(factor > 1)) throw new Error('charge-far-above-approved: factor must be above 1');
+    if (!l.approved || l.providerBilledPatient !== undefined) throw new Error('charge-far-above-approved: the line must be approved and billed at the approved share');
+    l.charged = r2(l.allowed * factor); c.totals = sum(c.lines);
+    return { kind: 'charge-above-approved', lineRef: `claims[${claim}].lines[${line}]` };
+  },
+};
+
+/** Apply a scenario's decoys[] after its mutations. Each entry: { op, args, rule, kind?, note? }. */
+export function applyDecoys(ctx, decoys = [], errors = []) {
+  const out = []; ctx.errors = errors; ctx.decoys = out;
+  for (const [i, m] of decoys.entries()) {
+    const op = DECOY_OPS[m.op]; if (!op) throw new Error(`unknown decoy op ${m.op}`);
+    if (typeof m.rule !== 'string' || !m.rule.trim()) throw new Error(`decoy ${m.op}: the scenario must cite the rule that makes the line correct`);
+    const d = op(ctx, m.args || {});
+    out.push({ id: `decoy-${i + 1}`, kind: m.kind || d.kind, lineRef: d.lineRef, rule: m.rule, ...(m.note ? { note: m.note } : {}) });
+  }
+  delete ctx.errors; delete ctx.decoys;
+  return out;
 }
