@@ -8,20 +8,20 @@
     "source": "github",
     "subfolder": "packages/mcp"
   },
-  "version": "0.1.0",
+  "version": "0.3.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@claimseed/mcp",
-      "version": "0.1.0",
+      "version": "0.3.0",
       "transport": {
         "type": "stdio"
       },
       "environmentVariables": [
         {
           "name": "CLAIMSEED_WORKSPACE",
-          "description": "Folder the server writes PDFs and ground truth to (it writes nowhere else)",
-          "isRequired": true,
+          "description": "Folder for the PDF and ground-truth files (it writes nowhere else); without one, nothing is written",
+          "isRequired": false,
           "format": "filepath"
         },
         {

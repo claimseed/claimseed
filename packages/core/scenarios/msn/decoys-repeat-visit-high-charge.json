@@ -1,0 +1,31 @@
+{
+  "type": "msn",
+  "slug": "decoys-repeat-visit-high-charge",
+  "status": "published",
+  "description": "Nothing on this notice is an error, and a reviewer should flag nothing; two lines are planted to look wrong. The first claim (outpatient physical therapy) lists the same exercise-therapy service twice, on dates a week apart. Those are two therapy visits, not a duplicate: a duplicate repeats the same service on the same date. Each visit carries 20% coinsurance on its own approved amount and no deductible, because the year's Part B deductible was met before this notice. On the second claim (radiology) the amount the provider charged is five times the Medicare-approved amount. That is not an overcharge: on an assigned claim Medicare's payment and the 'Maximum You May Be Billed' are figured on the approved amount, so the high charge costs the patient nothing.",
+  "period": { "start": "2026-03-01", "end": "2026-03-31" },
+  "claimCount": 3,
+  "claimShapes": ["PT", "RAD", "LAB"],
+  "deductibleMetBefore": 283,
+  "mutations": [],
+  "decoys": [
+    {
+      "op": "repeat-service-other-date",
+      "args": { "claim": 0, "line": 0, "days": 7 },
+      "rule": "A service on another date is a separate service: Medicare treats as duplicates payments for the same beneficiary, procedure code and service date by the same provider (CMS Recovery Audit topic 0091, https://www.cms.gov/research-statistics-data-and-systems/monitoring-programs/medicare-ffs-compliance-programs/recovery-audit-program/approved-rac-topics-items/0091-exact-duplicate-claims), and Part B pays for each medically necessary outpatient therapy visit, the patient paying 20% of the approved amount after the deductible, with no annual limit (https://www.medicare.gov/coverage/physical-therapy-services)",
+      "note": "Second therapy visit a week from the first; same code and charge, different date of service"
+    },
+    {
+      "op": "charge-far-above-approved",
+      "args": { "claim": 1, "line": 0, "factor": 5 },
+      "rule": "A provider that accepts assignment takes the Medicare-approved amount as payment in full and may charge the patient only the deductible and coinsurance, whatever its own charge (https://www.medicare.gov/basics/costs/medicare-costs/provider-accept-Medicare; Social Security Act §1842(b)(3)(B)(ii), https://www.ssa.gov/OP_Home/ssact/title18/1842.htm)",
+      "note": "Amount Provider Charged is five times the Medicare-approved amount; payment and patient share are unchanged"
+    }
+  ],
+  "sources": [
+    { "what": "Duplicate payments are payments for the same beneficiary, procedure code and service date by the same provider", "source": "CMS Recovery Audit Program, approved topic 0091, https://www.cms.gov/research-statistics-data-and-systems/monitoring-programs/medicare-ffs-compliance-programs/recovery-audit-program/approved-rac-topics-items/0091-exact-duplicate-claims" },
+    { "what": "Outpatient physical therapy: 20% of the Medicare-approved amount after the Part B deductible, no annual limit on medically necessary therapy", "source": "https://www.medicare.gov/coverage/physical-therapy-services" },
+    { "what": "A provider that accepts assignment accepts the approved amount as payment in full and charges only the deductible and coinsurance", "source": "https://www.medicare.gov/basics/costs/medicare-costs/provider-accept-Medicare" },
+    { "what": "2026 Part B deductible ($283), met before this notice", "source": "https://www.cms.gov/newsroom/fact-sheets/2026-medicare-parts-b-premiums-deductibles" }
+  ]
+}

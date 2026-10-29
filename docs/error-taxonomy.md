@@ -87,6 +87,19 @@ is present.
 | `receipt-vs-eob-copay` | planned | Pharmacy receipt copay differs from the Part D EOB | Plan formulary tier; 42 CFR 423.104 | Pharmacy receipt + Part D EOB |
 | `identity-conflict` | planned | Two documents in a bundle belong to different members | Internal consistency | Any pair |
 
+## Decoys: correct lines that look like errors
+
+A scenario may plant decoys beside its errors, or on a notice with none: lines that look wrong but follow the rules.
+Each one is listed in the ground truth's `decoys[]` with its kind, its place on the page and the public rule that makes
+it correct (the scenario must cite one); it is never in `errors[]`. A report that flags a decoy line, under any error
+kind, counts as a false alarm in `verify_document` and `claimseed-core verify`, which also list its id under
+`decoysFlagged`.
+
+| kind | status | What it looks like | Why it is correct | Rule / reference | Wrongly reported as |
+| --- | --- | --- | --- | --- | --- |
+| `repeat-service-different-date` | implemented | The same code and charge appear twice on one claim, on two dates in the period | Two services, each billed once: a duplicate repeats the same service on the same date. The repeat is adjudicated as its own service: coinsurance on its approved amount, and only what is left of the year's deductible. Preventive services, new-patient visits and tests with a frequency limit are never repeated, because a repeat of those in the period would be an error | Duplicate payments are those for the same beneficiary, code and service date by the same provider: CMS Recovery Audit topic 0091, https://www.cms.gov/research-statistics-data-and-systems/monitoring-programs/medicare-ffs-compliance-programs/recovery-audit-program/approved-rac-topics-items/0091-exact-duplicate-claims; MUEs count units for the same beneficiary on the same date of service, https://www.cms.gov/medicare/coding-billing/national-correct-coding-initiative-ncci-edits/medicare-ncci-medically-unlikely-edits-mues | `duplicate-charge` |
+| `charge-above-approved` | implemented | The amount the provider charged is several times the Medicare-approved amount | The charge is the provider's own price, not what Medicare pays. On an assigned claim the provider accepts the approved amount as payment in full and may collect only the deductible and coinsurance, so Medicare's payment and the patient's share are figured on the approved amount however high the charge | https://www.medicare.gov/basics/costs/medicare-costs/provider-accept-Medicare; SSA §1842(b)(3)(B)(ii), https://www.ssa.gov/OP_Home/ssact/title18/1842.htm | `fee-schedule-overcharge` (which is about the approved amount, not the charge) or `assignment-violation` (which needs the patient to be billed more than the approved share) |
+
 ## Not errors: specimen classes that test rejection
 
 `out-of-scope-commercial`, `out-of-scope-dental`, `out-of-scope-workers-comp`, `out-of-scope-tricare-va`,

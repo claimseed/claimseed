@@ -80,7 +80,7 @@ export function assembleItemizedBill({ rng, beneficiary, adjudicated, period, da
   }, {});
   const deniedCharges = r2(claims.reduce((s, c) => s + c.lines.filter((l) => !l.approved).reduce((t, l) => t + l.charged, 0), 0));
 
-  const dates = claims.map((c) => c.dateOfService).sort();
+  const dates = claims.flatMap((c) => [c.dateOfService, ...c.lines.filter((l) => l.addedByDecoy).map((l) => l.dateOfService)]).sort();
   const first = dates[0], last = dates[dates.length - 1];
   const insuranceSummary = {
     totalCharges: lineChargeSum,

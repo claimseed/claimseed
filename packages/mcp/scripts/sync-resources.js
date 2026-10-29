@@ -5,6 +5,7 @@ import fs from 'fs'; import path from 'path'; import { fileURLToPath } from 'url
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const RESOURCE_SOURCES = {
   'ground-truth.schema.json': '../../../schemas/ground-truth.schema.json',
+  'extractor-output.schema.json': '../../../schemas/extractor-output.schema.json',
   'error-taxonomy.md': '../../../docs/error-taxonomy.md',
   'synthetic-data-policy.md': '../../../docs/synthetic-data-policy.md',
 };

@@ -33,8 +33,11 @@ does not make it synthetic: the physicians, dates and charges still identify a p
 Every PDF carries `Subject: synthetic specimen, not a real document` in its metadata, a visible SYNTHETIC SPECIMEN
 band on every page and a diagonal watermark; they are stamped into the finished PDF by `mergePdfs`, the single exit
 point of every render function, so neither the CLI nor the library API can produce a document without them, and
-no data object or template can remove them (the test suite proves both). Raster (photo/scan) output does not
-exist yet; when it is added it must carry PNG `tEXt` / EXIF markers and a burned-in overprint, with a test that the
+no data object or template can remove them (the test suite proves both). Page images (the MCP server's previews,
+since 0.2.0) are drawn from the stamped PDF, so the band and watermark are in their pixels, and each image file
+carries the markers as well: PNG `tEXt` chunks, or an Exif ImageDescription and a comment in a JPEG, with the band text
+and the Subject line (tests check the pixels and the file markers). Photo- or scan-style degraded output does not
+exist yet; when it is added it must carry the same file markers and a burned-in overprint, with a test that the
 markers survive degradation.
 
 ## Public sources we build from

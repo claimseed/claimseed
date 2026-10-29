@@ -11,8 +11,14 @@ available under that licence; a licence granted with a release cannot be withdra
 
 - `@claimseed/core`: four layouts (`msn`, `itemized-bill`, `ppo-eob`, `hmo-eob`), the rules engine, scenarios with
   injected errors and their ground truth, the CLI and the library API.
-- `@claimseed/mcp`: an MCP server over stdio with `list_document_types`, `describe_document_type`, `generate_data` and
-  `render_document`, the ground-truth schema and catalogs as resources, and a `build_test_case` prompt.
+- Scoring: `claimseed-core verify` and the library's `scoreExtraction` score an extractor's or bill auditor's report
+  against the answer key (fields read, errors found and missed, false alarms); `claimseed-core batch` renders a set
+  with a manifest of hashes, and `verify --manifest` scores the whole set.
+- Decoys on the MSN and the itemized bill: lines that look wrong but follow the rules, listed in the ground truth's
+  `decoys[]` so that flagging one counts as a false alarm.
+- `@claimseed/mcp`: an MCP server over stdio with `list_document_types`, `describe_document_type`, `generate_data`,
+  `render_document` (page images in the result and an MCP Apps view) and `verify_document`, the ground-truth and
+  extractor-output schemas and catalogs as resources, and a `build_test_case` prompt.
 - A Docker image (`Dockerfile`) with Chromium, for running the MCP server without installing a browser.
 - `examples/`: one document per published scenario, re-rendered and compared in CI on every push.
 
@@ -21,13 +27,12 @@ available under that licence; a licence granted with a release cannot be withdra
 - **More MCP tools.**
   - `render_scenario_pair`: two documents of one encounter (for example an MSN and the provider's itemized bill)
     that agree or disagree on purpose, with one ground truth across both.
-  - `degrade_document`: scan- and phone-photo-style degradation of a rendered specimen (skew, noise, blur,
+  - `degrade_document` (next): scan-, fax- and phone-photo-style degradation of a rendered specimen (skew, noise, blur,
     low resolution), recorded in the ground truth's `degradation` field. It takes only files the server rendered
     itself, by the name it returned.
-  - `verify_document`: score an extractor's JSON output against a document's ground truth (fields read, errors
-    flagged, false alarms).
   - Adversarial fixtures (prompt-injection text and other hostile content inside a specimen, for testing an agent's
     defences), only when a call asks for them explicitly.
+- **Error injection and decoys on the Medicare Advantage EOBs**, which accept neither today.
 - **More layouts**, each with its public model cited in its `LINEAGE.md`: Advance Beneficiary Notice (ABN), Part D
   explanation of benefits, collections notice, pharmacy receipt. Each brings the error kinds marked `planned` in
   `docs/error-taxonomy.md` that need it.

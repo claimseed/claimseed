@@ -1,0 +1,31 @@
+{
+  "type": "itemized-bill",
+  "slug": "decoys-repeat-therapy-high-charge",
+  "status": "published",
+  "description": "Nothing on this statement is an error, and a reviewer should flag nothing; two lines are planted to look wrong. The physical therapy group lists the same exercise-therapy service on two dates a week apart. Those are two therapy visits, not a duplicate charge: a duplicate repeats the same service on the same date. In the laboratory group the first test is charged at six times what Medicare approved for it. That is not an overcharge: Medicare paid the assigned lab test in full on the approved amount, so the patient owes nothing for it, and the balance due still equals the coinsurance Medicare reported (no deductible, because the year's Part B deductible was met before these services).",
+  "period": { "start": "2026-03-01", "end": "2026-03-31" },
+  "claimCount": 3,
+  "claimShapes": ["PT", "LAB", "RAD"],
+  "deductibleMetBefore": 283,
+  "mutations": [],
+  "decoys": [
+    {
+      "op": "repeat-service-other-date",
+      "args": { "claim": 0, "line": 0, "days": 7 },
+      "rule": "A service on another date is a separate service: Medicare treats as duplicates payments for the same beneficiary, procedure code and service date by the same provider (CMS Recovery Audit topic 0091, https://www.cms.gov/research-statistics-data-and-systems/monitoring-programs/medicare-ffs-compliance-programs/recovery-audit-program/approved-rac-topics-items/0091-exact-duplicate-claims), and Part B pays for each medically necessary outpatient therapy visit, the patient paying 20% of the approved amount after the deductible, with no annual limit (https://www.medicare.gov/coverage/physical-therapy-services)",
+      "note": "Second therapy visit a week from the first; same code and charge, different date of service"
+    },
+    {
+      "op": "charge-far-above-approved",
+      "args": { "claim": 1, "line": 0, "factor": 6 },
+      "rule": "For a clinical diagnostic lab test billed on assignment, Medicare pays from its fee schedule and the patient owes no Part B deductible or coinsurance (Social Security Act §1833(a)(1)(D) and (b)(3), https://www.ssa.gov/OP_Home/ssact/title18/1833.htm); a provider that agrees to assignment takes Medicare's approved figure as the whole payment, so however high its own charge, it can bill the patient for no more than any deductible and coinsurance due (https://www.medicare.gov/basics/costs/medicare-costs/provider-accept-Medicare)",
+      "note": "Line charge is six times the Medicare-approved amount; Medicare paid the approved amount and the patient owes $0 for the test"
+    }
+  ],
+  "sources": [
+    { "what": "Duplicate payments are payments for the same beneficiary, procedure code and service date by the same provider", "source": "CMS Recovery Audit Program, approved topic 0091, https://www.cms.gov/research-statistics-data-and-systems/monitoring-programs/medicare-ffs-compliance-programs/recovery-audit-program/approved-rac-topics-items/0091-exact-duplicate-claims" },
+    { "what": "Outpatient physical therapy: 20% of the Medicare-approved amount after the Part B deductible, no annual limit on medically necessary therapy", "source": "https://www.medicare.gov/coverage/physical-therapy-services" },
+    { "what": "Clinical diagnostic laboratory tests on an assignment-related basis: paid at 100%, no deductible", "source": "Social Security Act §1833(a)(1)(D) and (b)(3), https://www.ssa.gov/OP_Home/ssact/title18/1833.htm" },
+    { "what": "A provider that accepts assignment accepts the approved amount as payment in full and charges only the deductible and coinsurance", "source": "https://www.medicare.gov/basics/costs/medicare-costs/provider-accept-Medicare" }
+  ]
+}

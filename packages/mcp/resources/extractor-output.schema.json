@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/claimseed/claimseed/blob/main/schemas/extractor-output.schema.json",
+  "title": "claimseed extractor output",
+  "description": "What an extractor or bill auditor reports about one claimseed document, for scoring with `claimseed-core verify` or the MCP tool verify_document. It uses the answer key's vocabulary: field paths are the keys of documents[0].fields, and an error names its kind (docs/error-taxonomy.md) and its place as a fieldRef (a path in documents[0].fields, or a field inside it) or a lineRef (a path in the claims block). Either part may be left out to score only the other.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "fields": {
+      "type": "object",
+      "description": "Values read from the document, keyed by answer-key field path. Money may be a number or printed text such as \"$1,234.50\"; dates may be ISO, M/D/YYYY or \"April 11, 2026\"; text is compared without regard to case or repeated spaces.",
+      "maxProperties": 5000,
+      "propertyNames": { "maxLength": 200 },
+      "additionalProperties": { "type": ["string", "number", "boolean", "null"], "maxLength": 1000 }
+    },
+    "errors": {
+      "type": "array",
+      "description": "Billing errors the tool flagged. An error is found when its kind matches and its place names the same line or total as the answer key (for a duplicate charge, either line of the pair).",
+      "maxItems": 1000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind"],
+        "properties": {
+          "kind": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "fieldRef": { "type": ["string", "null"], "maxLength": 200 },
+          "lineRef": { "type": ["string", "null"], "maxLength": 200 }
+        }
+      }
+    }
+  }
+}

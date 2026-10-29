@@ -9,16 +9,60 @@ that lets caller-supplied data reach the filesystem, the network, or JavaScript 
 code; a malicious layout is out of scope, a malicious *data* object is in scope.
 
 What the MCP server (`packages/mcp`) adds to the renderer guarantees below (`packages/mcp/test/` exercises it): a client
-supplies only a type, a scenario slug and a seed, each checked against a fixed pattern, and no tool reads a file a
-client names. The server writes only into the workspace folder fixed at startup (resolved to its real path, re-checked
-before every write, never `/` or the home folder), under names it chooses itself, creating each file exclusively and
-without following symbolic links. To stay under its quota it deletes only files listed in its own ledger whose size
-and SHA-256 are still what it wrote; a ledger entry whose name is not one the server makes is ignored, so a planted
-ledger cannot point it at another file. Renders share one browser per process, with at most 4 running and 4 waiting;
-a render over the time limit is stopped by closing that browser; a protocol message over 4 MB closes the server. stdout carries only protocol messages. Known limit: the folder is re-checked before each write, not held open, so someone who can rename the folder's parent directory on the same machine could race a write between the check and the file's creation (an MCP client cannot). Inside the
-Docker image Chromium runs without its own sandbox, so the container is the boundary: the documented command runs it
-without network, read-only, with no capabilities and as the calling user. A way to make the server read or write
-outside its folder, delete a file it did not write, or return an unstamped document is a vulnerability.
+supplies only a type, a scenario slug and a seed, each checked against a fixed pattern, plus, for `verify_document`,
+an extractor's report; no tool reads a file a client names.
+
+- **Files.** Started without a workspace folder, the server saves no file. Its browser's working files (profile,
+  settings, caches and temporary files, which Chrome would otherwise put under the home folder and the temp folder)
+  are kept in one private folder per launch under the system temp folder, `claimseed-chrome-*`, removed when the
+  browser exits; on Linux the isolated fontconfig adds `claimseed-fc-*`, removed when the server exits. A process
+  that is killed can leave both behind. With a workspace, the server writes only into the workspace folder fixed at
+  startup (resolved to its real path, re-checked before every write, never `/` or the home folder), under names it
+  chooses itself, creating each file exclusively and without following symbolic links.
+- **Deleting.** To stay under its quota the server deletes only files it wrote in its current run, which it keeps in
+  memory, and only while their size and SHA-256 are still what it wrote. The ledger in the folder only counts space,
+  so a planted or edited ledger cannot make it delete anything; outputs of earlier runs are never deleted, and when
+  they alone fill the quota a save is refused.
+- **Load.** Renders share one browser per process, with at most 4 running and 4 waiting; a render over the time limit
+  is stopped by closing that browser; a protocol message over 4 MB closes the server. stdout carries only protocol
+  messages. A result carries at most `CLAIMSEED_MCP_PREVIEW_KB` of page images and embedded PDF together, except that
+  the first requested page image is always included (at its smallest even over a very low limit); a PDF that alone
+  is over the limit is left out.
+- **Known limit:** the folder is re-checked before each write, not held open, so someone who can rename the folder's
+  parent directory on the same machine could race a write between the check and the file's creation (an MCP client
+  cannot).
+- **Container.** Inside the Docker image Chromium runs without its own sandbox, so the container is the boundary: the
+  documented command runs it without network, read-only, with no capabilities and as the calling user.
+- **Page images** (`src/preview.js`) are drawn from the stamped PDF by PDF.js in a page of the same browser that,
+  unlike the printing pages, runs script: it lives in a browser context of its own, closed after each render; it is
+  served only PDF.js, its standard fonts and the one PDF the server just rendered, from memory, under an origin that
+  does not exist, and every other request it makes is refused; PDF scripting and `eval` are off in PDF.js. Each image
+  file also carries the specimen text in its metadata (PNG `tEXt`, or Exif and a comment in a JPEG).
+- **The MCP Apps view** (`src/view.js`) is a fixed page that sends only MCP Apps messages to its host and puts every
+  value from a result on the page as text. Its Content-Security-Policy allows nothing to load but `data:` images, and
+  of the host's style variables it applies only the five it reads, and only colour and font values (no `url()` or
+  other loading function). It trusts its parent frame, the host, for those variables and for the results it shows.
+
+A way to make the server read or write a file outside its folder (or save any file, without one, beyond its browser's
+working folder), delete a file it did not write in its current run, return an unstamped document or page image, or
+make the preview page or the view load anything is a vulnerability.
+
+Scoring (`packages/core/src/verify.js`, used by `claimseed-core verify` and `verify_document`) treats a report as
+untrusted data. It is refused unless it has the documented shape (`schemas/extractor-output.schema.json`), over MCP as
+on the command line, and stays within fixed caps: 5,000 fields, 1,000 errors, paths of 200 characters, values of 1,000
+characters and kinds of 64; the command line also refuses a report file over 10 MB. Refusals name positions, never
+content. The score holds counts, rates and the answer key's own paths, kinds and decoy ids, so no text from a report
+reaches the result, and nothing in a report is used as a file path or evaluated. The MCP server hands the report to
+that check exactly as the client sent it (no object parser copies it first), so a key such as an own `__proto__` is
+refused there as on the command line. An answer key's values, kinds, decoy ids and references are checked before
+scoring, and counts by kind are kept in a `Map`, so no kind reaches an object's prototype. `verify --manifest` reads answer keys
+beside the manifest and reports in the folder it is given, by names the manifest gives without a directory part, and
+only regular files: a symbolic link at that name is not followed, and a folder, FIFO or device is refused without
+being opened for a blocking read (`src/safe-read.js`; one descriptor is checked and read, at most 10 MB). It scores
+against an answer key only when the SHA-256 of the bytes it read matches the manifest's. `claimseed-core batch`
+counts a set before building it (at most 10,000 documents) and writes only into the folder it is given, creating
+each file exclusively. A report or manifest that makes scoring echo its text, read a file other than those, write a
+file, or run for a time out of proportion to its size is a vulnerability.
 
 What the renderer guarantees (and `test/render-security.test.js` exercises): Nunjucks autoescape is on
 and `| safe` is used only on stock fields; HTML is handed to Chrome as a string on `about:blank`, never

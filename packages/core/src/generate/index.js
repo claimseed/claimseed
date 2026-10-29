@@ -1,7 +1,8 @@
 // index.js — generateData({ type, scenario, seed, overrides }) -> { data, groundTruth }
 // A scenario file (scenarios/<type>/<slug>.json) is:
 //   { type, slug, status, description, period: { start, end }, claimCount, claimShapes?, referenceSurname?,
-//     deductibleMetBefore?, qmb?, year?, dateOfNotice?, mutations: [{ op, args, kind?, severity?, rule?, note? }], sources: [{ what, source }] }
+//     deductibleMetBefore?, qmb?, year?, dateOfNotice?, mutations: [{ op, args, kind?, severity?, rule?, note? }],
+//     decoys?: [{ op, args, rule, kind?, note? }], sources: [{ what, source }] }
 // See packages/core/README.md for the field-by-field description.
 import fs from 'fs';
 import path from 'path';
@@ -10,7 +11,7 @@ import { makeRng, intBetween } from './rng.js';
 import { makePlace, makeBeneficiary } from './entities.js';
 import { makeEncounters, CATALOG } from './encounter.js';
 import { adjudicatePartB } from './rules.js';
-import { applyMutations } from './mutations.js';
+import { applyMutations, applyDecoys } from './mutations.js';
 import { assembleMsn } from './msn.js';
 import { assembleItemizedBill } from './itemized-bill.js';
 
@@ -49,8 +50,9 @@ export function generateData({ type, scenario, seed = 'claimseed', overrides = {
   const year = sc.year || Number(sc.period.start.slice(0, 4));
   const claims = makeEncounters(rng, place, { claimCount: sc.claimCount, claimShapes: sc.claimShapes, periodStart: sc.period.start, periodEnd: sc.period.end });
   const adjudicated = adjudicatePartB(claims, { year, deductibleMetBefore: sc.deductibleMetBefore ?? 0, rng });
-  const ctx = { claims: adjudicated.claims, params: adjudicated.params };
+  const ctx = { claims: adjudicated.claims, params: adjudicated.params, period: sc.period, deductibleMetBefore: sc.deductibleMetBefore ?? 0 };
   const errors = applyMutations(ctx, sc.mutations || []).map((e) => ({ documentId: `${type}-1`, ...e }));
+  const decoys = applyDecoys(ctx, sc.decoys || [], errors).map((d) => ({ id: d.id, kind: d.kind, documentId: `${type}-1`, ...d }));
   const dateOfNotice = sc.dateOfNotice || (() => { const d = new Date(sc.period.end + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + intBetween(rng, 5, 12)); return d.toISOString().slice(0, 10); })();
   const assemble = ASSEMBLERS[type]; if (!assemble) throw new Error(`no assembler for type ${type}`);
   const stockPath = path.join(DATA_DIR_FOR_STOCK, type, 'stock-content.json');
@@ -58,12 +60,15 @@ export function generateData({ type, scenario, seed = 'claimseed', overrides = {
   const data = assemble({ rng, beneficiary, adjudicated, period: sc.period, dateOfNotice, year, groundTruthErrors: errors, stock, catalogByCode: CATALOG_BY_CODE });
   data.scenario = scenario;
   const gtOverrides = data._groundTruth || {};
+  // A layout that brings its own claims block (the Medicare Advantage EOBs) does not print the claims decoys change.
+  if (decoys.length && gtOverrides.claims) throw new Error(`${type}: decoys are not supported for this layout yet`);
   // Every error carries two references: `lineRef` into the adjudication model (groundTruth.claims — the same
   // shape for every document type) and `fieldRef`, the corresponding path into documents[0].fields for this layout.
   const fieldPaths = data._fieldPaths || DEFAULT_FIELD_PATHS;
-  for (const e of errors) e.fieldRef = fieldRefFor(e.lineRef, fieldPaths);
+  for (const e of errors) { e.fieldRef = fieldRefFor(e.lineRef, fieldPaths); if (e.relatedLineRef) e.relatedFieldRef = fieldRefFor(e.relatedLineRef, fieldPaths); }
+  for (const d of decoys) d.fieldRef = fieldRefFor(d.lineRef, fieldPaths);
   const groundTruth = {
-    schemaVersion: '1.0', seed: String(seed), scenario: `${type}.${scenario}`,
+    schemaVersion: '1.1', seed: String(seed), scenario: `${type}.${scenario}`,
     // pages and sha256 are null from `generate`; the CLI's render step fills them from the finished PDF.
     documents: [{ id: `${type}-1`, type, layout: type, pages: null, format: 'pdf', degradation: null, sha256: null,
       fields: flattenFields(data), entities: {
@@ -75,7 +80,7 @@ export function generateData({ type, scenario, seed = 'claimseed', overrides = {
     claims: gtOverrides.claims || adjudicated.claims.map((c, i) => ({ claimNumber: data.claims?.[i]?.claimNumber ?? null, provider: c.provider.name, dateOfService: c.dateOfService,
       lines: c.lines.map((l) => ({ code: l.code, units: l.units, dateOfService: l.dateOfService, charged: l.charged, allowed: l.allowed, approved: !!l.approved, paid: l.paid ?? null, toDeductible: l.toDeductible ?? null, patientMayBeBilled: l.patientMayBeBilled ?? null })),
       totals: c.totals })),
-    errors, documentGaps: [], adversarial: false,
+    errors, decoys, documentGaps: [], adversarial: false,
     sources: [...(sc.sources || []), ...CATALOG.sources],
     pricing: { status: CATALOG.priceSource, year: CATALOG.year },
   };

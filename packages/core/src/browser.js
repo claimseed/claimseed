@@ -59,5 +59,24 @@ export async function launchBrowser(opts = {}) {
   // other platforms the content is identical but the embedded fallback for a missing glyph could differ.
   const env = { ...process.env };
   if (process.env.CLAIMSEED_SYSTEM_FONTS !== '1' && process.platform === 'linux') env.FONTCONFIG_FILE = isolatedFontconfig();
-  return puppeteer.launch({ headless: true, executablePath, args, env, ...opts });
+  // Chrome's working files go to one private folder per launch in the system temp folder: its profile, and what it
+  // would otherwise write under the user's home or the temp folder (settings, caches, crash-report settings, temporary
+  // files), redirected there through HOME, the XDG folders and TMPDIR. The folder is removed when the browser process exits, or failing that when this
+  // process exits.
+  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'claimseed-chrome-'));
+  workDirs.add(work);
+  if (!exitHook) { exitHook = true; process.on('exit', () => { for (const d of [...workDirs]) removeWorkDir(d); }); }
+  for (const d of ['profile', 'home', 'config', 'cache', 'tmp']) fs.mkdirSync(path.join(work, d));
+  const tmp = path.join(work, 'tmp');
+  Object.assign(env, { HOME: path.join(work, 'home'), XDG_CONFIG_HOME: path.join(work, 'config'), XDG_CACHE_HOME: path.join(work, 'cache'), TMPDIR: tmp, TMP: tmp, TEMP: tmp, GSETTINGS_BACKEND: 'memory' });
+  let browser;
+  try { browser = await puppeteer.launch({ headless: true, executablePath, args, env, userDataDir: path.join(work, 'profile'), ...opts }); }
+  catch (e) { removeWorkDir(work); throw e; }
+  const proc = browser.process?.();
+  if (!proc) browser.once('disconnected', () => removeWorkDir(work));
+  else if (proc.exitCode !== null) removeWorkDir(work);
+  else proc.once('exit', () => removeWorkDir(work));
+  return browser;
 }
+const workDirs = new Set(); let exitHook = false;
+function removeWorkDir(d) { try { fs.rmSync(d, { recursive: true, force: true }); } catch {} workDirs.delete(d); }
