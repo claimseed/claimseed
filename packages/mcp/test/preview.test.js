@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { render, launchBrowser, findChrome, BAND_TEXT, SPECIMEN_SUBJECT } from '@claimseed/core';
 import { PDFDocument, PDFName, PDFString } from 'pdf-lib';
 import { previewPages } from '../src/preview.js';
-import { readMarkers } from './markers-read.js';
+import { readMarkers } from '../../core/test/markers-read.js';
 
 const skip = !findChrome() && !process.env.CI && 'no Chrome (set CLAIMSEED_CHROME); never skipped in CI';
 let browser;

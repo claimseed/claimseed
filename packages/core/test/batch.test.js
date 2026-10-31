@@ -18,10 +18,18 @@ test('a batch plan names every document once and refuses unknown types, bad pref
   const jobs = planBatch({ types: ['msn', 'itemized-bill'], scenarios: ['baseline-clean', 'duplicate-charge'], seeds: 3, seedPrefix: 'set' });
   assert.equal(jobs.length, 3 + 6, 'msn has baseline-clean only of the two; the bill has both');
   assert.equal(new Set(jobs.map((j) => `${j.type}/${j.scenario}/${j.seed}`)).size, jobs.length);
-  assert.throws(() => planBatch({ types: ['w2'] }), /no document type w2/);
+  // refusals never repeat the requested name
+  for (const t of ['w2', 'constructor', '__proto__', '../x']) assert.throws(() => planBatch({ types: [t] }), (e) => e.message === 'batch: unknown document type; the known types are msn, itemized-bill, ppo-eob, hmo-eob', t);
+  for (const s of [['BAD-canary'], ['../canary'], 'canary']) assert.throws(() => planBatch({ types: ['msn'], scenarios: s }), (e) => e.message === 'batch: invalid scenario name; use only lowercase letters, digits and hyphens', JSON.stringify(s));
   assert.throws(() => planBatch({ types: ['msn'], seedPrefix: '../x' }), /seed prefix/);
   assert.throws(() => planBatch({ types: ['msn'], seeds: 0 }), /at least 1/);
-  assert.throws(() => planBatch({ types: ['msn'], scenarios: ['nope'] }), /none of the named scenarios/);
+  assert.throws(() => planBatch({ types: ['msn'], scenarios: [] }), /^Error: batch: none of the named scenarios exists for the named types$/);
+  // a scenario that none of the named types has is refused, alone or beside ones that exist (it used to be dropped)
+  for (const sc of [['nope'], ['baseline-clean', 'duplicate-charg'], ['duplicate-charge', 'decoys-repeat-visit-high-charge']]) {
+    assert.throws(() => planBatch({ types: ['itemized-bill'], scenarios: sc }), (e) => e.message === 'batch: a named scenario exists for none of the named types', sc.join());
+  }
+  assert.equal(planBatch({ types: ['msn', 'itemized-bill'], scenarios: ['decoys-repeat-visit-high-charge', 'duplicate-charge'], seeds: 1 }).length, 2, 'each scenario kept for the type that has it');
+  assert.deepEqual(planBatch({ types: ['msn', 'msn'], scenarios: ['baseline-clean', 'baseline-clean'], seeds: 2 }).map((j) => j.seed), ['batch-1', 'batch-2'], 'a name given twice is planned once');
   assert.throws(() => planBatch({ types: ['msn'], seeds: MAX_BATCH }), /over the limit/);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cs-manifest-'));
   const line = { pdf: 'a.pdf', groundTruth: 'a.ground-truth.json', type: 'msn', scenario: 'baseline-clean', seed: 's', groundTruthSha256: '0'.repeat(64) };
@@ -89,6 +97,7 @@ test('a batch writes PDFs, answer keys and a manifest that matches them, never o
     assert.equal(sha(path.join(out, e.pdf)), e.sha256, e.pdf); assert.equal(sha(path.join(out, e.groundTruth)), e.groundTruthSha256, e.groundTruth);
     assert.equal(e.claimseedVersion, VERSION); assert.match(String(e.chrome), /Chrom/);
     assert.ok(e.pages >= 1);
+    assert.equal(e.degradation, null, 'without --degrade a batch is clean');
   }
   const again = spawnSync(process.execPath, [CLI, 'batch', '--types', 'msn', '--scenarios', 'baseline-clean', '--seeds', '1', '--out', out], { encoding: 'utf-8' });
   assert.equal(again.status, 1); assert.match(again.stderr, /EEXIST|exists/);

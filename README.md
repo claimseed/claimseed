@@ -14,7 +14,7 @@ without ever touching a real person's paperwork.
 
 ## Quick start
 
-From npm (Node.js 20 or later; the MCP server needs 22.13 or later):
+From npm (Node.js 22.13 or later):
 
     npx @claimseed/core list
     npx @claimseed/core render msn combined-three-errors --seed demo --out ./out
@@ -73,6 +73,34 @@ scenarios test for false alarms; some scenarios also plant decoys, lines that lo
 (the same service on two dates, a charge far above the approved amount), and flagging one counts as a false alarm.
 Agents can score one document at a time with the MCP tool `verify_document`.
 
+## Scanned-looking copies
+
+Extractors meet scans, faxes and phone photos, not only clean PDFs. A degraded copy keeps the document's answer key:
+
+    npx @claimseed/core render msn combined-three-errors --seed demo --out ./out --degrade fax
+    npx @claimseed/core batch --types msn,itemized-bill --seeds 20 --degrade scan --out ./set
+
+The presets are `scan`, `fax`, `photo` and `low-res`. `render --degrade` writes an image-only PDF, one image per page
+and the answer key; `batch --degrade` writes the PDFs and answer keys of a set, with its manifest. The answer key holds
+the settings the seed chose (rotation, resolution, noise and the rest) in `degradationParams`. The specimen band and
+watermark are drawn on top of the degraded pages, never through the degradation (a fax also prints the watermark as a
+dot pattern that survives black and white), and every image file carries the specimen markers. Agents can ask for a
+copy with the MCP tool `degrade_document`.
+
+## Remittance files (835)
+
+A Medicare Summary Notice or a Medicare Advantage EOB can come with the X12 835 remittance of the same claims, for
+testing software that reads payments rather than paper:
+
+    npx @claimseed/core render msn combined-three-errors --seed demo --out ./out --also 835
+    npx @claimseed/core batch --types msn,ppo-eob,hmo-eob --seeds 20 --also 835 --out ./set
+
+Each `.835` is a 005010X221A1 file marked as test data (`ISA15` is `T`, and the sender and receiver IDs, the payer and
+the contact say specimen or test), with no bank data. The answer key lists it beside the PDF, and every planted error that shows in the 835
+names its place there (`x12Ref`): a wrong claim total breaks the claim's balance or its patient-responsibility total, and a
+duplicate is a repeated service line. Agents ask for it with `also: "835"` on the MCP tool `render_document`. See the
+core README for what the files contain and what they leave out.
+
 ## How claimseed compares
 
 - [Synthea](https://github.com/synthetichealth/synthea) simulates synthetic patient populations and exports their
@@ -85,12 +113,14 @@ Agents can score one document at a time with the MCP tool `verify_document`.
 
 ## Status
 
-0.3.0 adds scoring (`verify`, `verify_document`), batch output with a manifest, and decoys; 0.2.0 added page
-images of every rendered document in the MCP server's results, an MCP Apps view, and a mode that writes no files.
-Versions before 1.0 may still change their interfaces. The layouts shipped are
-`msn`, `itemized-bill`, `ppo-eob` and `hmo-eob`; more are planned (ABN, Part D EOB, collections notice, pharmacy
-receipt); see `docs/roadmap.md`. `examples/` lists one rendered document per scenario. Licensed under Apache-2.0
-(see `LICENSE` and `NOTICE`).
+0.4.0 adds 835 remittances (`--also 835`, `also: "835"` on `render_document`: an X12 835 file of the same claims
+beside a Medicare Summary Notice or Medicare Advantage EOB) and scanned-looking copies (`--degrade`,
+`degrade_document`: scan, fax, phone photo, low resolution); 0.3.0 added scoring (`verify`, `verify_document`), batch
+output with a manifest, and decoys; 0.2.0 added page images of every rendered document in the MCP server's results, an
+MCP Apps view, and a mode that writes no files. Versions before 1.0 may still change their interfaces. The layouts
+shipped are `msn`, `itemized-bill`, `ppo-eob` and `hmo-eob`; more are planned (ABN, Part D EOB, collections notice,
+pharmacy receipt); see `docs/roadmap.md`. `examples/` lists one rendered document per scenario. Licensed under
+Apache-2.0 (see `LICENSE` and `NOTICE`).
 
 ## Acceptable use
 

@@ -14,15 +14,20 @@
 import fs from 'fs'; import os from 'os'; import path from 'path'; import crypto from 'crypto'; import { spawnSync } from 'child_process';
 import { repoRoot } from './lib/repo-root.js';
 import { pdfWords } from './lib/provenance.js';
-import { render, listScenarios, loadScenario, launchBrowser, RENDERERS } from '../src/index.js';
+import { render, listScenarios, loadScenario, launchBrowser, RENDERERS, REMITTANCE_TYPES } from '../src/index.js';
 
 const ROOT = repoRoot();
 const DIR = path.join(ROOT, 'examples');
 const SEED = 'example';
 const args = process.argv.slice(2);
 const mode = args.includes('--update') ? 'update' : 'check';
-const outIdx = args.indexOf('--out'); const outDir = outIdx >= 0 ? path.resolve(args[outIdx + 1] || '') : null;
-const wordsIdx = args.indexOf('--words'); const wordsDir = wordsIdx >= 0 ? path.resolve(args[wordsIdx + 1] || '') : null;
+// a folder option without a value (missing, empty or another option) is refused, not read as the current folder
+const folder = (name) => {
+  const i = args.indexOf(name); if (i < 0) return null;
+  const v = args[i + 1]; if (v === undefined || v === '' || v.startsWith('--')) { console.error(`${name} needs a value`); process.exit(2); }
+  return path.resolve(v);
+};
+const outDir = folder('--out'); const wordsDir = folder('--words');
 const sha = (b) => crypto.createHash('sha256').update(b).digest('hex');
 
 export function textHash(pdfPath) {
@@ -49,13 +54,15 @@ const environment = { chrome: await browser.version(), poppler: `${poppler.stder
 const results = [];
 try {
   for (const ex of examples) {
-    const { bytes, groundTruth } = await render({ ...ex, browser });
+    // MSN and Medicare Advantage examples also carry their 835, compared byte for byte (it is plain text)
+    const { bytes, groundTruth, remittance } = await render({ ...ex, browser, also: REMITTANCE_TYPES.includes(ex.type) ? '835' : null });
     const name = `${ex.type}_${ex.scenario}_${ex.seed}`;
     const pdf = path.join(work, name + '.pdf'); fs.writeFileSync(pdf, bytes);
     const { pages, textSha256, text } = textHash(pdf);
     if (wordsDir) fs.writeFileSync(path.join(wordsDir, name + '.words.txt'), text + '\n');
-    results.push({ ...ex, file: name + '.pdf', pages, errors: groundTruth.errors.map((e) => e.kind), decoys: (groundTruth.decoys || []).map((d) => d.kind), textSha256, groundTruthSha256: groundTruthHash(groundTruth) });
-    if (outDir) { fs.copyFileSync(pdf, path.join(outDir, name + '.pdf')); fs.writeFileSync(path.join(outDir, name + '.ground-truth.json'), JSON.stringify(groundTruth, null, 2)); }
+    results.push({ ...ex, file: name + '.pdf', pages, errors: groundTruth.errors.map((e) => e.kind), decoys: (groundTruth.decoys || []).map((d) => d.kind), textSha256, groundTruthSha256: groundTruthHash(groundTruth),
+      remittanceSha256: remittance === null ? null : sha(remittance) });
+    if (outDir) { fs.copyFileSync(pdf, path.join(outDir, name + '.pdf')); fs.writeFileSync(path.join(outDir, name + '.ground-truth.json'), JSON.stringify(groundTruth, null, 2)); if (remittance !== null) fs.writeFileSync(path.join(outDir, name + '.835'), remittance); }
     process.stderr.write(`examples: ${name} (${pages} pages)\n`);
   }
 } finally { await browser.close(); fs.rmSync(work, { recursive: true, force: true }); }
@@ -75,7 +82,7 @@ if (mode === 'update') {
   for (const r of results) {
     const w = byKey.get(key(r)); byKey.delete(key(r));
     if (!w) { bad.push(`${key(r)}: not in the manifest`); continue; }
-    for (const f of ['pages', 'textSha256', 'groundTruthSha256']) if (w[f] !== r[f]) bad.push(`${key(r)}: ${f} ${w[f]} -> ${r[f]}`);
+    for (const f of ['pages', 'textSha256', 'groundTruthSha256', 'remittanceSha256']) if ((w[f] ?? null) !== r[f]) bad.push(`${key(r)}: ${f} ${w[f]} -> ${r[f]}`);
     if (w.errors.join() !== r.errors.join()) bad.push(`${key(r)}: errors ${w.errors.join(',')} -> ${r.errors.join(',')}`);
     if ((w.decoys || []).join() !== r.decoys.join()) bad.push(`${key(r)}: decoys ${(w.decoys || []).join(',')} -> ${r.decoys.join(',')}`);
   }
@@ -93,7 +100,7 @@ if (mode === 'update') {
 
 function readme(rs) {
   const list = (ks) => ks.map((k) => `\`${k}\``).join(', ');
-  const rows = rs.map((r) => `| \`${r.type}\` | \`${r.scenario}\` | ${r.pages} | ${r.errors.length ? list(r.errors) : 'none (clean)'} | ${r.decoys.length ? list(r.decoys) : ''} | ${loadScenario(r.type, r.scenario).description.replace(/\|/g, '\\|')} |`);
+  const rows = rs.map((r) => `| \`${r.type}\` | \`${r.scenario}\` | ${r.pages} | ${r.errors.length ? list(r.errors) : r.decoys.length ? 'none (decoys only)' : 'none (clean)'} | ${r.decoys.length ? list(r.decoys) : ''} | ${loadScenario(r.type, r.scenario).description.replace(/\|/g, '\\|')} |`);
   return `# Examples
 
 One document per published scenario, rendered with the seed \`${SEED}\`. The PDFs and their ground truth are not kept in
@@ -103,7 +110,9 @@ the repository (it holds no binary files); render them with
 
 or one at a time with \`node packages/core/src/cli.js render <type> <scenario> --seed ${SEED} --out DIR\`. CI renders every
 example on each push and compares it with \`manifest.json\`: a hash of each page's words and a hash of the ground truth
-(without the PDF's SHA-256, which depends on the Chrome build). The words pdftotext reads also depend on the Chrome
+(without the PDF's SHA-256, which depends on the Chrome build), and for the Medicare Summary Notice and the Medicare
+Advantage EOBs the SHA-256 of the 835 remittance written beside them (\`--out\` writes it as \`<name>.835\`), which does not
+depend on the environment. The words pdftotext reads also depend on the Chrome
 and Poppler versions and the platform: \`manifest.json\` names the environment the hashes were recorded in, and
 \`--words DIR\` writes each example's words so two runs can be compared. This file is generated by the same script.
 

@@ -97,6 +97,34 @@ function drawBlockText(page, text, { x, y, cell, angleDeg, color, opacity }) {
     col += 6;
   }
 }
+// Where the watermark goes on a visible page box: 18 columns x 6 cells wide at `cell` points, centred on the page,
+// rotated 28 degrees, sized so the rotated run fits inside the page with a margin on either side.
+const WATERMARK_ANGLE = 28;
+function watermarkPlacement(ox, oy, width, height) {
+  const a = (WATERMARK_ANGLE * Math.PI) / 180; const cols = WATERMARK_TEXT.length * 6 - 1;
+  const cell = Math.min(Math.min(width, height) / 100, (width - 36) / (cols * Math.cos(a) + 7 * Math.sin(a)));
+  const textW = cols * cell; const textH = 7 * cell; const cx = ox + width / 2; const cy = oy + height / 2;
+  const x0 = cx - (textW / 2) * Math.cos(a) + (textH / 2) * Math.sin(a); const y0 = cy - (textW / 2) * Math.sin(a) - (textH / 2) * Math.cos(a);
+  return { x0, y0, cell };
+}
+// The watermark's filled cells on a page of width x height points with its box at the origin, each as the four corners
+// [x, y] of the square the stamp draws (PDF coordinates, y up): for drawing the same watermark into a picture.
+export function watermarkCells(width, height) {
+  const { x0, y0, cell } = watermarkPlacement(0, 0, width, height);
+  const a = (WATERMARK_ANGLE * Math.PI) / 180; const cos = Math.cos(a); const sin = Math.sin(a);
+  const out = []; let col = 0;
+  for (const ch of WATERMARK_TEXT) {
+    const rows = BLOCK_FONT[ch] || BLOCK_FONT[' '];
+    for (let r = 0; r < 7; r++) for (let c = 0; c < 5; c++) {
+      if (rows[r][c] !== '1') continue;
+      const lx = (col + c) * cell; const ly = (6 - r) * cell;
+      const px = x0 + lx * cos - ly * sin; const py = y0 + lx * sin + ly * cos;
+      out.push([[px, py], [px + cell * cos, py + cell * sin], [px + cell * cos - cell * sin, py + cell * sin + cell * cos], [px - cell * sin, py + cell * cos]]);
+    }
+    col += 6;
+  }
+  return out;
+}
 // A number tree (the structure tree's ParentTree) entry, or undefined. Cycles and malformed nodes end the search.
 function numberTreeGet(context, node, key, seen = new Set()) {
   const d = context.lookup(node);
@@ -218,13 +246,8 @@ async function stampPages(doc, bandSuffix) {
     if (font.widthOfTextAtSize(text, size) > width - 8) size = Math.max(3, (width - 8) / font.widthOfTextAtSize(text, 1));
     const tw = font.widthOfTextAtSize(text, size);
     page.drawText(text, { x: ox + Math.max(4, (width - tw) / 2), y: oy + 3, size, font, color: rgb(0.42, 0.29, 0.17) });
-    // 18 columns x 6 cells wide at `cell` points; centred on the page, rotated 28 degrees, sized so the rotated run
-    // fits inside the page with a margin on either side
-    const a = (28 * Math.PI) / 180; const cols = WATERMARK_TEXT.length * 6 - 1;
-    const cell = Math.min(Math.min(width, height) / 100, (width - 36) / (cols * Math.cos(a) + 7 * Math.sin(a)));
-    const textW = cols * cell; const textH = 7 * cell; const cx = ox + width / 2; const cy = oy + height / 2;
-    const x0 = cx - (textW / 2) * Math.cos(a) + (textH / 2) * Math.sin(a); const y0 = cy - (textW / 2) * Math.sin(a) - (textH / 2) * Math.cos(a);
-    drawBlockText(page, WATERMARK_TEXT, { x: x0, y: y0, cell, angleDeg: 28, color: WATERMARK_COLOR, opacity: 0.14 });
+    const { x0, y0, cell } = watermarkPlacement(ox, oy, width, height);
+    drawBlockText(page, WATERMARK_TEXT, { x: x0, y: y0, cell, angleDeg: WATERMARK_ANGLE, color: WATERMARK_COLOR, opacity: 0.14 });
   }
   dropUnreferenced(doc.context, replaced);
 }

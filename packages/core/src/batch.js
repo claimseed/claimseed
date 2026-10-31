@@ -1,8 +1,9 @@
 // batch.js — render many documents into one folder with a manifest, for building a test set.
 //   renderBatch({ types: ['msn'], scenarios: 'all', seeds: 10, seedPrefix: 'batch', outDir })
-// writes <type>_<scenario>_<seed>.pdf and .ground-truth.json per document and manifest.jsonl, one JSON line per
-// document with both file names, the PDF's SHA-256, the answer key's SHA-256, the page count, the claimseed version and
-// the Chrome version that rendered it. Files are created exclusively: a batch never overwrites anything.
+// writes <type>_<scenario>_<seed>.pdf and .ground-truth.json per document (with `degrade`, a degraded copy instead,
+// <type>_<scenario>_<seed>_<preset>.pdf; degrade.js) and manifest.jsonl, one JSON line per
+// document with both file names, the PDF's SHA-256, the answer key's SHA-256, the page count, the preset of a degraded
+// copy (`degradation`, null for a clean one), the claimseed version and the Chrome version that rendered it. Files are created exclusively: a batch never overwrites anything.
 import fs from 'fs'; import path from 'path'; import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { listScenarios } from './generate/index.js';
@@ -24,13 +25,19 @@ export function planBatch({ types, scenarios = 'all', seeds = 10, seedPrefix = '
   if (!Number.isSafeInteger(seeds) || seeds < 1) throw new Error('batch: seeds must be a whole number of at least 1');
   if (!SEED.test(`${seedPrefix}-${seeds}`)) throw new Error('batch: the seed prefix must be letters, digits, . _ - and start with a letter or digit');
   // count first, build after: a request over the limit is refused before anything is allocated for it
+  // no message repeats a requested name; a scenario is kept for the named types that have it, but one that none of
+  // them has is refused rather than dropped
   const plan = [];
+  if (scenarios !== 'all' && !Array.isArray(scenarios)) throw new Error('batch: invalid scenario name; use only lowercase letters, digits and hyphens');
+  if (scenarios !== 'all') for (const s of scenarios) if (!SLUG.test(String(s))) throw new Error('batch: invalid scenario name; use only lowercase letters, digits and hyphens');
+  // a type or scenario named twice is planned once (twice would give two documents of the same file name)
+  types = [...new Set(types)]; if (scenarios !== 'all') scenarios = [...new Set(scenarios)];
   for (const type of types) {
-    if (!SLUG.test(String(type)) || !RENDERERS[type]) throw new Error(`batch: no document type ${type}`);
+    if (!SLUG.test(String(type)) || !Object.hasOwn(RENDERERS, type)) throw new Error(`batch: unknown document type; the known types are ${Object.keys(RENDERERS).join(', ')}`);
     const available = listScenarios(type);
-    if (scenarios !== 'all') for (const s of scenarios) if (!SLUG.test(String(s))) throw new Error(`batch: invalid scenario ${s}`);
     plan.push([type, scenarios === 'all' ? available : scenarios.filter((s) => available.includes(s))]);
   }
+  if (scenarios !== 'all') for (const s of scenarios) if (!plan.some(([, chosen]) => chosen.includes(s))) throw new Error('batch: a named scenario exists for none of the named types');
   const count = plan.reduce((n, [, chosen]) => n + chosen.length * seeds, 0);
   if (!count) throw new Error('batch: none of the named scenarios exists for the named types');
   if (count > MAX_BATCH) throw new Error(`batch: ${count} documents is over the limit of ${MAX_BATCH}`);
@@ -39,8 +46,13 @@ export function planBatch({ types, scenarios = 'all', seeds = 10, seedPrefix = '
   return jobs;
 }
 
-export async function renderBatch({ types, scenarios = 'all', seeds = 10, seedPrefix = 'batch', outDir, browser = null, onProgress = () => {} }) {
+export async function renderBatch({ types, scenarios = 'all', seeds = 10, seedPrefix = 'batch', outDir, browser = null, degrade = null, also = null, onProgress = () => {} }) {
+  const { PRESETS, degradeRendered } = await import('./degrade.js');
+  const { ALSO, REMITTANCE_TYPES } = await import('./index.js');
+  if (degrade !== null && !PRESETS.includes(degrade)) throw new Error(`batch: no degradation preset ${degrade}; presets: ${PRESETS.join(', ')}`);
+  if (also !== null && !ALSO.includes(also)) throw new Error(`batch: also must be one of ${ALSO.join(', ')}`);
   const jobs = planBatch({ types, scenarios, seeds, seedPrefix });
+  if (also === '835' && jobs.some((j) => !REMITTANCE_TYPES.includes(j.type))) throw new Error(`batch: an 835 is written for ${REMITTANCE_TYPES.join(', ')} only`);
   if (!outDir) throw new Error('batch: an output folder is required');
   fs.mkdirSync(outDir, { recursive: true });
   const manifestPath = path.join(outDir, 'manifest.jsonl');
@@ -50,13 +62,15 @@ export async function renderBatch({ types, scenarios = 'all', seeds = 10, seedPr
   try {
     const chrome = typeof b.version === 'function' ? await b.version() : null;
     for (const [n, job] of jobs.entries()) {
-      const base = `${job.type}_${job.scenario}_${job.seed}`;
-      const { bytes, groundTruth } = await render({ ...job, browser: b });
+      const base = `${job.type}_${job.scenario}_${job.seed}${degrade ? `_${degrade}` : ''}`;
+      let { bytes, groundTruth, remittance } = await render({ ...job, browser: b, also });
+      if (degrade) ({ bytes, groundTruth } = await degradeRendered(b, { ...job, preset: degrade, clean: { bytes, groundTruth }, pageImages: false }));
       const gt = Buffer.from(JSON.stringify(groundTruth, null, 2));
       fs.writeFileSync(path.join(outDir, `${base}.pdf`), bytes, { flag: 'wx' });
       fs.writeFileSync(path.join(outDir, `${base}.ground-truth.json`), gt, { flag: 'wx' });
-      const line = { pdf: `${base}.pdf`, groundTruth: `${base}.ground-truth.json`, ...job, pages: groundTruth.documents[0].pages,
+      const line = { pdf: `${base}.pdf`, groundTruth: `${base}.ground-truth.json`, ...job, degradation: degrade, pages: groundTruth.documents[0].pages,
         sha256: sha(bytes), groundTruthSha256: sha(gt), claimseedVersion: VERSION, chrome };
+      if (remittance !== null) { const r = Buffer.from(remittance); fs.writeFileSync(path.join(outDir, `${base}.835`), r, { flag: 'wx' }); line.remittance = `${base}.835`; line.remittanceSha256 = sha(r); }
       fs.writeSync(manifest, JSON.stringify(line) + '\n');
       onProgress(n + 1, jobs.length, base);
     }
@@ -78,6 +92,7 @@ export function readManifest(manifestPath) {
     for (const k of ['pdf', 'groundTruth', 'type', 'scenario', 'seed']) if (typeof e[k] !== 'string') throw new Error(`manifest line ${i + 1} has no ${k}`);
     if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,250}\.pdf$/.test(e.pdf) || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,250}\.ground-truth\.json$/.test(e.groundTruth)) throw new Error(`manifest line ${i + 1} names a file outside the batch folder, or not a PDF and its answer key`);
     if (!/^[0-9a-f]{64}$/.test(String(e.groundTruthSha256))) throw new Error(`manifest line ${i + 1} has no groundTruthSha256`);
+    if (e.remittance !== undefined && (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,250}\.835$/.test(String(e.remittance)) || !/^[0-9a-f]{64}$/.test(String(e.remittanceSha256)))) throw new Error(`manifest line ${i + 1} names an 835 outside the batch folder, or without its SHA-256`);
     return e;
   });
 }

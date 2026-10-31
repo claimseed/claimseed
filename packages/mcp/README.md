@@ -61,7 +61,8 @@ boundary, which is why the flags above take away its network, its capabilities a
 | `list_document_types` | The types (`msn`, `itemized-bill`, `ppo-eob`, `hmo-eob`), each with a description and its scenarios. |
 | `describe_document_type` | Every scenario of one type: description, period, claim count, the errors it injects (kind, severity, rule) and its public sources. |
 | `generate_data` | The data and ground truth of one document, without rendering; nothing is written. |
-| `render_document` | Renders one document and returns its pages as images, its ground truth, the PDF's SHA-256 and page count; with a workspace, also writes the PDF and its ground-truth JSON there and returns both paths. |
+| `render_document` | Renders one document and returns its pages as images, its ground truth, the PDF's SHA-256 and page count; with a workspace, also writes the PDF and its ground-truth JSON there and returns both paths. With `also: "835"`, also the X12 835 remittance of the same claims (Medicare Summary Notice and Medicare Advantage EOBs). |
+| `degrade_document` | Like `render_document`, but for a scanned-looking copy of the document: a flatbed scan, a fax, a phone photo or a low-resolution copy (`preset`). The copy is an image-only PDF with the specimen band and watermark drawn on top of the degraded pages; its ground truth has the same fields, errors and decoys, plus `degradation` and the seeded settings in `degradationParams`. Its structured result names the preset in `degradation` (null in a `render_document` result). |
 | `verify_document` | Scores what an extractor or bill auditor reported about one document against its answer key: field accuracy with the paths read wrong or missed, error recall and precision, false alarms and the decoys flagged. Nothing is rendered or written. |
 
 Arguments are a type, a scenario slug and a seed (letters, digits, `.`, `_`, `-`; up to 64 characters). The same
@@ -77,6 +78,18 @@ type, scenario and seed always give the same data, and on Linux with the same Ch
 - `include_pdf`: also return the PDF itself, embedded in the result. It counts toward the same limit: when it fits,
   page images take the room left (none is forced in); when the PDF alone is over the limit it is left out, and the
   result says so (`pdfEmbedded: false`).
+- `also`: `835` (the only value) — also write the X12 835 remittance of the same claims, for `msn`, `ppo-eob` and
+  `hmo-eob`; any other type is refused. With a workspace it is saved beside the PDF under a name the server chooses
+  (`.835`) and linked in the result; without one its text is embedded in the result (`application/edi-x12`). The
+  structured result's `remittance` gives the file (or null), its SHA-256 and whether it is embedded; the ground truth
+  holds the 835 as `documents[1]` and, on each error it carries, `x12Ref`. What the file contains: the core README,
+  "X12 835 remittances".
+
+`degrade_document` takes the same arguments as `render_document` and `preset`: `scan`, `fax`, `photo` or `low-res`.
+The settings (rotation, blur, noise, resolution and the rest) come from the type, scenario, seed and preset, so the
+same request gives the same settings. The pixels can differ very slightly from one run to the next (antialiasing
+in the browser), and so can the copy's bytes; its ground truth records the SHA-256 of the copy it came with. `verify_document` scores a report on a
+degraded copy against the same answer key as the clean document.
 
 `verify_document` takes the type, scenario and seed of the document and `output`, the report in the shape of
 `schema://extractor-output`: `fields` maps answer-key field paths (the keys of `documents[0].fields`) to the values
@@ -95,12 +108,13 @@ Resources: `schema://ground-truth` (the ground-truth JSON Schema), `schema://ext
 
 A `render_document` result holds the page images as standard MCP image content, the ground truth as structured
 content, and names an [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) view
-(`_meta.ui.resourceUri = "ui://claimseed/preview"`) that shows the pages with a table of the injected errors. What
-you see depends on the client:
+(`_meta.ui.resourceUri = "ui://claimseed/preview"`) that shows the pages with a table of the injected errors and, when
+there are any, a table of the decoys. As in `describe_document_type`, only a document with neither errors nor decoys
+is labelled a clean control. What you see depends on the client:
 
 | Client | What it shows |
 | --- | --- |
-| Clients with MCP Apps (ChatGPT, Claude, VS Code and others) | The view: every returned page and the injected errors, in the conversation. |
+| Clients with MCP Apps (ChatGPT, Claude, VS Code and others) | The view: every returned page, the injected errors and any decoys, in the conversation. |
 | Clients that show image content (Claude Desktop, claude.ai, MCP Inspector) | The page images in the tool result. |
 | Clients that pass images to the model only (several command-line agents) | The text summary; the model sees the pages and can describe them. |
 
@@ -132,15 +146,18 @@ nothing, but stop the tunnel when you are done.
   folder.
 - **Time and load.** One shared browser per server process; `CLAIMSEED_MCP_CONCURRENCY` renders at once (default 2,
   at most 4) and up to 4 more waiting, after which a render is refused as busy. A render that takes longer than
-  `CLAIMSEED_MCP_TIMEOUT_MS` (default 30000) fails and the browser is restarted; a render running beside it at that
-  moment fails too and can be retried. The browser closes after a minute without renders. A protocol message over
-  4 MB closes the server.
+  `CLAIMSEED_MCP_TIMEOUT_MS` (default 30000) fails and the browser is restarted (a degraded copy takes up to about
+  three times as long as a clean render: about 8 to 9 s for a six-page notice, more on a slow or busy machine, where
+  you should raise the limit); a render running beside it at that moment fails too and can be retried. The browser
+  closes after a minute without renders. A protocol message over 4 MB closes the server.
 - **Rendering is locked down** as in `@claimseed/core`: HTML is printed from memory with JavaScript off, a strict
   CSP, request interception and a dead proxy (see `SECURITY.md`). Run the Docker image with the flags above.
-- **Page images are drawn from the stamped PDF** by [PDF.js](https://mozilla.github.io/pdf.js/) in a page of the
-  same browser, in a browser context of its own that is closed after each render. That page runs script (PDF.js),
-  but it opens only the PDF the server just rendered, loads only PDF.js and its fonts from this package (served
-  from memory), has scripting in PDFs off and no network. The images show the specimen band and watermark like the
+- **Page images and degraded copies are drawn from the stamped PDF** by [PDF.js](https://mozilla.github.io/pdf.js/)
+  (through `@claimseed/core`) in a page of the same browser, in a browser context of its own that is closed after
+  each use. That page runs script (PDF.js and the degradation recipes), but it opens only the PDF the server just
+  rendered, loads only PDF.js and its fonts from `@claimseed/core` (served from memory), has scripting in PDFs off
+  and no network. A degraded copy is stamped again after degradation, so its band and watermark are never blurred
+  or thresholded away. The images show the specimen band and watermark like the
   PDF, and each image file carries the specimen text in its metadata (PNG `tEXt`, or Exif and a comment in a JPEG).
 - **Reports are capped and never echoed.** `verify_document` refuses a report over 5,000 fields, 1,000 errors,
   200-character paths or 1,000-character values, or in any other shape, with a message that gives positions only.

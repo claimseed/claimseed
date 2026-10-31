@@ -79,8 +79,8 @@ test('decoys keep every error in place, and refuse lines they cannot use', () =>
   if (preventive) refuse('msn', 'preventive-visit-cost-sharing', [{ op: 'repeat-service-other-date', args: { claim: preventive[0], line: preventive[1], days: 1 }, rule: 'r' }], /preventive|carries an error/);
 });
 
-test('every ground truth is schema 1.1 with a decoys list, empty unless the scenario plants some', () => {
+test('every ground truth is schema 1.3 with a decoys list, empty unless the scenario plants some', () => {
   const { groundTruth: g } = gen('itemized-bill', 'duplicate-charge');
-  assert.equal(g.schemaVersion, '1.1'); assert.deepEqual(g.decoys, []);
+  assert.equal(g.schemaVersion, '1.3'); assert.deepEqual(g.decoys, []); assert.equal(g.documents[0].degradationParams, null);
   assert.ok(validate(g), JSON.stringify(validate.errors));
 });

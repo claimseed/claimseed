@@ -18,8 +18,15 @@ import { norm, words, loadPublic, loadOriginal, loadVerifiedSentences, PLAN_NAME
 import { generateData } from '../src/generate/index.js';
 
 const args = process.argv.slice(2);
-const flag = (n, d) => { const i = args.indexOf(`--${n}`); return i >= 0 ? args[i + 1] : d; };
-const seeds = Number(flag('seeds', 2)); const only = flag('type', null);
+// an option without a value, or a count that is not a whole number of at least 1, is refused rather than read as a default
+// or as zero (which would scan nothing and report success)
+const flag = (n, d) => {
+  const i = args.indexOf(`--${n}`); if (i < 0) return d;
+  const v = args[i + 1]; if (v === undefined || v === '' || v.startsWith('--')) { console.error(`--${n} needs a value`); process.exit(2); }
+  return v;
+};
+const seeds = Number(flag('seeds', '2')); const only = flag('type', null);
+if (!Number.isSafeInteger(seeds) || seeds < 1) { console.error('--seeds must be a whole number of at least 1'); process.exit(2); }
 const CLI = path.join(path.dirname(fileURLToPath(import.meta.url)), '../src/cli.js');
 const problems = []; let rendered = 0;
 // Provenance of the printed text itself (not of the literals that produce it). The printed text is normalized and
@@ -159,4 +166,5 @@ for (const type of Object.keys(RENDERERS)) {
 }
 fs.rmSync(work, { recursive: true, force: true });
 if (problems.length) { console.error([...new Set(problems)].join('\n')); console.error(`\n${problems.length} problem(s) in ${rendered} rendered documents`); process.exit(1); }
+if (!rendered) { console.error('scan-rendered: the options select no documents, so nothing was scanned'); process.exit(1); }
 console.log(`scan-rendered: ok (${rendered} documents, ${seeds} seed(s) per scenario)`);

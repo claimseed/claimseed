@@ -81,3 +81,21 @@ test('scan-rendered reports a sentence printed side by side from positioned boxe
   const ok = scanCover('<div style="columns:2;column-gap:12pt"><div>{{ stock.cover.intro }}</div><div>{{ stock.cover.notABillText }}</div></div>');
   assert.equal(ok.status, 0, `reviewed sentences in two columns refused: ${ok.stdout}${ok.stderr}`);
 });
+
+// The maintainer scripts read their options strictly too: an option without a value is refused rather than read as the
+// current folder or as zero, and a scan that would cover nothing fails instead of reporting success.
+test('scan-rendered and examples refuse an option without a value, a count of zero and a selection of nothing', () => {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'cs-script-args-'));
+  const script = (name, ...a) => spawnSync(process.execPath, [path.join(core, 'scripts', name), ...a], { encoding: 'utf-8', cwd, timeout: 60000 });
+  for (const [a, status, message] of [[['--seeds', ''], 2, /^--seeds needs a value\n$/], [['--seeds'], 2, /^--seeds needs a value\n$/], [['--seeds', '0'], 2, /^--seeds must be a whole number of at least 1\n$/],
+    [['--seeds', 'two'], 2, /^--seeds must be a whole number of at least 1\n$/], [['--seeds', '1.5'], 2, /^--seeds must be a whole number of at least 1\n$/], [['--type', ''], 2, /^--type needs a value\n$/],
+    [['--seeds', '1', '--type', 'no-such-type'], 1, /^scan-rendered: the options select no documents, so nothing was scanned\n$/]]) {
+    const r = script('scan-rendered.js', ...a);
+    assert.equal(r.status, status, `scan-rendered ${JSON.stringify(a)}: exit ${r.status}`); assert.match(r.stderr, message, JSON.stringify(a)); assert.doesNotMatch(r.stdout, /ok/);
+  }
+  for (const a of [['--check', '--out', ''], ['--check', '--out'], ['--check', '--out', '--words', 'w'], ['--check', '--words', '']]) {
+    const r = script('examples.js', ...a);
+    assert.equal(r.status, 2, `examples ${JSON.stringify(a)}: exit ${r.status}`); assert.match(r.stderr, /^--(out|words) needs a value\n$/, JSON.stringify(a));
+  }
+  assert.deepEqual(fs.readdirSync(cwd), [], 'a refused script wrote into the folder it ran in');
+});

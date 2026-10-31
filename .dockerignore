@@ -9,6 +9,7 @@
 !packages/core/data/itemized-bill
 !packages/core/data/ppo-eob
 !packages/core/data/hmo-eob
+!packages/core/data/x12
 !packages/core/data/SOURCES.md
 !packages/core/data/original-sentences.json
 !packages/core/scenarios

@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // Smoke test of a running server command (a checkout, an installed package or the Docker image):
 //   node packages/mcp/scripts/smoke.js --host-dir DIR [--container-dir /work] -- <command> [args...]
-// Starts the command as an MCP server over stdio, lists its tools, renders one document and checks that the result
-// carries a page image and that the PDF and its ground truth arrived in DIR (the folder the server writes to, seen
-// from this machine; for a container, the host side of its /work mount). Exit 0 on success.
+// Starts the command as an MCP server over stdio, lists its tools, renders one document with its 835 and a degraded
+// copy, and checks that the result carries a page image and that the PDF, its ground truth and its 835 arrived in DIR
+// (the folder the server writes to, seen from this machine; for a container, the host side of its /work mount).
+// Exit 0 on success.
 import fs from 'fs'; import path from 'path'; import crypto from 'crypto';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -21,8 +22,8 @@ await client.connect(new StdioClientTransport({ command, args, env: process.env,
 try {
   const { tools } = await client.listTools();
   const names = tools.map((t) => t.name).sort().join(',');
-  if (names !== 'describe_document_type,generate_data,list_document_types,render_document,verify_document') throw new Error(`unexpected tools: ${names}`);
-  const r = await client.callTool({ name: 'render_document', arguments: { type: 'msn', scenario: 'duplicate-office-visit', seed: 'smoke-1' } }, undefined, { timeout: 120000 });
+  if (names !== 'degrade_document,describe_document_type,generate_data,list_document_types,render_document,verify_document') throw new Error(`unexpected tools: ${names}`);
+  const r = await client.callTool({ name: 'render_document', arguments: { type: 'msn', scenario: 'duplicate-office-visit', seed: 'smoke-1', also: '835' } }, undefined, { timeout: 120000 });
   if (r.isError) throw new Error(`render_document failed: ${r.content?.[0]?.text}`);
   const out = r.structuredContent;
   const local = (p) => path.join(hostDir, containerDir ? path.relative(containerDir, p) : path.relative(hostDir, p));
@@ -33,5 +34,11 @@ try {
   if (gt.errors.map((e) => e.kind).join() !== 'duplicate-charge') throw new Error('unexpected ground truth');
   const image = r.content.find((c) => c.type === 'image');
   if (!image || image.mimeType !== 'image/png' || !Buffer.from(image.data, 'base64').subarray(1, 4).equals(Buffer.from('PNG'))) throw new Error('no page image in the result');
-  console.log(`smoke: ok — ${tools.length} tools; rendered ${path.basename(out.pdf)} (${out.pages} pages, ${pdf.length} bytes) into ${hostDir}`);
+  const remittance = fs.readFileSync(local(out.remittance.file));
+  if (crypto.createHash('sha256').update(remittance).digest('hex') !== out.remittance.sha256 || !remittance.subarray(0, 3).equals(Buffer.from('ISA'))) throw new Error('the 835 on disk does not match the reported SHA-256');
+  // the client checks each structured result against the tool's output schema (it has listed the tools)
+  const d = await client.callTool({ name: 'degrade_document', arguments: { type: 'msn', scenario: 'duplicate-office-visit', seed: 'smoke-1', preset: 'low-res', preview: 'none' } }, undefined, { timeout: 180000 });
+  if (d.isError) throw new Error(`degrade_document failed: ${d.content?.[0]?.text}`);
+  if (d.structuredContent.degradation !== 'low-res' || !fs.existsSync(local(d.structuredContent.pdf))) throw new Error('the degraded copy is missing');
+  console.log(`smoke: ok — ${tools.length} tools; rendered ${path.basename(out.pdf)} (${out.pages} pages, ${pdf.length} bytes), its 835 and a low-res copy into ${hostDir}`);
 } finally { await client.close(); }

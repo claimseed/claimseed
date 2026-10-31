@@ -36,9 +36,15 @@ point of every render function, so neither the CLI nor the library API can produ
 no data object or template can remove them (the test suite proves both). Page images (the MCP server's previews,
 since 0.2.0) are drawn from the stamped PDF, so the band and watermark are in their pixels, and each image file
 carries the markers as well: PNG `tEXt` chunks, or an Exif ImageDescription and a comment in a JPEG, with the band text
-and the Subject line (tests check the pixels and the file markers). Photo- or scan-style degraded output does not
-exist yet; when it is added it must carry the same file markers and a burned-in overprint, with a test that the
-markers survive degradation.
+and the Subject line (tests check the pixels and the file markers). Degraded copies (scan, fax, phone photo, low
+resolution) are stamped after degradation: the degraded pages become an image-only PDF on which the band, watermark
+and metadata are drawn like on any other output, so no recipe can blur, threshold or crop the markers away, and
+their page images carry the same file markers (tests check the band and watermark pixels of every preset). A fax also
+prints the watermark as a dot pattern after thresholding, so it stays visible if the page is made black and white
+again (a test re-thresholds every fax page). An X12 835 remittance written beside a document is marked as test data
+(`ISA15` `T`), names a specimen sender, receiver, payer and technical contact (strings written without access to any
+real document, in `packages/core/data/x12/specimen-strings.json`), carries no bank data, and uses identifiers that
+cannot be real or are recognisable sentinels (the core README lists which).
 
 ## Public sources we build from
 Printed text: the CMS sample Part B MSN, 45 CFR 92 Appendices A and B, the HHS 2024 sample nondiscrimination policy,
@@ -46,8 +52,12 @@ HealthCare.gov's language-assistance sentences and the Medicare.gov contact page
 holds the snapshots; `data/SOURCES.md` the sentence-level ledger). Layout structure: the CMS MSN and the CMS Part C EOB
 model (42 CFR 422.111(k)). Amounts and parameters: the Medicare Physician Fee Schedule (RVU file and conversion
 factor), the Clinical Laboratory Fee Schedule and the annual Part A/B parameters fact sheet. Rules: the Social Security
-Act and 42 CFR provisions cited per scenario in `scenarios/*/*.json` and `docs/error-taxonomy.md`. Nothing else is
-used; a new source must be public-domain federal material and must be added to this list and to SOURCES.md.
+Act and 42 CFR provisions cited per scenario in `scenarios/*/*.json` and `docs/error-taxonomy.md`. The 835
+remittance: its structure and Medicare usage from CMS's 835 companion guide and the Medicare Claims Processing Manual,
+chapter 22; its claim adjustment group and reason code values from X12's code lists (x12.org/codes), as values only,
+never their descriptions, by the maintainers' decision (X12 holds the copyright in its code lists and has not stated
+whether the values alone need permission). Nothing else is used; a new source must be public-domain federal material
+and must be added to this list and to SOURCES.md.
 
 ## Codes and descriptions
 Service lines carry CPT and HCPCS Level II code numbers with claimseed's own plain-language descriptions. Contributors

@@ -20,11 +20,14 @@ node src/cli.js generate msn baseline-clean --seed demo
 
 # PDF + <name>.ground-truth.json in DIR
 node src/cli.js render msn baseline-clean --seed demo --out ./output
+node src/cli.js render msn baseline-clean --seed demo --out ./output --degrade scan   # also fax, photo, low-res
+node src/cli.js render msn baseline-clean --seed demo --out ./output --also 835       # also the X12 835 of the same claims
 node src/cli.js render itemized-bill balance-billing --seed demo --out ./output
 node src/cli.js render ppo-eob baseline-clean --seed demo --out ./output   # also hmo-eob
 
-# a set: PDFs, answer keys and manifest.jsonl (SHA-256 of each file, claimseed and Chrome versions) in a new DIR
-node src/cli.js batch --types msn,itemized-bill --seeds 50 --out ./set          # --scenarios all|S1,S2  --seed-prefix P
+# a set: PDFs, answer keys and manifest.jsonl (SHA-256 of each file, the degradation preset or null, claimseed and Chrome versions) in a new DIR;
+# with --also 835 (types msn, ppo-eob and hmo-eob only), each document also gets its .835, listed in the manifest with its SHA-256
+node src/cli.js batch --types msn,itemized-bill --seeds 50 --out ./set          # --scenarios all|S1,S2  --seed-prefix P  --degrade PRESET
 
 # score an extractor's report (see "Scoring an extractor" below)
 node src/cli.js verify --manifest ./set/manifest.jsonl --outputs ./reports     # one <pdf name>.json per document
@@ -59,6 +62,85 @@ the path of a finished, stamped PDF inside `workDir`.
 npm test          # unit tests, including one render-free pass over every scenario with many seeds
 npm run check     # repo-wide synthetic-data checks (sources present, no real-format NPIs, phones in the fiction block)
 ```
+
+## Degraded copies
+
+`--degrade scan|fax|photo|low-res` (on `render` and `batch`) and `renderDegraded({ type, scenario, seed, preset, outDir })`
+make a scanned-looking copy of a document:
+
+| Preset | What it does |
+| --- | --- |
+| `scan` | 200 dpi; off-white paper, a turn under 1 degree and a small shift, softening, grain and dust; JPEG |
+| `fax` | 200 dpi black and white after a threshold, standard (half vertical resolution) or fine, a turn, speckle and line streaks, the watermark printed again as a dot pattern; PNG |
+| `photo` | 150 dpi; the page on a table, the far edge narrower, a turn of up to 4 degrees, uneven light, blur and grain; JPEG |
+| `low-res` | 60 to 90 dpi, heavy JPEG compression |
+
+Any other preset, or an empty value such as `--degrade ''`, is refused with exit code 2 before anything is rendered or
+written, and the error message does not repeat the value. Every option of the command line refuses an empty value the
+same way. An unknown option, the `--name=value` form, an option given twice and an extra argument are refused too.
+
+Each page of the stamped PDF is drawn with PDF.js in an isolated page of the browser (`src/pdf-raster.js`), degraded
+there with settings from the seed, and put back together as an image-only PDF. That PDF is then stamped like every
+other claimseed PDF, so the band, the watermark and the specimen metadata sit on top of the degraded pages. Page images
+are drawn from the stamped PDF and carry the file markers. `render --degrade` writes `<type>_<scenario>_<seed>_<preset>.pdf`,
+its `.ground-truth.json` and `_p<N>.jpg` (`.png` for a fax); `batch --degrade` writes the PDF and answer key of each
+document, without page images. The answer key keeps the document's fields and errors and
+records `degradation` and `degradationParams` (ground truth 1.2 and later). The same seed always gives the same settings; the
+pictures match within a small pixel tolerance on one Chrome build.
+
+## The claims block
+
+Beside `documents[0].fields` (every printed value), the answer key's `claims` block is the adjudication the document
+was assembled from: one entry per claim, and per line the code, units, date, charged, allowed, approved, paid and
+what the patient may be billed, after any planted errors. From ground truth 1.3 each line also splits the patient's
+share into `toDeductible`, `coinsurance`, `copay` and `nonCovered` (a denied service the patient agreed to pay for),
+which add up to `patientMayBeBilled` to the cent; Part B lines have no copay. `deductibleMetBefore` is the deductible
+already met before the document's claims. On the Medicare Summary Notice the printed deductible met is
+`deductibleMetBefore` plus the lines' deductible, capped at the annual deductible (a scenario that applies the
+deductible again after it was met shows the extra on the lines, above the cap); on the PPO EOB it is
+`deductibleMetBefore` plus the lines' deductible; the itemized bill prints the lines' deductible as deductible
+applied; the HMO plan has no deductible. The split is derived from the adjudication: it changes no printed value and
+no field.
+
+## X12 835 remittances
+
+`--also 835` (on `render` and `batch`) and `render({ ..., also: '835' })` write the X12 005010X221A1 835 of a Medicare
+Summary Notice or a Medicare Advantage EOB from the same claims (`src/x12/remittance.js`); `remittanceFor({ type,
+scenario, seed })` returns it as `{ text, groundTruth }` without writing anything. The itemized bill has none: it prints no per-line payer amounts, and an institutional
+remittance needs data it does not carry.
+
+- **What the file holds.** One interchange and one functional group; one transaction per payee (grouped by NPI). The
+  payment record is remittance information only (`BPR01` `I`) for a fictional check (`BPR04` `CHK`), or `H`/`NON`/$0 for a
+  transaction whose claims pay nothing, with no routing or account numbers (`BPR05` to `BPR15` empty). Per claim a `CLP`
+  (status 1, or 4 when every line is denied; claim filing indicator `MB` for the MSN, `16` for the Medicare Advantage
+  EOBs), the patient (`NM1*QC`), and per line an `SVC`, its date, its adjustments and the approved amount (`AMT*B6`).
+- **Adjustments.** Code values only, never their descriptions: CO-45 for the charge above the approved amount; PR-1, PR-2
+  and PR-3 for the deductible, coinsurance and copay from the claims block; a line denied as not medically necessary is
+  adjusted in full under CARC 50 with group PR when the notice says the patient may be billed, CO when it says the
+  patient owes nothing. The duplicate scenarios bill a service twice; a payer handling them correctly would deny the
+  repeat as OA-18 (this is the expected handling the errors describe, not something the file shows). Code values are
+  X12's (x12.org/codes); claimseed uses the values only.
+- **Values.** The document's own: charged, approved, paid and the patient's share as the PDF prints them, so a planted
+  error stays where the PDF has it. In the answer key, `documents[1]` is the 835 (`type` `x12-835`, its SHA-256, its
+  transactions and the payer), and each error the file carries has `x12Ref`: `<ST02>:CLP<n>:CLP03` (a wrong charged
+  total, which fails the claim balance), `CLP04` (paid; claim balance), `CLP05` (the patient total; it then differs
+  from the claim's PR adjustments), or `<ST02>:CLP<n>:SVC<n>` for a line (a duplicate is a repeated service line).
+- **Markers.** `ISA15` is `T`; the sender and receiver IDs, the payer's name and address and the technical contact
+  (name and a 555-01xx phone) come from `data/x12/specimen-strings.json`, written without access to any real
+  document, and all say specimen or test. The 835's payer is this specimen payer, not the issuer the PDF prints.
+- **Identifiers.** Guaranteed never to be real: NPIs start with 9 (NPIs are issued with a first digit of 1 or 2), tax
+  IDs start with 00 (not on the IRS list of prefixes), Medicare numbers carry a letter Medicare never uses. Recognisable
+  sentinels only: the claim numbers the PDF prints (13 digits starting with 99 on the MSN, `CS` and 10 digits on the
+  Medicare Advantage EOBs), member IDs (`SPEC` and 8 digits), and the patient control numbers, check numbers and payer
+  ID (`N1*PR` with the plan ID qualifier `XV`), which start with `CS`. Systems that validate real identifiers may reject
+  them.
+- **What real Medicare remittances carry and these do not:** the 2% sequestration adjustment (CO-253), remark codes
+  and the MIA, MOA and LQ segments, provider-level adjustments (PLB), and bank data. A file with a planted error is
+  deliberately non-conformant where the error is.
+- **Format.** Delimiters `*` `^` `>` `~`; each segment ends with `~` and a line feed, for reading (translators accept it;
+  strip the line feeds for a strict reader). Save the text byte for byte: the answer key holds its SHA-256. The checker
+  in `src/x12/check835.js` (`check835`, `checkSpecimen835`) reads these files; it expects a procedure code of five
+  characters after `HC`, as every code in `reference-data/service-catalog.json` is.
 
 ## Scenario files
 

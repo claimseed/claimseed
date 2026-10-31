@@ -7,7 +7,7 @@ import fs from 'fs'; import path from 'path'; import crypto from 'crypto';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { generateData, listScenarios, loadScenario, render, launchBrowser, verifyFromSeed, RENDERERS, SLUG, SEED } from '@claimseed/core';
+import { generateData, listScenarios, loadScenario, render, launchBrowser, verifyFromSeed, degradeRendered, DEGRADE_PRESETS, ALSO, RENDERERS, SLUG, SEED } from '@claimseed/core';
 import { DOCUMENT_TYPES } from './types.js';
 import { openWorkspace } from './workspace.js';
 import { createGate, withTimeout, createBrowserPool } from './limits.js';
@@ -68,7 +68,8 @@ statements, Medicare Advantage explanations of benefits) with a ground truth tha
 error. Start with list_document_types; describe_document_type shows the scenarios of one type. generate_data returns
 the data and ground truth without rendering. verify_document scores what an extractor or bill auditor reported about
 a document against its answer key: fields read, errors found and missed, and false alarms, including decoys (lines that
-look wrong but follow the rules).`;
+look wrong but follow the rules). degrade_document renders a scanned-looking copy (scan, fax, phone photo or low-res) with
+the same answer key, to test reading documents that are not clean PDFs.`;
 const INSTRUCTIONS_WORKSPACE = `${INSTRUCTIONS_BASE} render_document writes a PDF and its ground-truth JSON into the
 server's workspace folder, returns their paths and shows the first page as an image (preview "all" shows every page).
 Every value is synthetic and every page carries specimen markers.`;
@@ -129,30 +130,17 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
     return { content: [text(json(out))], structuredContent: out };
   });
 
-  const Preview = z.enum(['none', 'first', 'all']).default(ws ? 'first' : 'all')
-    .describe(`pages returned as images: none, the first (from from_page), or all from from_page on, as many as fit in one result (default ${ws ? 'first' : 'all'})`);
-  const PreviewOut = z.object({ pages: z.array(z.number()), omitted: z.number(), next: z.number().nullable() });
-  server.registerTool('render_document', {
-    title: 'Render a document to PDF',
-    description: ws
-      ? 'Render one document to PDF in the workspace folder, with its ground-truth JSON beside it, and return both paths, the PDF\'s SHA-256 and page count, the ground truth, and page images (the first page by default). The server names the files itself. When the workspace quota is reached it deletes its own oldest outputs from the current run (never any other file, nor outputs of earlier runs). Every page carries specimen markers.'
-      : 'Render one document and return it in the result: its pages as images (as many as fit; from_page shows the rest), the ground truth, the PDF\'s SHA-256 and page count, and the PDF itself when include_pdf is set and it fits within the size limit. No file is saved. Every page carries specimen markers.',
-    inputSchema: {
-      type: Type, scenario: Scenario, seed: Seed, preview: Preview,
-      from_page: z.number().int().min(1).max(999).default(1).describe('first page to return as an image (default 1)'),
-      include_pdf: z.boolean().default(false).describe('also return the PDF itself, embedded in the result; it counts toward the same size limit as the page images and is left out, with a note, when it alone is over it'),
-    },
-    outputSchema: { type: z.string(), scenario: z.string(), seed: z.string(), pdf: z.string().nullable(), groundTruthFile: z.string().nullable(), sha256: z.string(), pages: z.number(), bytes: z.number(), pdfEmbedded: z.boolean(), groundTruth: z.record(z.string(), z.unknown()), preview: PreviewOut },
-    annotations: ws ? { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false } : { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { resourceUri: VIEW_URI }, 'ui/resourceUri': VIEW_URI },
-  }, async ({ type, scenario, seed, preview = ws ? 'first' : 'all', from_page: fromPage = 1, include_pdf: includePdf = false }, extra) => {
+  // Render one document (or, with a preset, a degraded copy of it) and deliver it: page images, the PDF on request, the
+  // files in the workspace when there is one. Shared by render_document and degrade_document.
+  async function deliver({ type, scenario, seed, preset = null, preview = ws ? 'first' : 'all', from_page: fromPage = 1, include_pdf: includePdf = false, also = null }, extra) {
     needScenario(type, scenario);
     const out = await gate.run(async () => {
       const browser = await pool.acquire();
       const gen = pool.generation;
       try {
         return await withTimeout((async () => {
-          const r = await render({ type, scenario, seed, browser });
+          const r = await render({ type, scenario, seed, browser, also });
+          if (preset) Object.assign(r, await degradeRendered(browser, { type, scenario, seed, preset, clean: r, pageImages: false }));
           // the PDF, when asked for, counts toward the same limit: it goes in only when it fits, and the pictures then
           // take what room is left (none forced in); a PDF over the limit is left out and the result says so
           r.pdfBase64Bytes = 4 * Math.ceil(r.bytes.length / 3);
@@ -160,7 +148,7 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
           const budget = previewKB * 1024 - (r.embedPdf ? r.pdfBase64Bytes : 0);
           // the document stands without its pictures: if they cannot be drawn, the result says so and carries none
           if (preview !== 'none') {
-            try { r.preview = await previewPages(browser, r.bytes, { pages: preview, from: fromPage, budget, forceFirst: !r.embedPdf, label: `${type} / ${scenario} / seed ${seed}` }); }
+            try { r.preview = await previewPages(browser, r.bytes, { pages: preview, from: fromPage, budget, forceFirst: !r.embedPdf, label: `${type} / ${scenario} / seed ${seed}${preset ? ` / ${preset}` : ''}` }); }
             catch (e) { r.previewError = String(e.message).split('\n')[0].slice(0, 200); log(`page images failed: ${r.previewError}`); }
           }
           return r;
@@ -175,7 +163,9 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
     let saved = null;
     if (ws) {
       const gtBytes = Buffer.from(JSON.stringify(out.groundTruth, null, 2));
-      saved = ws.save(`${type}_${scenario}_${seed}`, [{ ext: 'pdf', bytes: out.bytes }, { ext: 'ground-truth.json', bytes: gtBytes }]);
+      const files = [{ ext: 'pdf', bytes: out.bytes }, { ext: 'ground-truth.json', bytes: gtBytes }];
+      if (out.remittance) files.push({ ext: '835', bytes: Buffer.from(out.remittance) });   // byte for byte, as its SHA-256 in the answer key
+      saved = ws.save(`${type}_${scenario}_${seed}${preset ? `_${preset}` : ''}`, files);
       if (saved.evicted) log(`quota: removed ${saved.evicted} older output file(s)`);
     }
     const doc = out.groundTruth.documents[0];
@@ -183,30 +173,77 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
     const shown = images.map((i) => i.page);
     const last = shown.length ? shown[shown.length - 1] : (preview === 'none' ? doc.pages : Math.min(fromPage - 1, doc.pages));
     const omitted = Math.max(0, doc.pages - last);
-    const result = { type, scenario, seed, pdf: saved ? saved.paths.pdf : null, groundTruthFile: saved ? saved.paths['ground-truth.json'] : null,
+    const result = { type, scenario, seed, degradation: preset, pdf: saved ? saved.paths.pdf : null, groundTruthFile: saved ? saved.paths['ground-truth.json'] : null,
       sha256: crypto.createHash('sha256').update(out.bytes).digest('hex'), pages: doc.pages, bytes: out.bytes.length, pdfEmbedded: !!out.embedPdf, groundTruth: out.groundTruth,
-      preview: { pages: shown, omitted: preview === 'none' || out.previewError ? 0 : omitted, next: preview !== 'none' && !out.previewError && omitted ? last + 1 : null } };
+      preview: { pages: shown, omitted: preview === 'none' || out.previewError ? 0 : omitted, next: preview !== 'none' && !out.previewError && omitted ? last + 1 : null },
+      // render_document's result always names its 835 (null without one); degrade_document's schema has no such field
+      ...(preset ? {} : { remittance: out.remittance ? { file: saved ? saved.paths['835'] : null, sha256: out.groundTruth.documents[1].sha256, embedded: !saved } : null }) };
     const errs = out.groundTruth.errors.map((e) => e.kind);
+    const decoys = (out.groundTruth.decoys || []).length;
+    const none = decoys === 1 ? 'no injected errors but 1 decoy (not a clean control)' : decoys ? `no injected errors but ${decoys} decoys (not a clean control)` : 'no injected errors';
     const range = (a) => (a.length > 1 ? `pages ${a[0]}-${a[a.length - 1]}` : `page ${a[0]}`);
-    const lines = [`Rendered ${type} / ${scenario} / seed ${seed}: ${doc.pages} page(s), ${out.bytes.length} bytes, ${errs.length ? `injected errors: ${errs.join(', ')}` : 'no injected errors'}.`];
+    const lines = [`Rendered ${preset ? `a ${preset} copy of ` : ''}${type} / ${scenario} / seed ${seed}: ${doc.pages} page(s), ${out.bytes.length} bytes, ${errs.length ? `injected errors: ${errs.join(', ')}` : none}.`];
     if (out.previewError) lines.push(`Page images could not be drawn (${out.previewError}); the document itself is unaffected.`);
     else if (preview !== 'none') {
-      if (shown.length) lines.push(`Shown below as images: ${range(shown)} of ${doc.pages}.${result.preview.next ? ` ${omitted} more: call render_document again with from_page ${result.preview.next}.` : ''}`);
+      if (shown.length) lines.push(`Shown below as images: ${range(shown)} of ${doc.pages}.${result.preview.next ? ` ${omitted} more: call ${preset ? 'degrade_document' : 'render_document'} again with from_page ${result.preview.next}.` : ''}`);
       else if (fromPage > doc.pages) lines.push(`No page images: the document has ${doc.pages} page(s) and from_page was ${fromPage}.`);
-      else lines.push(`No page images: the embedded PDF left no room within this server's limit for one result; call render_document again without include_pdf to see the pages.`);
+      else lines.push(`No page images: the embedded PDF left no room within this server's limit for one result; call ${preset ? 'degrade_document' : 'render_document'} again without include_pdf to see the pages.`);
     }
     if (saved) lines.push(`PDF: ${result.pdf}`, `Ground truth: ${result.groundTruthFile}`);
+    if (out.remittance) lines.push(saved ? `835 remittance: ${result.remittance.file}` : 'The 835 remittance of the same claims is embedded in this result as text.');
     if (includePdf && !out.embedPdf) lines.push(`The PDF (${Math.ceil(out.pdfBase64Bytes / 1024)} KB as base64) is larger than this server's limit for one result (${previewKB} KB, CLAIMSEED_MCP_PREVIEW_KB) and was left out; raise the limit or run the server with a workspace.`);
     if (!saved) lines.push(out.embedPdf ? 'The PDF is embedded in this result. No file was saved.' : `No file was saved${includePdf ? '' : '; set include_pdf to get the PDF in the result'}.`);
     lines.push('Ground truth (expected findings and field values) is in the structured result.');
     const content = [text(lines.join('\n'))];
     for (const i of images) content.push({ type: 'image', mimeType: i.mimeType, data: i.data });
-    if (out.embedPdf) content.push({ type: 'resource', resource: { uri: `claimseed://document/${type}/${scenario}/${seed}.pdf`, mimeType: 'application/pdf', blob: out.bytes.toString('base64') } });
+    if (out.embedPdf) content.push({ type: 'resource', resource: { uri: `claimseed://document/${type}/${scenario}/${seed}${preset ? `-${preset}` : ''}.pdf`, mimeType: 'application/pdf', blob: out.bytes.toString('base64') } });
+    if (out.remittance && !saved) content.push({ type: 'resource', resource: { uri: `claimseed://document/${type}/${scenario}/${seed}.835`, mimeType: 'application/edi-x12', text: out.remittance } });
     if (saved) content.push(
       { type: 'resource_link', uri: pathToFileURL(result.pdf).href, name: path.basename(result.pdf), mimeType: 'application/pdf', description: 'synthetic specimen PDF' },
       { type: 'resource_link', uri: pathToFileURL(result.groundTruthFile).href, name: path.basename(result.groundTruthFile), mimeType: 'application/json', description: 'ground truth for the PDF' });
+    if (out.remittance && saved) content.push({ type: 'resource_link', uri: pathToFileURL(result.remittance.file).href, name: path.basename(result.remittance.file), mimeType: 'application/edi-x12', description: 'synthetic specimen X12 835 remittance' });
     return { content, structuredContent: result };
-  });
+  }
+
+  const Preview = z.enum(['none', 'first', 'all']).default(ws ? 'first' : 'all')
+    .describe(`pages returned as images: none, the first (from from_page), or all from from_page on, as many as fit in one result (default ${ws ? 'first' : 'all'})`);
+  const PreviewOut = z.object({ pages: z.array(z.number()), omitted: z.number(), next: z.number().nullable() });
+  const RemittanceOut = z.object({ file: z.string().nullable(), sha256: z.string(), embedded: z.boolean() }).nullable();
+  server.registerTool('render_document', {
+    title: 'Render a document to PDF',
+    description: ws
+      ? 'Render one document to PDF in the workspace folder, with its ground-truth JSON beside it, and return both paths, the PDF\'s SHA-256 and page count, the ground truth, and page images (the first page by default). The server names the files itself. When the workspace quota is reached it deletes its own oldest outputs from the current run (never any other file, nor outputs of earlier runs). Every page carries specimen markers.'
+      : 'Render one document and return it in the result: its pages as images (as many as fit; from_page shows the rest), the ground truth, the PDF\'s SHA-256 and page count, and the PDF itself when include_pdf is set and it fits within the size limit. No file is saved. Every page carries specimen markers.',
+    inputSchema: {
+      type: Type, scenario: Scenario, seed: Seed, preview: Preview,
+      from_page: z.number().int().min(1).max(999).default(1).describe('first page to return as an image (default 1)'),
+      include_pdf: z.boolean().default(false).describe('also return the PDF itself, embedded in the result; it counts toward the same size limit as the page images and is left out, with a note, when it alone is over it'),
+      also: z.enum(ALSO).optional().describe('835: also write the X12 835 remittance of the same claims (msn, ppo-eob and hmo-eob only), as a file in the workspace or as text in the result'),
+    },
+    outputSchema: { type: z.string(), scenario: z.string(), seed: z.string(), degradation: z.string().nullable(), pdf: z.string().nullable(), groundTruthFile: z.string().nullable(), sha256: z.string(), pages: z.number(), bytes: z.number(), pdfEmbedded: z.boolean(), groundTruth: z.record(z.string(), z.unknown()), preview: PreviewOut, remittance: RemittanceOut },
+    annotations: ws ? { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false } : { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: { ui: { resourceUri: VIEW_URI }, 'ui/resourceUri': VIEW_URI },
+  }, (args, extra) => deliver(args, extra));
+
+  server.registerTool('degrade_document', {
+    title: 'Render a scanned-looking copy of a document',
+    description: (ws
+      ? 'Render a degraded copy of one document into the workspace folder: '
+      : 'Render a degraded copy of one document and return it: ')
+      + 'a flatbed scan, a fax, a phone photo or a low-resolution copy (preset), as an image-only PDF with the specimen band and watermark drawn on top of the degraded pages. '
+      + 'The settings come from the seed and are recorded in the ground truth (degradation, degradationParams); the fields are those of the clean document. '
+      + (ws ? 'Returns the paths, the ground truth and page images (the first page by default). The server names the files itself.' : 'Returns page images (as many as fit), the ground truth, and the PDF itself when include_pdf is set and it fits. No file is saved.'),
+    inputSchema: {
+      type: Type, scenario: Scenario, seed: Seed,
+      preset: z.enum(DEGRADE_PRESETS).describe('scan (flatbed scan), fax (black and white, standard or fine), photo (phone photo of the page on a table) or low-res'),
+      preview: Preview,
+      from_page: z.number().int().min(1).max(999).default(1).describe('first page to return as an image (default 1)'),
+      include_pdf: z.boolean().default(false).describe('also return the degraded PDF itself; it counts toward the same size limit as the page images and is left out, with a note, when it alone is over it'),
+    },
+    outputSchema: { type: z.string(), scenario: z.string(), seed: z.string(), degradation: z.string().nullable(), pdf: z.string().nullable(), groundTruthFile: z.string().nullable(), sha256: z.string(), pages: z.number(), bytes: z.number(), pdfEmbedded: z.boolean(), groundTruth: z.record(z.string(), z.unknown()), preview: PreviewOut },
+    annotations: ws ? { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false } : { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: { ui: { resourceUri: VIEW_URI }, 'ui/resourceUri': VIEW_URI },
+  }, (args, extra) => deliver(args, extra));
 
   server.registerTool('verify_document', {
     title: 'Score an extractor against a document',
@@ -241,7 +278,7 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
   server.registerResource('synthetic-data-policy', 'policy://synthetic-data', { title: 'Synthetic data policy', description: 'How every value is made synthetic, and acceptable use of the output', mimeType: 'text/markdown' },
     async (uri) => ({ contents: [{ uri: uri.href, mimeType: 'text/markdown', text: resourceText('synthetic-data-policy.md') }] }));
 
-  server.registerResource('preview-view', VIEW_URI, { title: 'Document preview', description: 'MCP Apps view of render_document: the page images and injected errors of a rendered document', mimeType: VIEW_MIME },
+  server.registerResource('preview-view', VIEW_URI, { title: 'Document preview', description: 'MCP Apps view of render_document and degrade_document: page images, injected errors and any decoys', mimeType: VIEW_MIME },
     async (uri) => ({ contents: [{ uri: uri.href, mimeType: VIEW_MIME, text: VIEW_HTML, _meta: { ui: { prefersBorder: true } } }] }));
 
   server.registerPrompt('build_test_case', {

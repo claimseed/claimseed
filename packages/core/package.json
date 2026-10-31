@@ -1,6 +1,6 @@
 {
   "name": "@claimseed/core",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Render fully synthetic US medical-billing specimen documents (EOB, MSN, bills, notices) from seeded data, and score extractors against their answer keys",
   "license": "Apache-2.0",
   "author": "claimseed maintainers <maintainers@gildage.co>",
@@ -23,7 +23,7 @@
     "claimseed-core": "src/cli.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   },
   "scripts": {
     "render": "node src/cli.js render",
@@ -43,6 +43,7 @@
     "@fontsource/noto-serif": "5.3.0",
     "nunjucks": "3.2.4",
     "pdf-lib": "1.17.1",
+    "pdfjs-dist": "6.4.299",
     "puppeteer-core": "25.16.0"
   },
   "files": [
@@ -52,6 +53,7 @@
     "data/itemized-bill",
     "data/ppo-eob",
     "data/hmo-eob",
+    "data/x12",
     "data/SOURCES.md",
     "data/original-sentences.json",
     "scenarios",
@@ -64,5 +66,8 @@
   ],
   "publishConfig": {
     "access": "public"
+  },
+  "devDependencies": {
+    "x12-parser": "1.3.0"
   }
 }

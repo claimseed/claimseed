@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import zlib from 'zlib';
-import { BAND_TEXT, SPECIMEN_SUBJECT } from '@claimseed/core';
+import { BAND_TEXT, SPECIMEN_SUBJECT } from '../src/render.js';
 import { markPng, markJpeg, markImage } from '../src/image-markers.js';
 import { readPng, readJpeg, readMarkers } from './markers-read.js';
 
