@@ -16,7 +16,7 @@
     "scan-rendered": "node packages/core/scripts/scan-rendered.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   },
   "devDependencies": {
     "ajv": "8.20.0",

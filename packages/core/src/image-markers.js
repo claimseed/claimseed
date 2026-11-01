@@ -2,7 +2,7 @@
 // drawn from the stamped PDF; these markers also say so in the file itself, where image tools and metadata readers
 // look: PNG tEXt chunks, and for JPEG an Exif ImageDescription plus a comment segment. Text is ASCII only.
 import zlib from 'zlib';
-import { BAND_TEXT, SPECIMEN_SUBJECT } from '@claimseed/core';
+import { BAND_TEXT, SPECIMEN_SUBJECT } from './render.js';
 
 const ascii = (s) => Buffer.from(String(s).replace(/[^\x20-\x7e]/g, '?'), 'latin1');
 

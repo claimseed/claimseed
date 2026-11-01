@@ -16,9 +16,15 @@ available under that licence; a licence granted with a release cannot be withdra
   with a manifest of hashes, and `verify --manifest` scores the whole set.
 - Decoys on the MSN and the itemized bill: lines that look wrong but follow the rules, listed in the ground truth's
   `decoys[]` so that flagging one counts as a false alarm.
+- Scanned-looking copies: `render --degrade` and `batch --degrade` (`scan`, `fax`, `photo`, `low-res`) make an
+  image-only copy of a document with seeded skew, blur, noise, thresholding or low resolution, stamped after
+  degradation, and record the preset and its settings in the ground truth (`degradation`, `degradationParams`).
+- Remittances: `render --also 835` and `batch --also 835` write the X12 835 of the same claims beside a Medicare
+  Summary Notice or a Medicare Advantage EOB, with each planted error's place in the 835 in the answer key; the
+  claims block splits the patient's share into deductible, coinsurance, copay and non-covered.
 - `@claimseed/mcp`: an MCP server over stdio with `list_document_types`, `describe_document_type`, `generate_data`,
-  `render_document` (page images in the result and an MCP Apps view) and `verify_document`, the ground-truth and
-  extractor-output schemas and catalogs as resources, and a `build_test_case` prompt.
+  `render_document` (page images in the result and an MCP Apps view), `degrade_document` and `verify_document`,
+  the ground-truth and extractor-output schemas and catalogs as resources, and a `build_test_case` prompt.
 - A Docker image (`Dockerfile`) with Chromium, for running the MCP server without installing a browser.
 - `examples/`: one document per published scenario, re-rendered and compared in CI on every push.
 
@@ -27,9 +33,6 @@ available under that licence; a licence granted with a release cannot be withdra
 - **More MCP tools.**
   - `render_scenario_pair`: two documents of one encounter (for example an MSN and the provider's itemized bill)
     that agree or disagree on purpose, with one ground truth across both.
-  - `degrade_document` (next): scan-, fax- and phone-photo-style degradation of a rendered specimen (skew, noise, blur,
-    low resolution), recorded in the ground truth's `degradation` field. It takes only files the server rendered
-    itself, by the name it returned.
   - Adversarial fixtures (prompt-injection text and other hostile content inside a specimen, for testing an agent's
     defences), only when a call asks for them explicitly.
 - **Error injection and decoys on the Medicare Advantage EOBs**, which accept neither today.
@@ -38,6 +41,10 @@ available under that licence; a licence granted with a release cannot be withdra
   `docs/error-taxonomy.md` that need it.
 - **Cross-document scenarios** (`bill-vs-eob-mismatch`, `identity-conflict` and the other pair kinds in the taxonomy).
 - **A gallery** of rendered examples in the README, hosted with each release (the repository holds no binary files).
+- **837 claims**, decided after the 835: they need data the generator does not hold (diagnosis codes, place of service,
+  birth date and sex, modifiers). An 835 for the itemized bill would come with that work.
+
+FHIR ExplanationOfBenefit output is dropped: Synthea and CMS already publish synthetic FHIR claims.
 
 ## Not planned
 

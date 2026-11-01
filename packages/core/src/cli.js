@@ -3,7 +3,9 @@
 //   claimseed-core list [type]
 //   claimseed-core generate <type> <scenario> --seed S          -> JSON on stdout (data + groundTruth)
 //   claimseed-core render <type> <scenario> --seed S --out DIR  -> PDF + <name>.ground-truth.json
-//   claimseed-core batch --types T1,T2 [--scenarios all|S1,S2] [--seeds N] [--seed-prefix P] --out DIR
+//        [--degrade scan|fax|photo|low-res]                    -> a degraded copy instead: image-only PDF, answer key, page images
+//        [--also 835]                                          -> also the X12 835 remittance of the same claims (<name>.835)
+//   claimseed-core batch --types T1,T2 [--scenarios all|S1,S2] [--seeds N] [--seed-prefix P] [--degrade PRESET] [--also 835] --out DIR
 //                                                              -> PDFs, answer keys and manifest.jsonl in DIR
 //   claimseed-core verify --answer-key FILE --output FILE      -> score one extractor output (JSON on stdout)
 //   claimseed-core verify <type> <scenario> --seed S --output FILE   (answer key rebuilt from the seed)
@@ -20,14 +22,41 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const SEED = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
-function flag(name, dflt) {
-  const i = args.indexOf(`--${name}`);
-  if (i < 0) return dflt;
-  const v = args[i + 1];
-  if (v === undefined || v.startsWith('--')) { console.error(`--${name} needs a value`); process.exit(2); }
-  return v;
+// Each command's options and how many plain arguments it takes. Everything on the command line is read before anything
+// runs: an unknown option, the --name=value form, an option given twice, an extra argument and an option without a value
+// (missing, empty or another option) are refused with exit 2, so a typo or an unset variable in a wrapper script cannot
+// quietly fall back to a default (a clean copy instead of a degraded one, the current folder for --out). No message
+// repeats what was typed.
+const COMMANDS = {
+  list: { positional: 1, options: [] },
+  generate: { positional: 2, options: ['seed'] },
+  render: { positional: 2, options: ['seed', 'out', 'degrade', 'also'] },
+  batch: { positional: 0, options: ['types', 'scenarios', 'seeds', 'seed-prefix', 'degrade', 'also', 'out'] },
+  verify: { positional: 2, options: ['answer-key', 'output', 'seed', 'manifest', 'outputs'] },
+};
+function refuse(message) { console.error(message); process.exit(2); }
+function parseArgs(cmd, rest) {
+  const spec = COMMANDS[cmd]; const positional = []; const values = new Map();
+  for (let i = 0; i < rest.length; i++) {
+    const a = rest[i];
+    if (!a.startsWith('--')) { positional.push(a); if (positional.length > spec.positional) refuse(`${cmd}: too many arguments`); continue; }
+    const name = a.slice(2);
+    if (!spec.options.includes(name)) {
+      const eq = name.indexOf('=');
+      if (eq > 0 && spec.options.includes(name.slice(0, eq))) refuse(`--${name.slice(0, eq)} takes its value in the next argument, not after an equals sign`);
+      refuse(spec.options.length ? `${cmd}: unknown option; the options are ${spec.options.map((o) => `--${o}`).join(', ')}` : `${cmd}: unknown option; this command takes no options`);
+    }
+    if (values.has(name)) refuse(`--${name} may be given only once`);
+    const v = rest[i + 1];
+    if (v === undefined || v === '' || v.startsWith('--')) refuse(`--${name} needs a value`);
+    values.set(name, v); i++;
+  }
+  return { positional, values };
 }
-function mustMatch(v, re, what) { if (!re.test(String(v))) { console.error(`${what} must match ${re}`); process.exit(2); } }
+const [cmd, ...rest] = args;
+const parsed = Object.hasOwn(COMMANDS, cmd) ? parseArgs(cmd, rest) : { positional: [], values: new Map() };
+function flag(name, dflt) { return parsed.values.has(name) ? parsed.values.get(name) : dflt; }
+function mustMatch(v, re, what) { if (typeof v !== 'string' || !re.test(v)) { console.error(`${what} must match ${re}`); process.exit(2); } }
 const MAX_JSON = 10 * 2 ** 20;
 const why = (e) => (e.code === 'NOT_REGULAR' ? 'not a regular file (a link, a folder or a special file)' : e.code === 'TOO_LARGE' ? `over ${MAX_JSON / 2 ** 20} MB`
   : e.code === 'ENOENT' ? 'missing' : `unreadable (${e.code || 'error'})`);
@@ -48,7 +77,15 @@ function readReport(file) {
 }
 const total = (rs, part, key) => rs.reduce((n, r) => n + (r[part]?.[key] || 0), 0);
 const ratio = (n, d) => (d ? Math.round((n / d) * 10000) / 10000 : null);
-const [cmd, type, scenario] = args;
+const [type, scenario] = parsed.positional;
+// --also: a closed list, checked before anything is generated; an 835 only for the document types that have one
+async function alsoFlag(types) {
+  const also = flag('also', null); if (also === null) return null;
+  const { ALSO, REMITTANCE_TYPES } = await import('./index.js');
+  if (!ALSO.includes(also)) { console.error(`--also must be one of ${ALSO.join(', ')}`); process.exit(2); }
+  if (types.some((t) => !REMITTANCE_TYPES.includes(t))) { console.error(`--also 835 is for ${REMITTANCE_TYPES.join(', ')} only`); process.exit(2); }
+  return also;
+}
 
 async function main() {
   if (cmd === 'list') {
@@ -64,9 +101,18 @@ async function main() {
   }
   if (cmd === 'render') {
     const seed = flag('seed', 'claimseed'); const outDir = path.resolve(flag('out', 'output'));
+    const degrade = flag('degrade', null);
+    if (degrade !== null) { const { PRESETS } = await import('./degrade.js'); if (!PRESETS.includes(degrade)) { console.error(`--degrade must be one of ${PRESETS.join(', ')}`); process.exit(2); } }
+    const also = await alsoFlag([type]);
+    if (degrade !== null) {
+      const { renderDegraded } = await import('./degrade.js');
+      const r = await renderDegraded({ type, scenario, seed, preset: degrade, outDir, also });
+      console.log(`wrote ${r.pdf} (${r.bytes.length} bytes), its ground truth${also ? ', its 835' : ''} and ${r.images.length} page image(s)`);
+      return;
+    }
     const { render } = await import('./index.js');
-    const { pdf, bytes } = await render({ type, scenario, seed, outDir });
-    console.log(`wrote ${pdf} (${bytes.length} bytes) and ground truth`);
+    const { pdf, bytes } = await render({ type, scenario, seed, outDir, also });
+    console.log(`wrote ${pdf} (${bytes.length} bytes) and ground truth${also ? ' and its 835' : ''}`);
     return;
   }
   if (cmd === 'batch') {
@@ -74,7 +120,10 @@ async function main() {
     const types = String(flag('types', '')).split(',').filter(Boolean);
     const sc = flag('scenarios', 'all'); const seeds = Number(flag('seeds', '10'));
     const out = flag('out', null); if (!out) { console.error('batch needs --out DIR'); process.exit(2); }
-    const r = await renderBatch({ types, scenarios: sc === 'all' ? 'all' : sc.split(',').filter(Boolean), seeds, seedPrefix: flag('seed-prefix', 'batch'), outDir: path.resolve(out),
+    const degrade = flag('degrade', null);
+    if (degrade !== null) { const { PRESETS } = await import('./degrade.js'); if (!PRESETS.includes(degrade)) { console.error(`--degrade must be one of ${PRESETS.join(', ')}`); process.exit(2); } }
+    const also = await alsoFlag(types);
+    const r = await renderBatch({ types, scenarios: sc === 'all' ? 'all' : sc.split(',').filter(Boolean), seeds, seedPrefix: flag('seed-prefix', 'batch'), outDir: path.resolve(out), degrade, also,
       onProgress: (n, of) => { if (n === of || n % 10 === 0) console.log(`batch: ${n} of ${of}`); } });
     console.log(`wrote ${r.count} documents and ${r.manifest}`);
     return;
@@ -82,6 +131,11 @@ async function main() {
   if (cmd === 'verify') {
     const { scoreExtraction, verifyFromSeed } = await import('./verify.js');
     const manifest = flag('manifest', null);
+    // three forms, each with its own options: an option of another form, or a type and scenario beside an answer key or
+    // a manifest, would be ignored, so it is refused
+    const form = manifest ? ['--manifest', ['manifest', 'outputs']] : flag('answer-key', null) ? ['--answer-key', ['answer-key', 'output']] : ['a type and scenario', ['seed', 'output']];
+    for (const name of parsed.values.keys()) if (!form[1].includes(name)) refuse(`verify: --${name} cannot be used with ${form[0]}`);
+    if (form[0] !== 'a type and scenario' && parsed.positional.length) refuse('verify: too many arguments');
     if (manifest) {
       const { readManifest } = await import('./batch.js');
       const outputs = flag('outputs', null); if (!outputs) { console.error('verify --manifest needs --outputs DIR'); process.exit(2); }
@@ -120,8 +174,8 @@ async function main() {
     else { mustMatch(type, SLUG, 'type'); mustMatch(scenario, SLUG, 'scenario'); mustMatch(flag('seed', 'claimseed'), SEED, 'seed'); r = verifyFromSeed({ type, scenario, seed: flag('seed', 'claimseed'), output }); }
     process.stdout.write(JSON.stringify(r, null, 2) + '\n'); return;
   }
-  console.error('usage: claimseed-core list [type] | generate <type> <scenario> --seed S | render <type> <scenario> --seed S --out DIR\n'
-    + '       | batch --types T1,T2 [--scenarios all|S1,S2] [--seeds N] [--seed-prefix P] --out DIR\n'
+  console.error('usage: claimseed-core list [type] | generate <type> <scenario> --seed S | render <type> <scenario> --seed S --out DIR [--degrade PRESET] [--also 835]\n'
+    + '       | batch --types T1,T2 [--scenarios all|S1,S2] [--seeds N] [--seed-prefix P] [--degrade PRESET] [--also 835] --out DIR\n'
     + '       | verify (--answer-key FILE | <type> <scenario> --seed S) --output FILE | verify --manifest FILE --outputs DIR');
   process.exit(2);
 }

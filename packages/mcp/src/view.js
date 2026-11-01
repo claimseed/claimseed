@@ -1,6 +1,6 @@
-// The MCP Apps view of render_document (ui://claimseed/preview): a page a host that supports MCP Apps (ChatGPT,
-// Claude, VS Code and others) shows in the conversation in place of the raw result. It draws the page images and the
-// injected errors from the tool result the host hands it. It loads nothing, sends nothing but the MCP Apps messages
+// The MCP Apps view of render_document and degrade_document (ui://claimseed/preview): a page a host that supports MCP
+// Apps (ChatGPT, Claude, VS Code and others) shows in the conversation in place of the raw result. It draws the page
+// images, the injected errors and any decoys from the tool result the host hands it. It loads nothing, sends nothing but the MCP Apps messages
 // to its host, and puts every value on the page as text (never as markup). Hosts without MCP Apps show the same
 // result's text and images themselves.
 export const VIEW_URI = 'ui://claimseed/preview';
@@ -9,6 +9,8 @@ export const VIEW_MIME = 'text/html;profile=mcp-app';
 const SCRIPT = String.raw`
 (() => {
   const PROTOCOL = '2026-01-26';
+  const NO_ERRORS_WITH_DECOYS = { one: 'No injected errors, but {n} decoy: not a clean control', other: 'No injected errors, but {n} decoys: not a clean control' };
+  const DECOYS_HEADING = { one: 'Decoy ({n}): a line that looks wrong but follows the rules', other: 'Decoys ({n}): lines that look wrong but follow the rules' };
   const root = document.getElementById('app');
   let nextId = 1; const pending = new Map();
   const post = (m) => window.parent.postMessage({ jsonrpc: '2.0', ...m }, '*');
@@ -45,9 +47,13 @@ const SCRIPT = String.raw`
     if (facts.length) head.append(el('p', 'facts', facts.join(' · ')));
     root.append(head);
     if (result.isError) { const t = (result.content || []).find((c) => c && c.type === 'text'); root.append(el('p', 'error', t ? t.text : 'The render failed.')); return; }
-    const errors = (sc.groundTruth && Array.isArray(sc.groundTruth.errors)) ? sc.groundTruth.errors : [];
+    const errors = (sc.groundTruth && Array.isArray(sc.groundTruth.errors)) ? sc.groundTruth.errors.filter((e) => e && typeof e === 'object') : [];
+    // a clean control has neither errors nor decoys (as describe_document_type says); decoys alone are not one
+    const decoys = (sc.groundTruth && Array.isArray(sc.groundTruth.decoys)) ? sc.groundTruth.decoys.filter((d) => d && typeof d === 'object') : [];
+    const count = (forms, n) => (n === 1 ? forms.one : forms.other).replace('{n}', String(n));
     const sec = el('section', 'errors');
-    sec.append(el('h2', null, errors.length ? 'Injected errors (' + errors.length + ')' : 'No injected errors: a clean control'));
+    sec.append(el('h2', null, errors.length ? 'Injected errors (' + errors.length + ')'
+      : decoys.length ? count(NO_ERRORS_WITH_DECOYS, decoys.length) : 'No injected errors: a clean control'));
     if (errors.length) {
       const table = el('table'); const tr = el('tr');
       for (const h of ['Kind', 'Severity', 'Where', 'Expected', 'Printed']) tr.append(el('th', null, h));
@@ -60,6 +66,20 @@ const SCRIPT = String.raw`
       sec.append(table);
     }
     root.append(sec);
+    if (decoys.length) {
+      const dsec = el('section', 'errors decoys');
+      dsec.append(el('h2', null, count(DECOYS_HEADING, decoys.length)));
+      const table = el('table'); const tr = el('tr');
+      for (const h of ['Kind', 'Where']) tr.append(el('th', null, h));
+      table.append(tr);
+      for (const d of decoys) {
+        const row = el('tr');
+        for (const v of [d.kind, d.fieldRef || d.lineRef || 'document']) row.append(el('td', null, v === null || v === undefined ? '' : v));
+        table.append(row);
+      }
+      dsec.append(table);
+      root.append(dsec);
+    }
     const images = (result.content || []).filter((c) => c && c.type === 'image' && /^image\/(png|jpeg)$/.test(c.mimeType) && typeof c.data === 'string' && /^[A-Za-z0-9+/=]+$/.test(c.data));
     const shown = (sc.preview && Array.isArray(sc.preview.pages)) ? sc.preview.pages : images.map((_, i) => i + 1);
     images.forEach((c, i) => {

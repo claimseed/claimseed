@@ -58,7 +58,7 @@ export function generateData({ type, scenario, seed = 'claimseed', overrides = {
   const stockPath = path.join(DATA_DIR_FOR_STOCK, type, 'stock-content.json');
   const stock = fs.existsSync(stockPath) ? JSON.parse(fs.readFileSync(stockPath, 'utf-8')) : {};
   const data = assemble({ rng, beneficiary, adjudicated, period: sc.period, dateOfNotice, year, groundTruthErrors: errors, stock, catalogByCode: CATALOG_BY_CODE });
-  data.scenario = scenario;
+  data.scenario = scenario; data._dateOfNotice = dateOfNotice;   // not printed: the date an 835 written beside it carries
   const gtOverrides = data._groundTruth || {};
   // A layout that brings its own claims block (the Medicare Advantage EOBs) does not print the claims decoys change.
   if (decoys.length && gtOverrides.claims) throw new Error(`${type}: decoys are not supported for this layout yet`);
@@ -68,9 +68,9 @@ export function generateData({ type, scenario, seed = 'claimseed', overrides = {
   for (const e of errors) { e.fieldRef = fieldRefFor(e.lineRef, fieldPaths); if (e.relatedLineRef) e.relatedFieldRef = fieldRefFor(e.relatedLineRef, fieldPaths); }
   for (const d of decoys) d.fieldRef = fieldRefFor(d.lineRef, fieldPaths);
   const groundTruth = {
-    schemaVersion: '1.1', seed: String(seed), scenario: `${type}.${scenario}`,
+    schemaVersion: '1.3', seed: String(seed), scenario: `${type}.${scenario}`,
     // pages and sha256 are null from `generate`; the CLI's render step fills them from the finished PDF.
-    documents: [{ id: `${type}-1`, type, layout: type, pages: null, format: 'pdf', degradation: null, sha256: null,
+    documents: [{ id: `${type}-1`, type, layout: type, pages: null, format: 'pdf', degradation: null, degradationParams: null, sha256: null,
       fields: flattenFields(data), entities: {
         patient: { name: beneficiary.name, address: beneficiary.addressLines.join(', ') },
         providers: gtOverrides.providers || adjudicated.claims.map((c) => ({ name: c.provider.name, npi: c.provider.npi, specialty: c.provider.specialty, address: c.provider.addressLines.join(', '), participating: true })),
@@ -78,8 +78,12 @@ export function generateData({ type, scenario, seed = 'claimseed', overrides = {
         identifiers: gtOverrides.identifiers || { mbi: beneficiary.mbi, ...Object.fromEntries((data.claims || []).map((c, i) => [`claimNumber[${i}]`, c.claimNumber])) },
       } }],
     claims: gtOverrides.claims || adjudicated.claims.map((c, i) => ({ claimNumber: data.claims?.[i]?.claimNumber ?? null, provider: c.provider.name, dateOfService: c.dateOfService,
-      lines: c.lines.map((l) => ({ code: l.code, units: l.units, dateOfService: l.dateOfService, charged: l.charged, allowed: l.allowed, approved: !!l.approved, paid: l.paid ?? null, toDeductible: l.toDeductible ?? null, patientMayBeBilled: l.patientMayBeBilled ?? null })),
+      // the patient's share in its parts (Part B has no copay; a denied line the patient may be billed for is non-covered)
+      lines: c.lines.map((l) => ({ code: l.code, units: l.units, dateOfService: l.dateOfService, charged: l.charged, allowed: l.allowed, approved: !!l.approved, paid: l.paid ?? null, toDeductible: l.toDeductible ?? null,
+        coinsurance: l.coinsurance ?? null, copay: 0, nonCovered: l.approved ? 0 : (l.patientMayBeBilled ?? 0), patientMayBeBilled: l.patientMayBeBilled ?? null })),
       totals: c.totals })),
+    // the deductible already met before this document's claims, so the lines' deductible adds up to the printed amount
+    deductibleMetBefore: gtOverrides.deductibleMetBefore ?? (sc.deductibleMetBefore ?? 0),
     errors, decoys, documentGaps: [], adversarial: false,
     sources: [...(sc.sources || []), ...CATALOG.sources],
     pricing: { status: CATALOG.priceSource, year: CATALOG.year },

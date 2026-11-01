@@ -14,20 +14,31 @@ import { DATA_DIR, hardenHtml, renderHtmlToPdf, finalizePdf, mergePdfs, template
 import { launchBrowser, findChrome } from './browser.js';
 
 export { generateData, listScenarios, loadScenario, RENDERERS, hardenHtml, renderHtmlToPdf, finalizePdf, mergePdfs, templateContext, launchBrowser, findChrome, BAND_TEXT, WATERMARK_TEXT, SPECIMEN_SUBJECT };
+export { PRESETS as DEGRADE_PRESETS, degradationParams, degradePdf, degradeRendered, renderDegraded } from './degrade.js';
+export { withPdfPage, drawPage, RASTER_ORIGIN } from './pdf-raster.js';
+export { markImage, markPng, markJpeg, markerTexts } from './image-markers.js';
 
 export { scoreExtraction, verifyFromSeed, checkOutput, LIMITS as VERIFY_LIMITS } from './verify.js';
 export { renderBatch, planBatch, readManifest } from './batch.js';
+import { buildRemittance, REMITTANCE_TYPES } from './x12/remittance.js';
+export { buildRemittance, remittanceFor, REMITTANCE_TYPES, SPECIMEN_STRINGS as X12_SPECIMEN_STRINGS } from './x12/remittance.js';
+export { check835, checkSpecimen835, parse835 } from './x12/check835.js';
 export const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
 export const SEED = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
-// Generate and render one document. Returns { pdf, groundTruth, bytes } and writes
+// Generate and render one document. Returns { pdf, groundTruth, bytes, remittance } and writes
 // <outDir>/<type>_<scenario>_<seed>.pdf and .ground-truth.json when outDir is given. `browser` (optional) is a
 // browser from launchBrowser() to render with; it is left open for the caller. Without it, one is launched and closed.
-export async function render({ type, scenario, seed = 'claimseed', outDir = null, browser = null }) {
+// `also: '835'` adds the X12 835 remittance of the same claims (x12/remittance.js): its text in `remittance`, written
+// as <base>.835 byte for byte, and in the answer key as documents[1] with x12Ref on the errors it carries.
+export const ALSO = ['835'];
+export async function render({ type, scenario, seed = 'claimseed', outDir = null, browser = null, also = null }) {
   if (!SLUG.test(String(type)) || !SLUG.test(String(scenario)) || !SEED.test(String(seed))) throw new Error('render: invalid type, scenario or seed');
+  if (also !== null && !ALSO.includes(also)) throw new Error(`render: also must be one of ${ALSO.join(', ')}`);
+  if (also === '835' && !REMITTANCE_TYPES.includes(type)) throw new Error(`render: an 835 is written for ${REMITTANCE_TYPES.join(', ')} only`);
   const fn = RENDERERS[type];
   if (!fn) throw new Error(`render: no renderer for type ${type}`);
-  const { data, groundTruth } = generateData({ type, scenario, seed });
+  const generated = generateData({ type, scenario, seed }); const { data, groundTruth } = generated;
   const stock = JSON.parse(fs.readFileSync(path.join(DATA_DIR, type, 'stock-content.json'), 'utf-8'));
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'claimseed-'));
   let bytes;
@@ -39,12 +50,18 @@ export async function render({ type, scenario, seed = 'claimseed', outDir = null
   doc.sha256 = crypto.createHash('sha256').update(bytes).digest('hex');
   doc.pages = (await (await import('pdf-lib')).PDFDocument.load(bytes, { updateMetadata: false })).getPageCount();
   doc.fields['metadata.pageCount'] = doc.pages;
+  let remittance = null;
+  if (also === '835') {
+    const r = buildRemittance({ type, scenario, seed, generated });
+    remittance = r.text; groundTruth.documents.push(r.document); groundTruth.errors.forEach((e, i) => { e.x12Ref = r.x12Refs[i]; });
+  }
   let pdf = null;
   if (outDir) {
     fs.mkdirSync(outDir, { recursive: true });
     const base = path.join(outDir, `${type}_${scenario}_${seed}`);
     fs.writeFileSync(base + '.pdf', bytes); fs.writeFileSync(base + '.ground-truth.json', JSON.stringify(groundTruth, null, 2));
+    if (remittance !== null) fs.writeFileSync(base + '.835', remittance);
     pdf = base + '.pdf';
   }
-  return { pdf, groundTruth, bytes };
+  return { pdf, groundTruth, bytes, remittance };
 }

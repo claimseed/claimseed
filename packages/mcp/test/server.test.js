@@ -10,7 +10,7 @@ import { LATEST_PROTOCOL_VERSION } from '@modelcontextprotocol/sdk/types.js';
 import { generateData, findChrome, BAND_TEXT, verifyFromSeed } from '@claimseed/core';
 import { PDFDocument } from 'pdf-lib';
 import { VIEW_HTML } from '../src/view.js';
-import { readMarkers } from './markers-read.js';
+import { readMarkers } from '../../core/test/markers-read.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const CLI = path.resolve(here, '../src/cli.js');
@@ -23,6 +23,7 @@ async function connect(env = {}, cwd = undefined) {
   const transport = new StdioClientTransport({ command: process.execPath, args: [CLI], env: { ...process.env, CLAIMSEED_WORKSPACE: workspace, ...env }, stderr: 'pipe', cwd });
   const client = new Client({ name: 'claimseed-test', version: '0.0.0' });
   await client.connect(transport);
+  await client.listTools();   // as a host does: the client then checks every structured result against its tool's output schema
   return { client, workspace, close: () => client.close() };
 }
 const call = (c, name, args = {}) => c.callTool({ name, arguments: args });
@@ -31,14 +32,14 @@ let s;
 before(async () => { s = await connect(); });
 after(async () => { await s.close(); });
 
-test('the server offers exactly the five documented tools, each with an input schema and honest hints', async () => {
+test('the server offers exactly the six documented tools, each with an input schema and honest hints', async () => {
   const { tools } = await s.client.listTools();
-  assert.deepEqual(tools.map((t) => t.name).sort(), ['describe_document_type', 'generate_data', 'list_document_types', 'render_document', 'verify_document']);
+  assert.deepEqual(tools.map((t) => t.name).sort(), ['degrade_document', 'describe_document_type', 'generate_data', 'list_document_types', 'render_document', 'verify_document']);
   for (const t of tools) {
     assert.equal(t.inputSchema.type, 'object', t.name);
     assert.ok(t.outputSchema, `${t.name}: output schema`);
     assert.equal(t.annotations.openWorldHint, false, `${t.name}: never reaches outside the machine`);
-    assert.equal(t.annotations.readOnlyHint, t.name !== 'render_document', t.name);
+    assert.equal(t.annotations.readOnlyHint, !['render_document', 'degrade_document'].includes(t.name), t.name);
   }
   const verify = tools.find((t) => t.name === 'verify_document');
   assert.equal(verify.inputSchema.properties.output.type, 'object'); assert.equal(verify.inputSchema.properties.output.properties.errors.maxItems, 1000);
@@ -46,7 +47,34 @@ test('the server offers exactly the five documented tools, each with an input sc
   const render = tools.find((t) => t.name === 'render_document');
   assert.equal(render._meta.ui.resourceUri, 'ui://claimseed/preview', 'render_document names its MCP Apps view');
   assert.deepEqual(render.inputSchema.properties.preview.enum, ['none', 'first', 'all']);
+  assert.deepEqual(render.inputSchema.properties.also.enum, ['835'], 'also is a closed list');
   assert.equal(render.inputSchema.properties.preview.default, 'first', 'with a workspace, the first page only by default');
+  const degrade = tools.find((t) => t.name === 'degrade_document');
+  assert.deepEqual(degrade.inputSchema.properties.preset.enum, ['scan', 'fax', 'photo', 'low-res']);
+  assert.equal(degrade._meta.ui.resourceUri, 'ui://claimseed/preview');
+});
+
+test('degrade_document writes a degraded copy and its answer key into the workspace and shows marked page images', { skip, timeout: 120000 }, async () => {
+  // a workspace of its own, so the other tests see theirs as they left it; a longer render limit than the default 30 s,
+  // so a busy machine does not fail the test (the limit itself is tested with a forced 100 ms below)
+  const d = await connect({ CLAIMSEED_MCP_TIMEOUT_MS: '120000' });
+  try {
+    const r = await call(d.client, 'degrade_document', { type: 'itemized-bill', scenario: 'duplicate-charge', seed: 'mcp-deg', preset: 'scan' });
+    assert.ok(!r.isError, r.content?.[0]?.text);
+    const out = r.structuredContent;
+    assert.equal(out.degradation, 'scan'); assert.match(r.content[0].text, /^Rendered a scan copy of itemized-bill/);
+    assert.match(path.basename(out.pdf), /^itemized-bill_duplicate-charge_mcp-deg_scan_[0-9a-f]{12}\.pdf$/);
+    const pdf = fs.readFileSync(out.pdf); assert.equal(crypto.createHash('sha256').update(pdf).digest('hex'), out.sha256);
+    const key = JSON.parse(fs.readFileSync(out.groundTruthFile, 'utf-8'));
+    assert.equal(key.documents[0].degradation, 'scan'); assert.equal(key.documents[0].sha256, out.sha256); assert.ok(key.documents[0].degradationParams.dpi > 0);
+    assert.deepEqual(key.errors.map((e) => e.kind), ['duplicate-charge'], 'the copy keeps the answer key of the document');
+    const images = r.content.filter((c) => c.type === 'image');
+    assert.equal(images.length, 1); assert.equal(readMarkers(images[0].mimeType, images[0].data).description, BAND_TEXT);
+    assert.match(r.content[0].text, /call degrade_document again with from_page 2/);
+    assert.equal(path.dirname(out.pdf), fs.realpathSync(d.workspace));
+    const bad = await call(d.client, 'degrade_document', { type: 'msn', scenario: 'baseline-clean', seed: 'x', preset: 'sepia' });
+    assert.equal(bad.isError, true);
+  } finally { await d.close(); }
 });
 
 test('list_document_types and describe_document_type describe every type and scenario, with the errors each injects', async () => {
@@ -95,6 +123,7 @@ test('resources: the schema, catalogs, taxonomy and policy are served, and the s
   const view = (await s.client.readResource({ uri: 'ui://claimseed/preview' })).contents[0];
   assert.equal(view.mimeType, 'text/html;profile=mcp-app');
   assert.equal(view.text, VIEW_HTML);
+  assert.match(resources.find((r) => r.uri === 'ui://claimseed/preview').description, /render_document and degrade_document: .*decoys/);
   const read = async (uri) => (await s.client.readResource({ uri })).contents[0].text;
   assert.equal(await read('schema://ground-truth'), fs.readFileSync(path.join(ROOT, 'schemas/ground-truth.schema.json'), 'utf-8'));
   assert.equal(await read('policy://synthetic-data'), fs.readFileSync(path.join(ROOT, 'docs/synthetic-data-policy.md'), 'utf-8'));
@@ -132,6 +161,7 @@ test('render_document writes a stamped PDF and its ground truth into the workspa
   assert.match(pdf.getSubject() || '', /synthetic specimen/i);
   assert.deepEqual(JSON.parse(fs.readFileSync(out.groundTruthFile, 'utf-8')), out.groundTruth);
   assert.deepEqual(out.groundTruth.errors.map((e) => e.kind), ['duplicate-charge']);
+  assert.match(r.content[0].text, /, injected errors: duplicate-charge\./);
   const links = r.content.filter((c) => c.type === 'resource_link').map((c) => fileURLToPath(c.uri));
   assert.deepEqual(links.sort(), [out.pdf, out.groundTruthFile].sort());
   // the first page comes back as an image by default, and the result says how to see the rest
@@ -332,4 +362,32 @@ test('verify_document scores a report against the answer key and never sends the
   assert.equal(none.isError, true); assert.match(none.content[0].text, /at output/);
   const list = await call(s.client, 'verify_document', { ...args, output: [] });
   assert.equal(list.isError, true); assert.match(list.content[0].text, /extractor output: must be a JSON object/);
+});
+
+test('render_document with also 835: a file in the workspace, or the text in the result without one; refused for other types and values', { skip, timeout: 180000 }, async () => {
+  const w = await connect({ CLAIMSEED_MCP_TIMEOUT_MS: '120000' }); // a busy machine must not fail the test
+  try {
+    const r = await call(w.client, 'render_document', { type: 'msn', scenario: 'duplicate-office-visit', seed: 'mcp-835', also: '835', preview: 'none' });
+    assert.ok(!r.isError, r.content?.[0]?.text);
+    const out = r.structuredContent;
+    assert.match(path.basename(out.remittance.file), /^msn_duplicate-office-visit_mcp-835_[0-9a-f]{12}\.835$/);
+    assert.equal(path.dirname(out.remittance.file), fs.realpathSync(w.workspace));
+    const bytes = fs.readFileSync(out.remittance.file);
+    assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'), out.remittance.sha256);
+    assert.equal(out.groundTruth.documents[1].sha256, out.remittance.sha256); assert.equal(out.groundTruth.errors[0].x12Ref, '0001:CLP1:SVC2');
+    assert.ok(r.content.some((c) => c.type === 'resource_link' && c.mimeType === 'application/edi-x12'));
+    const bad = await call(w.client, 'render_document', { type: 'itemized-bill', scenario: 'baseline-clean', seed: 'x', also: '835' });
+    assert.equal(bad.isError, true); assert.match(bad.content[0].text, /835 is written for msn, ppo-eob, hmo-eob only/);
+    const odd = await call(w.client, 'render_document', { type: 'msn', scenario: 'baseline-clean', seed: 'x', also: 'x12-secret' });
+    assert.equal(odd.isError, true); assert.ok(!JSON.stringify(odd).includes('x12-secret'), 'the value came back');
+  } finally { await w.close(); }
+  const n = await connect({ CLAIMSEED_WORKSPACE: '', CLAIMSEED_MCP_TIMEOUT_MS: '120000' });
+  try {
+    const r = await call(n.client, 'render_document', { type: 'hmo-eob', scenario: 'baseline-clean', seed: 'mcp-835', also: '835', preview: 'none' });
+    assert.ok(!r.isError, r.content?.[0]?.text);
+    const res = r.content.find((c) => c.type === 'resource' && c.resource.mimeType === 'application/edi-x12');
+    assert.ok(res && res.resource.text.startsWith('ISA*'));
+    assert.equal(crypto.createHash('sha256').update(res.resource.text).digest('hex'), r.structuredContent.remittance.sha256);
+    assert.equal(r.structuredContent.remittance.file, null); assert.equal(r.structuredContent.remittance.embedded, true);
+  } finally { await n.close(); }
 });

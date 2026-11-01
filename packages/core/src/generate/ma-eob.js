@@ -24,15 +24,24 @@ export function adjudicateMa(claims, plan, { oopUsedBefore = 0, deductibleMetBef
   const out = claims.map((c) => {
     const lines = c.lines.map((ln) => {
       const approved = ln.allowed; let yourShare = 0;
+      // the member's share in its parts: deductible, then coinsurance on the rest, or a copay
+      let ded = 0, coinsurance = 0, copay = 0;
       const cat = ln.category || 'visit';
       if (ln.preventiveNoCostShare || ln.labNoCostShare) yourShare = 0;
       else if (plan.coinsurance[cat] != null) {
-        const ded = r2(Math.min(dedRemaining, approved)); dedRemaining = r2(dedRemaining - ded);
-        yourShare = r2(ded + (approved - ded) * plan.coinsurance[cat]);
-      } else yourShare = r2(Math.min(plan.copay[cat] ?? 0, approved));
-      if (oopUsed + yourShare > plan.oopMax) yourShare = r2(Math.max(0, plan.oopMax - oopUsed));
+        ded = r2(Math.min(dedRemaining, approved)); dedRemaining = r2(dedRemaining - ded);
+        yourShare = r2(ded + (approved - ded) * plan.coinsurance[cat]); coinsurance = r2(yourShare - ded);
+      } else { yourShare = r2(Math.min(plan.copay[cat] ?? 0, approved)); copay = yourShare; }
+      if (oopUsed + yourShare > plan.oopMax) {
+        // the out-of-pocket maximum cuts the share: coinsurance first, then the copay, never the deductible
+        const capped = r2(Math.max(0, plan.oopMax - oopUsed)); let cut = r2(yourShare - capped);
+        const fromCoins = Math.min(cut, coinsurance); coinsurance = r2(coinsurance - fromCoins); cut = r2(cut - fromCoins);
+        const fromCopay = Math.min(cut, copay); copay = r2(copay - fromCopay); cut = r2(cut - fromCopay);
+        if (cut > 0) throw new Error('adjudicateMa: cap cuts into deductible');
+        yourShare = capped;
+      }
       oopUsed = r2(oopUsed + yourShare);
-      return { ...ln, approved, yourShare, planShare: r2(approved - yourShare), deductibleApplied: 0 };
+      return { ...ln, approved, yourShare, planShare: r2(approved - yourShare), deductibleApplied: ded, coinsurance, copay };
     });
     const totals = lines.reduce((t, l) => ({ charged: r2(t.charged + l.charged), approved: r2(t.approved + l.approved), planShare: r2(t.planShare + l.planShare), yourShare: r2(t.yourShare + l.yourShare) }), { charged: 0, approved: 0, planShare: 0, yourShare: 0 });
     return { ...c, lines, totals };
@@ -43,7 +52,8 @@ export function adjudicateMa(claims, plan, { oopUsedBefore = 0, deductibleMetBef
 // Ground-truth claim model for MA documents: the plan's adjudication, not the Part B one it was derived from.
 function maClaimModel(maClaims, rendered) {
   return maClaims.map((c, i) => ({ claimNumber: rendered[i].claimNumber, provider: c.provider.name, dateOfService: c.dateOfService,
-    lines: c.lines.map((l) => ({ code: l.code, units: l.units, dateOfService: l.dateOfService, charged: l.charged, allowed: l.approved, approved: true, paid: l.planShare, toDeductible: null, patientMayBeBilled: l.yourShare })),
+    lines: c.lines.map((l) => ({ code: l.code, units: l.units, dateOfService: l.dateOfService, charged: l.charged, allowed: l.approved, approved: true, paid: l.planShare, toDeductible: l.deductibleApplied,
+      coinsurance: l.coinsurance, copay: l.copay, nonCovered: 0, patientMayBeBilled: l.yourShare })),
     totals: { charged: c.totals.charged, allowed: c.totals.approved, paid: c.totals.planShare, patientMayBeBilled: c.totals.yourShare } }));
 }
 // Mutation ops act on the Part B adjudication, which MA documents re-adjudicate, so an MA scenario with mutations
@@ -100,7 +110,7 @@ export function assemblePpoEob({ rng, beneficiary, adjudicated, period, dateOfNo
     paymentSummary, claims, notes, hasDenial: false,
     _groundTruthErrors: groundTruthErrors,
     _fieldPaths: MA_FIELD_PATHS,
-    _groundTruth: { payer: { name: stock.payer.legalName, planType: 'Medicare Advantage PPO', planName: plan.name }, claims: maClaimModel(ma.claims, claims), identifiers: { memberId: beneficiary.memberId, ...Object.fromEntries(claims.map((c, i) => [`claimNumber[${i}]`, c.claimNumber])) } },
+    _groundTruth: { payer: { name: stock.payer.legalName, planType: 'Medicare Advantage PPO', planName: plan.name }, claims: maClaimModel(ma.claims, claims), deductibleMetBefore: Math.min(plan.deductible, oopBefore), identifiers: { memberId: beneficiary.memberId, ...Object.fromEntries(claims.map((c, i) => [`claimNumber[${i}]`, c.claimNumber])) } },
   };
 }
 
@@ -137,6 +147,6 @@ export function assembleHmoEob({ rng, beneficiary, adjudicated, period, dateOfNo
     claims, notes, hasDenial: false,
     _groundTruthErrors: groundTruthErrors,
     _fieldPaths: MA_FIELD_PATHS,
-    _groundTruth: { payer: { name: stock.payer.legalName, planType: 'Medicare Advantage HMO', planName: plan.name }, claims: maClaimModel(ma.claims, claims), identifiers: { memberId: beneficiary.memberId, ...Object.fromEntries(claims.map((c, i) => [`claimNumber[${i}]`, c.claimNumber])) } },
+    _groundTruth: { payer: { name: stock.payer.legalName, planType: 'Medicare Advantage HMO', planName: plan.name }, claims: maClaimModel(ma.claims, claims), deductibleMetBefore: 0, identifiers: { memberId: beneficiary.memberId, ...Object.fromEntries(claims.map((c, i) => [`claimNumber[${i}]`, c.claimNumber])) } },
   };
 }

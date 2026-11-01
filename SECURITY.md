@@ -33,18 +33,30 @@ an extractor's report; no tool reads a file a client names.
   cannot).
 - **Container.** Inside the Docker image Chromium runs without its own sandbox, so the container is the boundary: the
   documented command runs it without network, read-only, with no capabilities and as the calling user.
-- **Page images** (`src/preview.js`) are drawn from the stamped PDF by PDF.js in a page of the same browser that,
-  unlike the printing pages, runs script: it lives in a browser context of its own, closed after each render; it is
-  served only PDF.js, its standard fonts and the one PDF the server just rendered, from memory, under an origin that
-  does not exist, and every other request it makes is refused; PDF scripting and `eval` are off in PDF.js. Each image
-  file also carries the specimen text in its metadata (PNG `tEXt`, or Exif and a comment in a JPEG).
+- **Page images** (`src/preview.js`, drawing through `packages/core/src/pdf-raster.js`) are drawn from the stamped
+  PDF by PDF.js in a page of the same browser that, unlike the printing pages, runs script: it lives in a browser
+  context of its own, closed after each use; it is served only PDF.js, its standard fonts and the one PDF the server
+  just rendered, from memory, under an origin that does not exist, and every other request it makes is refused; PDF
+  scripting and `eval` are off in PDF.js. Each image file also carries the specimen text in its metadata (PNG `tEXt`,
+  or Exif and a comment in a JPEG).
+- **Degraded copies** (`degrade_document`, `packages/core/src/degrade.js`) are drawn in that same kind of page, from
+  the stamped PDF the server just rendered, by fixed recipes whose only inputs are numbers derived from the seed.
+  The degraded pages are put together as an image-only PDF that is then stamped like every other output (band,
+  watermark, metadata), so the markers are drawn after degradation and are never blurred, thresholded or cropped
+  away; its page images are drawn from that stamped copy and carry the image markers.
+- **835 remittances** (`also: "835"`, `packages/core/src/x12/remittance.js`) are built only from the generated
+  claims and fixed strings: `also` is a closed list, the type must be one with an 835, and nothing the caller sends
+  goes into the file. In a workspace the file is saved like the PDF (a name the server chooses, created exclusively,
+  counted in the quota). Every file is marked as test data (`ISA15` `T`, specimen sender, payer and contact) and
+  carries no bank data.
 - **The MCP Apps view** (`src/view.js`) is a fixed page that sends only MCP Apps messages to its host and puts every
   value from a result on the page as text. Its Content-Security-Policy allows nothing to load but `data:` images, and
   of the host's style variables it applies only the five it reads, and only colour and font values (no `url()` or
   other loading function). It trusts its parent frame, the host, for those variables and for the results it shows.
 
 A way to make the server read or write a file outside its folder (or save any file, without one, beyond its browser's
-working folder), delete a file it did not write in its current run, return an unstamped document or page image, or
+working folder), delete a file it did not write in its current run, return an unstamped document, degraded copy or page image, an
+835 without its test flag and specimen markers, or
 make the preview page or the view load anything is a vulnerability.
 
 Scoring (`packages/core/src/verify.js`, used by `claimseed-core verify` and `verify_document`) treats a report as
@@ -83,6 +95,14 @@ A way to make the renderer silently drop or hide data it also reports in the gro
 Text may not run into a positioned running header or footer either. On a caller-supplied PDF (`finalizePdf`,
 `mergePdfs`) the markers are drawn inside the visible page — the CropBox clipped to the MediaBox — and a page
 whose visible area is under 3 in on a side, or not a finite rectangle, is refused. 
+
+Degraded copies (`render --degrade`, `batch --degrade`, `degradePdf`, `src/degrade.js`) and page images
+(`src/pdf-raster.js`) are drawn by PDF.js in a page that runs script, unlike the printing pages: it lives in a
+browser context of its own that is closed after each use, is served only PDF.js, its standard fonts and the one PDF
+being drawn, from memory, under an origin that does not exist, refuses every other request, and has PDF scripting
+and `eval` off. The degraded pages become an image-only PDF that is stamped with `finalizePdf` afterwards, so the
+markers are drawn on top of the degraded pixels. `degradePdf` also accepts a PDF from the caller; a PDF that makes
+that page reach the network or the filesystem, or yields a copy without the markers, is a vulnerability.
 
 On a caller-supplied PDF (`finalizePdf`, `mergePdfs`) the page's own content is read before anything is drawn, the
 way a viewer reads it: operands are parsed as objects (numbers, names, strings, arrays, dictionaries), and an inline

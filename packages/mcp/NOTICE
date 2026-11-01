@@ -26,7 +26,11 @@ under the SIL Open Font License 1.1 from the @fontsource npm packages (not redis
 fonts/ClaimseedNotdef-Regular.ttf is a two-glyph font generated for this project and dedicated to the public
 domain (CC0 1.0).
 
-The MCP server draws page images with PDF.js (the pdfjs-dist npm package, a dependency, not redistributed in this
-repository), Copyright Mozilla Foundation and the PDF.js contributors, under the Apache License, Version 2.0. The
-standard fonts it draws with come with it under their own licenses (LICENSE_FOXIT and LICENSE_LIBERATION in that
-package).
+Page images and degraded copies are drawn with PDF.js (the pdfjs-dist npm package, a dependency, not redistributed
+in this repository), Copyright Mozilla Foundation and the PDF.js contributors, under the Apache License, Version
+2.0. The standard fonts it draws with come with it under their own licenses (LICENSE_FOXIT and LICENSE_LIBERATION in
+that package).
+
+The X12 835 remittance files claimseed writes use claim adjustment group and reason code values from X12's
+code lists (https://x12.org/codes), Copyright X12. claimseed uses the code values only; their descriptions are
+deliberately absent, and no text, table or example from an X12 publication is reproduced.

@@ -3,7 +3,11 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import zlib from 'zlib';
-import { launchBrowser, findChrome } from '@claimseed/core';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { launchBrowser, findChrome, generateData } from '@claimseed/core';
 import { VIEW_HTML } from '../src/view.js';
 
 const skip = !findChrome() && !process.env.CI && 'no Chrome (set CLAIMSEED_CHROME); never skipped in CI';
@@ -106,6 +110,75 @@ test('the view shows the page images and the injected errors as text, loads noth
     assert.deepEqual(dialogs, []);
     assert.deepEqual(requests.filter((u) => u !== HOST && !(u.startsWith('data:') && u.endsWith(`;base64,${PNG}`))), [], 'only the page and the images it was given');
   } finally { await page.close(); }
+});
+
+// the section headings and the decoy rows the view shows for a result, after the host hands it a new one
+async function headings(page, frame, result) {
+  await frame.evaluate(() => { document.getElementById('app').replaceChildren(); });
+  await page.evaluate((r) => window.ask({ method: 'ui/notifications/tool-result', params: r }), result);
+  await frame.waitForFunction(() => document.querySelector('h2'), { timeout: 5000 });
+  return frame.evaluate(() => ({
+    h2: [...document.querySelectorAll('h2')].map((h) => h.textContent),
+    decoyRows: [...document.querySelectorAll('section.decoys tr')].slice(1).map((r) => [...r.children].map((c) => c.textContent)),
+    bold: document.querySelectorAll('b').length,
+  }));
+}
+const withKey = (groundTruth) => ({ content: [{ type: 'text', text: 'Rendered' }], structuredContent: { type: 'msn', scenario: 's', seed: 'v', pages: 1, groundTruth } });
+
+test('only a result with neither errors nor decoys is called a clean control; decoys are listed as text', { skip, timeout: 30000 }, async () => {
+  const { page, frame, dialogs } = await host(withKey({ errors: [], decoys: [] }));
+  try {
+    let v = await headings(page, frame, withKey({ errors: [], decoys: [] }));
+    assert.deepEqual(v.h2, ['No injected errors: a clean control']); assert.deepEqual(v.decoyRows, []);
+    v = await headings(page, frame, withKey({ errors: [] })); // a key without a decoys list
+    assert.deepEqual(v.h2, ['No injected errors: a clean control']);
+    v = await headings(page, frame, withKey({ errors: [], decoys: [
+      { id: 'decoy-1', kind: 'repeat-service-different-date', lineRef: 'claims[0].lines[1]', fieldRef: 'claims[0].lines[1].serviceDate' },
+      { id: 'decoy-2', kind: '<b>high</b>', lineRef: 'claims[0].lines[2]', fieldRef: null }, null, 'x'] }));
+    assert.deepEqual(v.h2, ['No injected errors, but 2 decoys: not a clean control', 'Decoys (2): lines that look wrong but follow the rules']);
+    assert.deepEqual(v.decoyRows, [['repeat-service-different-date', 'claims[0].lines[1].serviceDate'], ['<b>high</b>', 'claims[0].lines[2]']]);
+    assert.equal(v.bold, 0);
+    v = await headings(page, frame, withKey({ errors: [{ kind: 'duplicate-line', severity: 'high', lineRef: 'claims[1].lines[2]' }, null, 7], decoys: [{ kind: 'repeat-service-different-date', lineRef: null }] }));
+    assert.deepEqual(v.h2, ['Injected errors (1)', 'Decoy (1): a line that looks wrong but follows the rules']);
+    assert.deepEqual(v.decoyRows, [['repeat-service-different-date', 'document']]);
+    v = await headings(page, frame, withKey({ errors: [], decoys: [{ kind: 'high-charge-within-limits', lineRef: 'claims[0].lines[0]' }] }));
+    assert.deepEqual(v.h2, ['No injected errors, but 1 decoy: not a clean control', 'Decoy (1): a line that looks wrong but follows the rules']);
+    assert.deepEqual(dialogs, []);
+  } finally { await page.close(); }
+});
+
+// The server's catalog and the view must agree on which scenarios are clean controls, for every scenario it offers;
+// and a real render_document result of a decoy scenario, handed over unchanged, is not called one.
+test('the view and describe_document_type agree on clean controls for every scenario, and on a real decoy render', { skip, timeout: 180000 }, async () => {
+  const transport = new StdioClientTransport({ command: process.execPath, args: [path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../src/cli.js')],
+    env: { ...process.env, CLAIMSEED_WORKSPACE: '', CLAIMSEED_MCP_TIMEOUT_MS: '120000' }, stderr: 'ignore' });
+  const client = new Client({ name: 'claimseed-view-test', version: '0.0.0' });
+  await client.connect(transport);
+  const { page, frame } = await host(withKey({ errors: [] }));
+  try {
+    await client.listTools();
+    const types = (await client.callTool({ name: 'list_document_types', arguments: {} })).structuredContent.types.map((t) => t.type);
+    let clean = 0; let decoyOnly = 0;
+    for (const type of types) {
+      const { scenarios } = (await client.callTool({ name: 'describe_document_type', arguments: { type } })).structuredContent;
+      for (const s of scenarios) {
+        const { groundTruth } = generateData({ type, scenario: s.scenario, seed: 'view-check' });
+        const v = await headings(page, frame, withKey(groundTruth));
+        assert.equal(v.h2[0] === 'No injected errors: a clean control', s.cleanControl, `${type}/${s.scenario}: the view and the catalog disagree`);
+        assert.equal(v.decoyRows.length, (groundTruth.decoys || []).length, `${type}/${s.scenario}: decoy rows`);
+        if (s.cleanControl) clean++; else if (!s.injectedErrors.length) decoyOnly++;
+      }
+    }
+    assert.ok(clean > 0 && decoyOnly > 0, 'the catalog has clean controls and decoy-only scenarios to compare');
+    const r = await client.callTool({ name: 'render_document', arguments: { type: 'itemized-bill', scenario: 'decoys-repeat-therapy-high-charge', seed: 'view-decoy', preview: 'none' } }, undefined, { timeout: 120000 });
+    assert.ok(!r.isError, r.content?.[0]?.text);
+    // the text summary every client gets says the same
+    assert.match(r.content[0].text, /, no injected errors but 2 decoys \(not a clean control\)\.$/m);
+    const cleanRender = await client.callTool({ name: 'render_document', arguments: { type: 'msn', scenario: 'baseline-clean', seed: 'view-clean', preview: 'none' } }, undefined, { timeout: 120000 });
+    assert.match(cleanRender.content[0].text, /, no injected errors\.$/m);
+    const v = await headings(page, frame, r);
+    assert.deepEqual(v.h2, ['No injected errors, but 2 decoys: not a clean control', 'Decoys (2): lines that look wrong but follow the rules']);
+  } finally { await page.close(); await client.close(); }
 });
 
 test('a failed render is shown as its error message', { skip, timeout: 30000 }, async () => {
