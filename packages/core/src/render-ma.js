@@ -11,6 +11,7 @@ import { PDFDocument } from 'pdf-lib';
 import { env, launchBrowser, mergePdfs, templateContext, stampMeta } from './render.js';
 import { hardenHtml, printPage } from './print.js';
 import os from 'os';
+import { variantStock, templateVariant, FONT_WIDTH } from './variants.js';
 
 const r2 = (x) => Math.round(x * 100) / 100;
 
@@ -62,7 +63,7 @@ export function paginateClaims(claims, notes, cfg) {
         open();
         block = { claim, claimIndex: ci, lines: [], continuedFromPrev: true, continuesNext: false, showTotals: false };
         page.blocks.push(block);
-        remaining -= cfg.claimHeaderCost + cfg.tableHeaderCost;
+        remaining -= (cfg.continuedHeaderCost ?? cfg.claimHeaderCost) + cfg.tableHeaderCost;
       }
       block.lines.push(line);
       for (const id of line.notes || []) pageNotes.add(id);
@@ -115,9 +116,9 @@ const PPO_CLAIMS = {
 export async function renderPpoEob(data, stock, outputDir, opts = {}) {
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'claimseed-pages-'));   // private page dir, removed in finally (see renderMsn)
   try {
-  const issuer = data.metadata.issuer;
-  const s = fillTokens(stock, { ...issuer, legalName: issuer.name, planName: data.metadata.planName, fraudPhone: stock.info.fraudPhone });
-  const claimPages = paginateClaims(data.claims, data.notes || [], PPO_CLAIMS);
+  const issuer = data.metadata.issuer; const variant = data._variant || null;
+  const s = fillTokens(variant ? variantStock('ppo-eob', stock, variant) : stock, { ...issuer, legalName: issuer.name, planName: data.metadata.planName, fraudPhone: stock.info.fraudPhone });
+  const claimPages = paginateClaims(data.claims, data.notes || [], variant ? variantClaimLayout('ppo-eob', variant) : PPO_CLAIMS);
   const firstClaimsPage = 2; const backStart = firstClaimsPage + claimPages.length;
   const pageCount = backStart + 1; // two back pages: backStart, backStart + 1
   data.metadata.pageCount = pageCount;
@@ -135,7 +136,7 @@ export async function renderPpoEob(data, stock, outputDir, opts = {}) {
   const parts = [];
   try {
     parts.push(await renderPart(browser, 'ppo-eob/page-cover.html', ctx, path.join(work, '.ppo-1.pdf'), { expectPages: 1 }));
-    parts.push(await renderPart(browser, 'ppo-eob/pages-claims.html', { ...ctx, claimPages }, path.join(work, '.ppo-2.pdf'), { landscape: true, expectPages: claimPages.length }));
+    parts.push(await renderPart(browser, variant ? 'ppo-eob/claims-v.html' : 'ppo-eob/pages-claims.html', variant ? { ...ctx, claimPages, v: templateVariant('ppo-eob', variant) } : { ...ctx, claimPages }, path.join(work, '.ppo-2.pdf'), { landscape: true, expectPages: claimPages.length }));
     parts.push(await renderPart(browser, 'ppo-eob/pages-back.html', ctx, path.join(work, '.ppo-3.pdf'), { expectPages: 2 }));
   } finally { if (ownBrowser) await browser.close(); }
   const finalPdf = path.join(outputDir, 'ppo-eob.pdf');
@@ -161,9 +162,9 @@ const HMO_CLAIMS = {
 export async function renderHmoEob(data, stock, outputDir, opts = {}) {
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'claimseed-pages-'));   // private page dir, removed in finally (see renderMsn)
   try {
-  const issuer = data.metadata.issuer; const pp = data.metadata.processingPeriod;
-  const s = fillTokens(stock, { ...issuer, legalName: issuer.name, planName: data.metadata.planName, fraudPhone: stock.info.fraudPhone, periodStart: pp.start, periodEnd: pp.end });
-  const claimPages = paginateClaims(data.claims, data.notes || [], HMO_CLAIMS);
+  const issuer = data.metadata.issuer; const pp = data.metadata.processingPeriod; const variant = data._variant || null;
+  const s = fillTokens(variant ? variantStock('hmo-eob', stock, variant) : stock, { ...issuer, legalName: issuer.name, planName: data.metadata.planName, fraudPhone: stock.info.fraudPhone, periodStart: pp.start, periodEnd: pp.end });
+  const claimPages = paginateClaims(data.claims, data.notes || [], variant ? variantClaimLayout('hmo-eob', variant) : HMO_CLAIMS);
   const firstClaimsPage = 2; const backStart = firstClaimsPage + claimPages.length;
   const pageCount = backStart + 1;
   data.metadata.pageCount = pageCount;
@@ -178,13 +179,23 @@ export async function renderHmoEob(data, stock, outputDir, opts = {}) {
   const parts = [];
   try {
     parts.push(await renderPart(browser, 'hmo-eob/page-cover.html', ctx, path.join(work, '.hmo-1.pdf'), { expectPages: 1 }));
-    parts.push(await renderPart(browser, 'hmo-eob/pages-claims.html', { ...ctx, claimPages }, path.join(work, '.hmo-2.pdf'), { expectPages: claimPages.length }));
+    parts.push(await renderPart(browser, variant ? 'hmo-eob/claims-v.html' : 'hmo-eob/pages-claims.html', variant ? { ...ctx, claimPages, v: templateVariant('hmo-eob', variant) } : { ...ctx, claimPages }, path.join(work, '.hmo-2.pdf'), { expectPages: claimPages.length }));
     parts.push(await renderPart(browser, 'hmo-eob/pages-back.html', ctx, path.join(work, '.hmo-3.pdf'), { expectPages: 2 }));
   } finally { if (ownBrowser) await browser.close(); }
   const finalPdf = path.join(outputDir, 'hmo-eob.pdf');
   await mergePdfs(parts, finalPdf, { ...stampMeta(opts), expectedPages: pageCount });
   return finalPdf;
   } finally { fs.rmSync(work, { recursive: true, force: true }); }
+}
+
+// A layout variant's paginator settings: the table parts scale with its density, descriptions wrap sooner in a wider
+// face or larger type, and a continued claim in `marker` mode opens with the marker line instead of the claim header.
+export function variantClaimLayout(type, v) {
+  const base = type === 'ppo-eob' ? PPO_CLAIMS : HMO_CLAIMS; const k = v.styleDef.scale; const fw = FONT_WIDTH[v.styleDef.font];
+  const cfg = { ...base, claimHeaderCost: base.claimHeaderCost * k, tableHeaderCost: base.tableHeaderCost * k, totalsCost: base.totalsCost * k };
+  if (type === 'ppo-eob') { const per = Math.floor((62 * fw) / k); cfg.lineCost = (l) => (3 + 12 * wrapLines(l.description, per)) * k; cfg.continuedHeaderCost = v.breaks === 'marker' ? 16 * k : cfg.claimHeaderCost; }
+  else { const per = Math.floor((40 * fw) / k); cfg.lineCost = (l) => (10 + 11.5 * wrapLines(l.description, per) + 10.5) * k; cfg.continuedHeaderCost = v.breaks === 'marker' ? 17 * k : cfg.claimHeaderCost; }
+  return cfg;
 }
 
 // Paginator settings per layout (exported for tests and debugging).

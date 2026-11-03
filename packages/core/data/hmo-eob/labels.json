@@ -1,0 +1,56 @@
+{
+ "note": "Header and title wording of the layout variants (0.5.0). base is today's wording, plus the itemized bill's new continued-group markers; alt-a and alt-b are alternative wordings. Each set replaces only these stock keys.",
+ "sets": {
+  "base": {
+   "claims.title": "Details about your claims",
+   "columns.service": "Service you received",
+   "columns.charged": "Provider's charge",
+   "columns.approved": "Plan approved",
+   "columns.paid": "Plan paid",
+   "columns.owe": "Most you may be billed",
+   "columns.notes": "Notes",
+   "claims.codeLabel": "Code",
+   "claims.dateLabel": "Date",
+   "claims.claimLabel": "Claim",
+   "claims.totalLabel": "Total for this claim",
+   "claims.continuedFrom": "(continued)",
+   "claims.continuesOn": "Continued on next page",
+   "claims.notesTitle": "Notes",
+   "claims.pageContinues": "More claims on the next page"
+  },
+  "alt-a": {
+   "claims.title": "Your claims, explained",
+   "columns.service": "Care you received",
+   "columns.charged": "Amount charged",
+   "columns.approved": "Approved amount",
+   "columns.paid": "Amount plan paid",
+   "columns.owe": "Most you could owe",
+   "columns.notes": "Remarks",
+   "claims.codeLabel": "Code used",
+   "claims.dateLabel": "Care date",
+   "claims.claimLabel": "Claim ID",
+   "claims.totalLabel": "Claim total",
+   "claims.continuedFrom": "(from previous page)",
+   "claims.continuesOn": "Claim continues on next page",
+   "claims.notesTitle": "Note explanations",
+   "claims.pageContinues": "Claims continue on next page"
+  },
+  "alt-b": {
+   "claims.title": "A closer look at your claims",
+   "columns.service": "Service details",
+   "columns.charged": "Charged by provider",
+   "columns.approved": "Amount plan approved",
+   "columns.paid": "Paid by your plan",
+   "columns.owe": "Highest amount you may owe",
+   "columns.notes": "See note",
+   "claims.codeLabel": "Billed as",
+   "claims.dateLabel": "Provided",
+   "claims.claimLabel": "Claim no.",
+   "claims.totalLabel": "Total, all services",
+   "claims.continuedFrom": "(carried over)",
+   "claims.continuesOn": "See next page for more",
+   "claims.notesTitle": "Notes on these claims",
+   "claims.pageContinues": "Turn the page for more claims"
+  }
+ }
+}

@@ -1,0 +1,39 @@
+{
+  "type": "hmo-eob",
+  "slug": "claim-total-math-error",
+  "status": "published",
+  "description": "Claim 1 is an office visit with lab tests and is correct. Claim 2 has a single physical therapy line, but the claim's plan-paid total is $15.00 higher than the plan's share on that line. A careful reviewer should add up the line, see that the printed total does not match it, and conclude the plan-paid total is wrong while the line itself is correct.",
+  "period": {
+    "start": "2026-03-01",
+    "end": "2026-03-31"
+  },
+  "claimCount": 2,
+  "claimShapes": [
+    "IM",
+    "PT"
+  ],
+  "mutations": [
+    {
+      "op": "ma-break-claim-total",
+      "args": {
+        "claim": 1,
+        "field": "paid",
+        "by": 15
+      }
+    }
+  ],
+  "sources": [
+    {
+      "what": "The EOB must report billed, approved, plan-paid and member amounts per item and as cumulative totals, so a claim's printed totals must add up its lines",
+      "source": "eCFR, 42 CFR 422.111(k)(1) and (k)(2), Disclosure requirements (Part C explanation of benefits: amounts per item and year-to-date totals), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.111"
+    },
+    {
+      "what": "A Medicare Advantage plan mails an EOB each month you visit a provider, summarizing your claims and costs",
+      "source": "Medicare.gov, Checking the status of a claim, https://www.medicare.gov/providers-services/claims-appeals-complaints/claims/check-status"
+    },
+    {
+      "what": "Review each statement you get for accuracy",
+      "source": "Medicare.gov, Protecting Yourself From Fraud (CMS Product No. 10111), https://www.medicare.gov/publications/10111-protecting-yourself-from-fraud.pdf"
+    }
+  ]
+}

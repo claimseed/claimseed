@@ -12,6 +12,8 @@
 !packages/core/data/x12
 !packages/core/data/SOURCES.md
 !packages/core/data/original-sentences.json
+!packages/core/data/ma-operations.json
+!packages/core/data/layout-variants.json
 !packages/core/scenarios
 !packages/core/reference-data
 !packages/core/fonts

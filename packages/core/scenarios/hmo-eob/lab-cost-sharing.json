@@ -1,0 +1,38 @@
+{
+  "type": "hmo-eob",
+  "slug": "lab-cost-sharing",
+  "status": "published",
+  "description": "Claim 1 is lab tests, and one of them charges the member 20% of its plan-approved amount. Note L1 on that line says laboratory services are covered in full under this plan. Claim 2, an office visit with lab tests, is correct. A careful reviewer should conclude, from the plan's own printed design, that the member owes $0 for that lab test.",
+  "period": {
+    "start": "2026-03-01",
+    "end": "2026-03-31"
+  },
+  "claimCount": 2,
+  "claimShapes": [
+    "LAB",
+    "IM"
+  ],
+  "mutations": [
+    {
+      "op": "ma-cost-share-on-exempt-line",
+      "args": {
+        "claim": 0,
+        "line": 0
+      }
+    }
+  ],
+  "sources": [
+    {
+      "what": "Under the rule that a plan must state its cost sharing, this plan charges $0 for covered lab tests, as Original Medicare usually does (note L1)",
+      "source": "eCFR, 42 CFR 422.111(b)(2), Disclosure requirements (benefits and cost sharing), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.111; Medicare.gov, Diagnostic laboratory tests, https://www.medicare.gov/coverage/diagnostic-laboratory-tests"
+    },
+    {
+      "what": "Medicare Advantage plans set their own cost sharing each year, and the evidence of coverage says what you pay",
+      "source": "Medicare.gov, Understanding Medicare Advantage Plans (CMS Product No. 12026), https://www.medicare.gov/publications/12026-understanding-medicare-advantage-plans.pdf"
+    },
+    {
+      "what": "For comparison, in Original Medicare you usually pay nothing for covered diagnostic lab tests",
+      "source": "Medicare.gov, Diagnostic laboratory tests, https://www.medicare.gov/coverage/diagnostic-laboratory-tests"
+    }
+  ]
+}

@@ -68,15 +68,19 @@ test('decoys keep every error in place, and refuse lines they cannot use', () =>
   const plain = gen('msn', 'combined-three-errors').groundTruth;
   assert.deepEqual(g.errors.map((e) => [e.kind, e.lineRef, e.fieldRef]), plain.errors.map((e) => [e.kind, e.lineRef, e.fieldRef]));
   const refuse = (type, scenario, decoys, re) => assert.throws(() => gen(type, scenario, decoys), re);
-  refuse('msn', 'duplicate-office-visit', [{ op: 'charge-far-above-approved', args: { claim: 0, line: 0 }, rule: 'r' }], /carries an error/);
-  refuse('msn', 'baseline-clean', [{ op: 'charge-far-above-approved', args: { claim: 0, line: 0 } }], /must cite the rule/);
+  const MSG = JSON.parse(fs.readFileSync(path.join(here, '../data/ma-operations.json'), 'utf-8')).messages;
+  const is = (key, op) => (e) => e.message === MSG[key].replace('{op}', op);
+  refuse('msn', 'duplicate-office-visit', [{ op: 'charge-far-above-approved', args: { claim: 0, line: 0 }, rule: 'r' }], is('lineTaken', 'charge-far-above-approved'));
+  refuse('msn', 'baseline-clean', [{ op: 'charge-far-above-approved', args: { claim: 0, line: 0 } }], is('decoyNeedsRule'));
   const [rc, rl] = repeatable(gen('msn', 'baseline-clean').groundTruth);
-  refuse('msn', 'baseline-clean', [{ op: 'repeat-service-other-date', args: { claim: rc, line: rl, days: 400 }, rule: 'r' }], /inside the period/);
-  refuse('msn', 'baseline-clean', [{ op: 'charge-far-above-approved', args: { claim: 0, line: 0 }, rule: 'r' }, { op: 'charge-far-above-approved', args: { claim: 0, line: 0 }, rule: 'r' }], /already carries a decoy/);
-  refuse('msn', 'baseline-clean', [{ op: 'no-such-op', args: {}, rule: 'r' }], /unknown decoy op/);
-  refuse('ppo-eob', 'baseline-clean', [{ op: 'charge-far-above-approved', args: { claim: 0, line: 0 }, rule: 'r' }], /not supported for this layout/);
+  refuse('msn', 'baseline-clean', [{ op: 'repeat-service-other-date', args: { claim: rc, line: rl, days: 365 }, rule: 'r' }], is('outsidePeriod', 'repeat-service-other-date'));
+  refuse('msn', 'baseline-clean', [{ op: 'charge-far-above-approved', args: { claim: 0, line: 0 }, rule: 'r' }, { op: 'charge-far-above-approved', args: { claim: 0, line: 0 }, rule: 'r' }], is('lineTaken', 'charge-far-above-approved'));
+  refuse('msn', 'baseline-clean', [{ op: 'no-such-op', args: {}, rule: 'r' }], is('unknownDecoy'));
+  // the Medicare Advantage layouts take their own decoys (ma-*), never the Part B ones, and the reverse
+  for (const type of ['ppo-eob', 'hmo-eob']) assert.throws(() => gen(type, 'baseline-clean', [{ op: 'charge-far-above-approved', args: { claim: 0, line: 0 }, rule: 'r' }]), is('unknownDecoy'));
+  refuse('msn', 'baseline-clean', [{ op: 'ma-charge-far-above-approved', args: { claim: 0, line: 0, factor: 5 }, rule: 'r' }], is('unknownDecoy'));
   const preventive = gen('msn', 'preventive-visit-cost-sharing').groundTruth.claims.flatMap((c, i) => c.lines.map((l, j) => [i, j, l])).find(([, , l]) => l.code && /^(G0438|G0439|99387|99397|G0402)$/.test(l.code));
-  if (preventive) refuse('msn', 'preventive-visit-cost-sharing', [{ op: 'repeat-service-other-date', args: { claim: preventive[0], line: preventive[1], days: 1 }, rule: 'r' }], /preventive|carries an error/);
+  if (preventive) refuse('msn', 'preventive-visit-cost-sharing', [{ op: 'repeat-service-other-date', args: { claim: preventive[0], line: preventive[1], days: 1 }, rule: 'r' }], (e) => is('repeatIsError', 'repeat-service-other-date')(e) || is('lineTaken', 'repeat-service-other-date')(e));
 });
 
 test('every ground truth is schema 1.3 with a decoys list, empty unless the scenario plants some', () => {

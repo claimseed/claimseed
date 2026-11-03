@@ -225,3 +225,150 @@ test('every service in the catalog has the five-character code an SVC01 carries 
   assert.ok(catalog.services.length > 0);
   for (const s of catalog.services) assert.match(s.code, /^[0-9A-Z]{5}$/, `${s.code}: a code the 835's SVC01 (HC>code) cannot carry`);
 });
+
+// one value of one element of the file replaced; the file keeps its segment-per-line form
+const setElement = (text, k, i, v) => { const segs = text.split('~\n'); const s = segs[k].split('*'); s[i] = v; segs[k] = s.join('*'); return segs.join('~\n'); };
+
+test('an empty allowed amount or adjustment group is an element finding of check835 on its own, and nothing else moves', async () => {
+  for (const type of REMITTANCE_TYPES) {
+    const { text } = await remittanceFor({ type, scenario: 'baseline-clean', seed: 'empty-codes' });
+    assert.deepEqual(check835(text).findings, [], type);
+    assert.deepEqual(check835(mutate(text, /AMT\*B6\*[0-9.]+~/, 'AMT*B6*~')).findings, [{ check: 'element', ref: '0001:CLP1:SVC1:AMT02' }], `${type}: empty AMT02`);
+    // the first adjustment of the first line loses its group: the line still balances, so only the element is reported
+    const k = text.split('~\n').findIndex((s) => s.startsWith('CAS*'));
+    assert.deepEqual(check835(setElement(text, k, 1, '')).findings, [{ check: 'element', ref: '0001:CLP1:SVC1:CAS01' }], `${type}: empty CAS01`);
+  }
+});
+
+test('every amount, code and date the balancing reads, emptied or given free text, is an element finding of check835 at that element', async () => {
+  // the elements check835 reads, by segment, and where it reports them
+  const READS = { BPR: [1, 2, 4], CLP: [3, 4, 5], SVC: [1, 2, 3], AMT: [1, 2], DTM472: [2] };
+  const BAD = ['', 'CANARY', '12.345', '1e3', ' 10', '10 ', '-0', '007.50'];
+  let planted = 0;
+  for (const type of REMITTANCE_TYPES) for (const seed of ['element-0', 'element-1']) {
+    const { text } = await remittanceFor({ type, scenario: 'baseline-clean', seed });
+    assert.deepEqual(check835(text).findings, [], `${type}/${seed}`);
+    const segs = text.split('~\n'); let st02 = null; let clp = 0; let svc = 0;
+    segs.forEach((line, k) => {
+      const s = line.split('*');
+      if (s[0] === 'ST') { st02 = s[2]; clp = 0; } else if (s[0] === 'CLP') { clp++; svc = 0; } else if (s[0] === 'SVC') svc++;
+      const two = (i) => String(i).padStart(2, '0');
+      const at = (i) => (s[0] === 'BPR' ? `${st02}:BPR${two(i)}` : s[0] === 'CLP' ? `${st02}:CLP${clp}:CLP${two(i)}`
+        : s[0] === 'CAS' && svc === 0 ? `${st02}:CLP${clp}:CAS${two(i)}` : `${st02}:CLP${clp}:SVC${svc}:${s[0]}${two(i)}`);
+      const key = s[0] === 'DTM' ? `DTM${s[1]}` : s[0];
+      const elements = s[0] === 'CAS' ? s.map((v, i) => i).filter((i) => i === 1 || (i >= 2 && (i - 2) % 3 !== 2)) : READS[key] || [];
+      for (const i of elements) for (const v of BAD) {
+        if (v === s[i]) continue;
+        const found = check835(setElement(text, k, i, v)).findings;
+        assert.ok(found.some((f) => f.check === 'element' && f.ref === at(i)), `${type}/${seed}: ${s[0]}${two(i)} = ${JSON.stringify(v)} gives ${JSON.stringify(found)}`);
+        planted++;
+      }
+    });
+  }
+  assert.ok(planted > 500, `${planted} values planted`);
+});
+
+test('every service has one date of service, as DTM*472: a missing date, another qualifier or a second date is an element finding, and none hides a duplicate', async () => {
+  for (const type of REMITTANCE_TYPES) {
+    const { text } = await remittanceFor({ type, scenario: 'baseline-clean', seed: 'dtm' });
+    const segs = text.split('~\n'); let st02 = null; let clp = 0; let svc = 0; const at = [];
+    segs.forEach((line, k) => { const s = line.split('*'); if (s[0] === 'ST') { st02 = s[2]; clp = 0; } else if (s[0] === 'CLP') { clp++; svc = 0; } else if (s[0] === 'SVC') svc++; else if (s[0] === 'DTM' && s[1] === '472') at.push([k, `${st02}:CLP${clp}:SVC${svc}:DTM01`]); });
+    assert.ok(at.length >= 2, type);
+    for (const [k, ref] of at) {
+      for (const q of ['', 'FIC', '473', ' 472', '472 ', '050']) assert.ok(check835(setElement(text, k, 1, q)).findings.some((f) => f.check === 'element' && f.ref === ref), `${type}: DTM01 = ${JSON.stringify(q)} at ${ref}`);
+      const without = segs.filter((x, i) => i !== k).join('~\n'); const doubled = [...segs.slice(0, k + 1), 'DTM*150*20260101', ...segs.slice(k + 1)].join('~\n');
+      for (const [what, t] of [['no date', without], ['a second date', doubled]]) assert.ok(check835(t).findings.some((f) => f.check === 'element' && f.ref === ref), `${type}: ${what} at ${ref}`);
+    }
+  }
+  // the scenarios that plant a duplicate: whatever happens to the first service's date, check835 is never silent, and a
+  // charge written another way (trailing zeros) is still the same charge
+  for (const [type, scenario] of [['msn', 'duplicate-beside-repeat-visit'], ['ppo-eob', 'duplicate-visit'], ['hmo-eob', 'duplicate-therapy-visit']]) {
+    const { text } = await remittanceFor({ type, scenario, seed: 'dtm-dup' });
+    const dup = check835(text).findings.filter((f) => f.check === 'duplicate-service'); assert.equal(dup.length, 1, `${type}/${scenario}`);
+    const segs = text.split('~\n'); const k = segs.findIndex((x) => x.startsWith('DTM*472*'));
+    for (const q of ['', 'FIC']) assert.ok(check835(setElement(text, k, 1, q)).findings.length > 0, `${type}/${scenario}: DTM01 = ${JSON.stringify(q)}`);
+    const [, claimN, svcN] = /CLP(\d+):SVC(\d+)$/.exec(dup[0].ref).map(Number);
+    let clp = 0; let svc = 0; let target = -1;
+    segs.forEach((x, i) => { if (x.startsWith('CLP*')) { clp++; svc = 0; } else if (x.startsWith('SVC*')) { svc++; if (clp === claimN && svc === svcN) target = i; } });
+    const charge = segs[target].split('*')[2]; const longer = charge.includes('.') ? (charge.split('.')[1].length === 1 ? `${charge}0` : charge) : `${charge}.00`;
+    if (longer !== charge) assert.deepEqual(check835(setElement(text, target, 2, longer)).findings, dup, `${type}/${scenario}: the charge ${charge} written ${longer}`);
+  }
+});
+
+test('no segment can drop out of check835 unseen: a segment id changed, a segment where it cannot stand, or a transaction with no claim is a finding', async () => {
+  for (const type of REMITTANCE_TYPES) for (const scenario of ['baseline-clean', type === 'msn' ? 'denied-not-reasonable-necessary' : 'denied-service']) {
+    const { text } = await remittanceFor({ type, scenario, seed: 'seg-ids' });
+    assert.deepEqual(check835(text).findings, [], `${type}/${scenario}`);
+    const segs = text.split('~\n'); let tx = null; let n = 0;
+    segs.forEach((line, k) => {
+      const id = line.split('*')[0]; if (id === 'ST') { tx = line.split('*')[2]; n = 0; } if (tx) n++;
+      if (['ISA', 'GS', 'GE', 'IEA', ''].includes(id)) return;
+      // the id changed (case, a near miss, an id the writer never writes): the segment is found where it stands
+      for (const other of [id.toLowerCase(), `${id}X`, 'NTE']) {
+        const found = check835(setElement(text, k, 0, other)).findings;
+        assert.ok(found.length > 0, `${type}/${scenario}: ${id} at line ${k + 1} written ${other}`);
+        if (!['ST', 'SE'].includes(id)) assert.ok(found.some((f) => f.check === 'envelope' && f.ref === `${tx}:segment ${n}`), `${type}/${scenario}: ${id} written ${other}: ${JSON.stringify(found)}`);
+      }
+    });
+    // a claim's or a service's segment before the first claim, and a service's before the first service of its claim
+    const at = (id) => segs.findIndex((x) => x.startsWith(`${id}*`));
+    const move = (from, to) => { const out = segs.slice(); const [x] = out.splice(from, 1); out.splice(to, 0, x); return out.join('~\n'); };
+    for (const id of ['SVC', 'CAS', 'AMT', 'NM1']) assert.ok(check835(move(at(id), at('CLP'))).findings.some((f) => f.check === 'envelope' && /:segment \d+$/.test(f.ref)), `${type}/${scenario}: ${id} before the first claim`);
+    for (const id of ['DTM*472', 'AMT']) assert.ok(check835(move(segs.findIndex((x) => x.startsWith(`${id}*`)), at('SVC'))).findings.some((f) => f.check === 'envelope' && /:segment \d+$/.test(f.ref)), `${type}/${scenario}: ${id} before the first service`);
+    assert.ok(check835(move(at('N1'), at('SVC'))).findings.some((f) => f.check === 'envelope' && /:segment \d+$/.test(f.ref)), `${type}/${scenario}: a header segment inside a claim`);
+  }
+  // a transaction whose only claim is taken out (its segment count kept right) is a finding, not a balanced nothing
+  const { text } = await remittanceFor({ type: 'msn', scenario: 'baseline-clean', seed: 'seg-ids' });
+  const segs = text.split('~\n'); const st = segs.findIndex((x) => x.startsWith('ST*835*')); const se = segs.findIndex((x, i) => i > st && x.startsWith('SE*'));
+  const claimLines = segs.slice(st, se).filter((x) => /^(CLP|NM1|SVC|DTM\*472|CAS|AMT)\*/.test(x)).length;
+  const bare = segs.filter((x, i) => !(i > st && i < se && /^(CLP|NM1|SVC|DTM\*472|CAS|AMT)\*/.test(x))).map((x) => (x.startsWith('SE*') && x.endsWith('*0001') ? `SE*${Number(x.split('*')[1]) - claimLines}*0001` : x)).join('~\n');
+  assert.ok(check835(bare).findings.some((f) => f.check === 'envelope' && f.ref === '0001:CLP'), JSON.stringify(check835(bare).findings));
+});
+
+test('the counts and control numbers check835 reads are digits only: the same number written another way is an envelope finding', async () => {
+  for (const type of REMITTANCE_TYPES) {
+    const { text } = await remittanceFor({ type, scenario: 'baseline-clean', seed: 'counts' });
+    const segs = text.split('~\n'); const at = (id) => segs.findIndex((s) => s.startsWith(`${id}*`));
+    const se = at('SE'); const n = segs[se].split('*')[1]; const ge = at('GE'); const gs = at('GS'); const ctl = segs[gs].split('*')[6];
+    for (const v of [` ${n}`, `${n} `, `+${n}`, `${n}.0`, `0${n}`, `${Number(n) / 10}e1`, `0x${Number(n).toString(16)}`, '']) {
+      assert.ok(has(setElement(text, se, 1, v), 'envelope', '0001:SE'), `${type}: SE01 = ${JSON.stringify(v)}`);
+      assert.ok(has(setElement(text, ge, 1, v.replace(n, '1')), 'envelope', 'GE01'), `${type}: GE01 = ${JSON.stringify(v.replace(n, '1'))}`);
+    }
+    for (const v of ['CANARY', ` ${ctl}`, `0${ctl}`, '']) assert.ok(has(setElement(setElement(text, gs, 6, v), ge, 2, v), 'envelope', 'GS/GE'), `${type}: GS06 = GE02 = ${JSON.stringify(v)}`);
+  }
+});
+
+test('no input makes either checker throw: every cut-short copy of each 835, delimiters alone, and values that are not text', async () => {
+  const odd = ['', '~', '*', '>', '^', '~~~', '\n', '\r\n', '*~', '~\n~\n', 'ISA', 'ISA~', 'IEA~', 'ISA~IEA~', 'ISA*1~GS~IEA~',
+    'ISA*00*~GS*HP~ST*835*0001~SE*2*0001~GE*1*1~IEA*1*000000001~', undefined, null, 0, {}, [],
+    // values whose own conversion would run caller code or throw: none is converted
+    JSON.parse('{"toString":"fictional"}'), JSON.parse('{"toString":null}'), Object.create(null), { valueOf() { throw new Error('valueOf ran'); } },
+    { [Symbol.toPrimitive]() { throw new Error('toPrimitive ran'); } }, new Proxy({}, { get() { throw new Error('a trap ran'); }, getPrototypeOf() { throw new Error('a trap ran'); } }),
+    Symbol('fictional'), 10n, () => 'ISA', new Date(0), /ISA/];
+  const show = (v) => { try { return JSON.stringify(v) ?? typeof v; } catch { return typeof v; } };
+  for (const v of odd) {
+    const { findings } = check835(v); const problems = checkSpecimen835(v);
+    assert.ok(findings.length > 0 && problems.length > 0, `${show(v)}: ${JSON.stringify(findings)} ${JSON.stringify(problems)}`);
+  }
+  let cuts = 0;
+  for (const type of REMITTANCE_TYPES) {
+    const { text, groundTruth: g } = await remittanceFor({ type, scenario: 'baseline-clean', seed: 'cut' });
+    // the file's bytes read as UTF-8 are the file; the names option is read once and only for strings
+    assert.deepEqual(check835(new TextEncoder().encode(text)).findings, []); assert.deepEqual(checkSpecimen835(Buffer.from(text), { names: names(g) }), []);
+    for (const opts of [null, 5, { names: 5 }, { names: [1, null, {}] }, { get names() { throw new Error('a getter ran'); } }, new Proxy({}, { get() { throw new Error('a trap ran'); } })])
+      assert.ok(checkSpecimen835(text, opts).length > 0, `${type}: options ${show(opts)} allow no names, so the names are problems`);
+    assert.deepEqual(check835(text).findings, []); assert.deepEqual(checkSpecimen835(text, { names: names(g) }), []);
+    // every prefix that stops before the last segment terminator, and the file with any one character taken out
+    for (let n = 0; n < text.length - 2; n++) {
+      const cut = text.slice(0, n);
+      assert.ok(check835(cut).findings.length > 0, `${type}: first ${n} characters pass check835`);
+      assert.ok(checkSpecimen835(cut, { names: names(g) }).length > 0, `${type}: first ${n} characters pass checkSpecimen835`);
+      cuts++;
+    }
+    for (let n = 0; n < text.length; n++) {
+      const gap = text.slice(0, n) + text.slice(n + 1);
+      check835(gap); checkSpecimen835(gap, { names: names(g) });
+    }
+  }
+  assert.ok(cuts > 3000, `${cuts} cut-short copies`);
+});

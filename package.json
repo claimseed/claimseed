@@ -10,7 +10,7 @@
     "packages/*"
   ],
   "scripts": {
-    "test": "npm test --workspaces --if-present",
+    "test": "npm test --workspaces --if-present && node packages/core/scripts/test-with-render-log.js --sum",
     "check": "npm run check --workspaces --if-present",
     "release-ready": "npm run release-ready --workspaces --if-present",
     "scan-rendered": "node packages/core/scripts/scan-rendered.js"

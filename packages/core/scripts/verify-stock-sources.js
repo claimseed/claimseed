@@ -4,14 +4,21 @@
 // (a) present in a public-source snapshot (data/public-sources/*.txt), after normalization that ignores case,
 //     punctuation, bracketed/braced placeholders, plan names and numbers, or
 // (b) listed verbatim in data/original-sentences.json, the reviewed list of claimseed's own sentences.
-// Anything else fails. --write-original rewrites data/original-sentences.json from the current unmatched set
-// (use only when adding reviewed original text; the diff is what reviewers look at).
+// Anything else fails. --write-original adds the current unmatched set to data/original-sentences.json (use only when
+// adding reviewed original text; the diff is what reviewers look at). It keeps reviewed lines this render does not
+// print: scan-rendered judges more seeds than this check renders, and a line only some data prints (a claim continued
+// from the previous page) is reviewed once for both. Such lines are listed in the file's renderedOnly; any other
+// reviewed line that nothing prints fails the check. --prune drops the unlisted ones, and lists each one it drops.
 import fs from 'fs'; import os from 'os'; import path from 'path';
 import { fileURLToPath } from 'url';
 // --root DIR checks another copy of the package (used by test/verify-stock-sources.test.js to prove a lifted sentence fails).
 const rootArg = process.argv.indexOf('--root');
 const root = rootArg >= 0 && process.argv[rootArg + 1] ? path.resolve(process.argv[rootArg + 1]) : path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 import { norm, words, loadPublic, loadOriginal, sentencesOf, PLAN_NAMES, inlineSelectors, mergeSelectors, cssOf, textByLayout } from './lib/provenance.js';
+// --variants all|none: also judge the printed text of every layout variant id (all, the default) or not (none: the
+// tests that plant text in a scratch copy, where the variants add only run time)
+const variantsArg = process.argv.indexOf('--variants'); const variantsMode = variantsArg >= 0 ? process.argv[variantsArg + 1] : 'all';
+if (!['all', 'none'].includes(variantsMode)) { console.error('--variants must be all or none'); process.exit(2); }
 if (!fs.existsSync(path.join(root, 'data/public-sources'))) { console.error('verify-stock-sources: data/public-sources/ is not present (it is kept in the repository, not the npm package); run this check from a checkout'); process.exit(2); }
 const pub = loadPublic(root);
 const sentences = new Map(); // normalized sentence -> where
@@ -27,6 +34,11 @@ function walkJson(v, where) {
 }
 for (const t of fs.readdirSync(path.join(root, 'data'))) {
   const p = path.join(root, 'data', t, 'stock-content.json'); if (fs.existsSync(p)) walkJson(JSON.parse(fs.readFileSync(p, 'utf-8')), `data/${t}/stock-content.json`);
+}
+// layout-variant label sets (data/<type>/labels.json): printed like stock text
+const LABEL_SETS = {};
+for (const t of fs.readdirSync(path.join(root, 'data'))) {
+  const p = path.join(root, 'data', t, 'labels.json'); if (fs.existsSync(p)) { LABEL_SETS[t] = JSON.parse(fs.readFileSync(p, 'utf-8')); walkJson(LABEL_SETS[t].sets, `data/${t}/labels.json`); }
 }
 for (const t of fs.readdirSync(path.join(root, 'scenarios'))) for (const f of fs.readdirSync(path.join(root, 'scenarios', t))) {
   const s = JSON.parse(fs.readFileSync(path.join(root, 'scenarios', t, f), 'utf-8'));
@@ -102,9 +114,15 @@ if (fs.existsSync(catPath)) for (const svc of JSON.parse(fs.readFileSync(catPath
 // a reviewed original — so a sentence assembled on the page from pieces that are short on their own (sibling stock
 // keys, object fields, aliases, loops, macros) is judged as the sentence it prints as.
 const originalPath = path.join(root, 'data/original-sentences.json');
-const original = new Set(fs.existsSync(originalPath) ? JSON.parse(fs.readFileSync(originalPath, 'utf-8')).sentences : []);
+const originalFile = fs.existsSync(originalPath) ? JSON.parse(fs.readFileSync(originalPath, 'utf-8')) : {};
+const original = new Set(originalFile.sentences || []);
+// reviewed lines that only scan-rendered's reading of real PDFs prints (a continued-claim header, header rows whose
+// labels wrap): listed by name, so any other reviewed line that nothing prints any more is reported as stale
+const renderedOnly = new Set(originalFile.renderedOnly || []);
 const allStrings = (v, out = new Set()) => { if (typeof v === 'string') out.add(v.trim()); else if (Array.isArray(v)) v.forEach((x) => allStrings(x, out)); else if (v && typeof v === 'object') Object.values(v).forEach((x) => allStrings(x, out)); return out; };
+let rendered = false;   // set when the capture render below ran (not with --no-render, nor on another copy via --root)
 if (!process.argv.includes('--no-render') && fs.existsSync(path.join(root, 'src/index.js')) && path.resolve(root) === path.resolve(path.join(path.dirname(fileURLToPath(import.meta.url)), '..'))) {
+  rendered = true;
   const idx = await import(path.join(root, 'src/index.js')); const { printHooks } = await import(path.join(root, 'src/browser.js'));
   const { loadVerifiedSentences } = await import('./lib/provenance.js');
   const GRAMS = new Set(); for (const sent of loadVerifiedSentences(root)) { const w = sent.split(' '); for (let i = 0; i + 5 <= w.length; i++) GRAMS.add(w.slice(i, i + 5).join(' ')); }
@@ -115,7 +133,7 @@ if (!process.argv.includes('--no-render') && fs.existsSync(path.join(root, 'src/
   const FREE = new Set(['synthetic', 'specimen', 'generated', 'by', 'claimseed', 'for', 'software', 'testing', 'not', 'a', 'real', 'document', 'seed', ...MONTHS]); const SHORT = new Set();
   const pieces = (v) => String(v).split(/(?<=[.!?])\s+|\n+|;\s+|:\s+/).map(norm);
   const classify = (v) => { for (const n of pieces(v)) { const k = words(n); if (k === 1) FREE.add(n); else if (k >= 2 && k <= 5) SHORT.add(n); } };
-  for (const st of Object.values(STOCKS)) for (const v of allStrings(st)) classify(v);
+  for (const st of [...Object.values(STOCKS), ...Object.values(LABEL_SETS).map((l) => l.sets)]) for (const v of allStrings(st)) classify(v);
   for (const f of walkTpl(path.join(root, 'templates'))) for (const node of textOfTpl(fs.readFileSync(f, 'utf-8')).split('\n')) classify(node);
   for (const lit of generatorLiterals) classify(lit);   // generator constants ("This service was denied.")
   for (const n of original) if (words(n) <= 5) SHORT.add(n);
@@ -123,17 +141,20 @@ if (!process.argv.includes('--no-render') && fs.existsSync(path.join(root, 'src/
   for (const w of norm(PLAN_NAMES.join(' ')).split(' ')) if (w) FREE.add(w);
   const SHORT_BY_LEN = new Map(); for (const g of SHORT) { const k = words(g); SHORT_BY_LEN.set(k, SHORT_BY_LEN.get(k) || new Set()); SHORT_BY_LEN.get(k).add(g); }
   const textOf = (html) => { const sel = mergeSelectors(inlineSelectors(cssOf(html)), TPL_INLINE); return textByLayout(html.replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/gi, ' '), sel).replace(/&[a-z]+;|&#x?[0-9a-f]+;/gi, ' '); };   // printed lines by layout
-  for (const type of Object.keys(idx.RENDERERS)) for (const scenario of idx.listScenarios(type)) {
+  // render one document per seed in capture mode and judge its printed lines
+  // allData: blank every string of the document's data, not only those that differ between the seeds (a variant's data is
+  // its unvaried twin's, judged in the scenario loop; what is judged here is the text the variant adds around it)
+  const judge = async (type, where, gen, { allData = false } = {}) => {
     const stock = JSON.parse(fs.readFileSync(path.join(root, 'data', type, 'stock-content.json'), 'utf-8'));
     const pagesBySeed = {};
     for (const seed of ['vss-a', 'vss-b']) {
       const pages = []; printHooks.capture = (h) => pages.push(h);
       const work = fs.mkdtempSync(path.join(os.tmpdir(), 'cs-vss-render-'));
-      try { await idx.RENDERERS[type](idx.generateData({ type, scenario, seed }).data, stock, work, {}); } finally { printHooks.capture = null; fs.rmSync(work, { recursive: true, force: true }); }
-      pagesBySeed[seed] = { pages, data: idx.generateData({ type, scenario, seed }).data };
+      try { await idx.RENDERERS[type](gen(seed).data, stock, work, {}); } finally { printHooks.capture = null; fs.rmSync(work, { recursive: true, force: true }); }
+      pagesBySeed[seed] = { pages, data: gen(seed).data };
     }
     const a = allStrings(pagesBySeed['vss-a'].data), b = allStrings(pagesBySeed['vss-b'].data);
-    const random = new Set([...a].filter((v) => !b.has(v)).map(norm).filter((n) => words(n) >= 1));
+    const random = new Set([...a].filter((v) => allData || !b.has(v)).map(norm).filter((n) => words(n) >= 1));
     const freeHere = new Set([...random].filter((n) => words(n) === 1)); const randomMulti = [...random].filter((n) => words(n) >= 2).sort((x, y) => y.length - x.length);
     for (const html of pagesBySeed['vss-a'].pages) for (const line of textOf(html).split('\n')) {
       let n = norm(line); if (words(n) < 6) continue;
@@ -152,19 +173,32 @@ if (!process.argv.includes('--no-render') && fs.existsSync(path.join(root, 'src/
       for (let i = 0; i < w.length; i++) { if (!covered[i] && !breaker(w[i], i) && (short[i] || FREE.has(w[i]) || w[i].length <= 2)) { span++; maxSpan = Math.max(maxSpan, span); } else span = 0; }
       // uncovered words, or a sentence-length run assembled from short pieces: judged as the sentence it prints as
       // (a term before its short definition is reviewed once as that line; a lifted sentence spread over sibling keys is reported)
-      if (bad.length || maxSpan >= 6 || original.has(w.join(' '))) sentences.set(w.join(' '), `${type}/${scenario} (rendered page text${maxSpan >= 6 ? ', assembled from short pieces' : ''})`);   // (a reviewed line keeps appearing once reviewed, so it is never dropped from the list)
+      if (bad.length || maxSpan >= 6 || original.has(w.join(' '))) sentences.set(w.join(' '), `${where} (rendered page text${maxSpan >= 6 ? ', assembled from short pieces' : ''})`);   // (a reviewed line keeps appearing once reviewed, so it is never dropped from the list)
     }
-  }
+  };
+  for (const type of Object.keys(idx.RENDERERS)) for (const scenario of idx.listScenarios(type)) await judge(type, `${type}/${scenario}`, (seed) => idx.generateData({ type, scenario, seed }));
+  // every layout variant id, on a document long enough that claims and department groups continue onto the next page
+  const LONG = { 'itemized-bill': ['LAB', 'IM', 'LAB', 'CARD', 'LAB', 'IM', 'LAB', 'LAB'], 'ppo-eob': ['LAB', 'OPH', 'LAB', 'RAD', 'LAB', 'FP', 'LAB', 'LAB'], 'hmo-eob': ['LAB', 'PT', 'LAB', 'RAD', 'LAB', 'LAB', 'LAB', 'LAB'] };
+  if (variantsMode === 'all') for (const type of idx.VARIANT_TYPES) for (const id of idx.variantIds(type)) await judge(type, `${type}.${id}`, (seed) => idx.generateData({ type, scenario: 'baseline-clean', seed, layoutVariant: id, overrides: { claimCount: LONG[type].length, claimShapes: LONG[type] } }), { allData: true });
   console.log = quiet;
 }
 const unmatched = [...sentences].filter(([n]) => !pub.includes(n));
 const unknown = unmatched.filter(([n]) => !original.has(n));
 const stale = [...original].filter((o) => !sentences.has(o));
 if (process.argv.includes('--write-original')) {
-  fs.writeFileSync(originalPath, JSON.stringify({ note: 'Reviewed original sentences (normalized). Regenerate with: node scripts/verify-stock-sources.js --write-original; the diff is what reviewers look at.', sentences: unmatched.map(([n]) => n).sort() }, null, 1) + '\n');
-  console.log(`wrote ${unmatched.length} original sentences`); process.exit(0);
+  const prune = process.argv.includes('--prune');
+  const drop = prune ? stale.filter((o) => !renderedOnly.has(o)) : [];
+  const all = [...new Set([...unmatched.map(([n]) => n), ...stale.filter((o) => !drop.includes(o))])].sort();
+  fs.writeFileSync(originalPath, JSON.stringify({ note: originalFile.note || 'Reviewed original sentences (normalized). Regenerate with: node scripts/verify-stock-sources.js --write-original (--prune also drops lines this check no longer renders); the diff is what reviewers look at.', sentences: all, renderedOnly: [...renderedOnly].filter((o) => all.includes(o)) }, null, 1) + '\n');
+  if (prune) for (const o of drop) console.log(`dropped: ${o}`);
+  console.log(`wrote ${all.length} original sentences (${prune ? `${drop.length} dropped` : `${stale.length} kept that this render does not print`})`); process.exit(0);
 }
+for (const o of renderedOnly) if (!original.has(o)) { console.error(`renderedOnly lists a line that is not a reviewed original sentence: ${o}`); process.exit(1); }
 console.log(`verify-stock-sources: ${sentences.size} sentences; ${sentences.size - unmatched.length} verbatim from public sources; ${unmatched.length} original (${original.size} reviewed)`);
-if (stale.length) console.log(`note: ${stale.length} reviewed original sentence(s) no longer appear anywhere`);
+// judged only when this check rendered everything it can (the variants included)
+const unlisted = !rendered || variantsMode === 'none' ? [] : stale.filter((o) => !renderedOnly.has(o));
+if (stale.length) console.log(!rendered || variantsMode === 'none' ? `note: ${stale.length} reviewed original sentence(s) not printed by this run (it rendered ${rendered ? 'no layout variant' : 'nothing'})`
+  : `note: ${stale.length} reviewed original sentence(s) printed only in rendered PDFs (renderedOnly), ${unlisted.length} of them not listed there`);
+if (unlisted.length) { console.error('reviewed original sentences nothing prints any more (drop them with --write-original --prune, or list them in renderedOnly if scan-rendered prints them):'); for (const o of unlisted) console.error(`  ${o}`); process.exit(1); }
 if (unknown.length) { console.error('sentences neither in a public source nor reviewed as original:'); for (const [n, w] of unknown) console.error(`  [${w}] ${n}`); process.exit(1); }
 

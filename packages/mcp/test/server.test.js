@@ -89,6 +89,15 @@ test('list_document_types and describe_document_type describe every type and sce
   assert.deepEqual(by['duplicate-office-visit'].injectedErrors.map((e) => e.kind), ['duplicate-charge']);
   assert.deepEqual(by['combined-three-errors'].injectedErrors.map((e) => e.kind).sort(), ['cost-sharing-error', 'duplicate-charge', 'math-error']);
   for (const x of d.scenarios) assert.ok(x.sources.length > 0, `${x.scenario}: sources`);
+  // the Medicare Advantage layouts are described the same way: errors, decoys, clean controls
+  for (const type of ['ppo-eob', 'hmo-eob']) {
+    const m = Object.fromEntries((await call(s.client, 'describe_document_type', { type })).structuredContent.scenarios.map((x) => [x.scenario, x]));
+    assert.equal(m['baseline-clean'].cleanControl, true, type);
+    assert.equal(m['combined-three-errors'].injectedErrors.length, 3, type); assert.equal(m['combined-three-errors'].cleanControl, false, type);
+    const dec = Object.values(m).filter((x) => x.decoys.length);
+    assert.equal(dec.length, 1, `${type}: one decoy scenario`); assert.deepEqual(dec[0].injectedErrors, [], type); assert.equal(dec[0].cleanControl, false, type);
+    for (const x of dec[0].decoys) assert.ok(x.kind && x.rule, `${type}: decoy kind and rule`);
+  }
 });
 
 test('generate_data returns exactly what the library returns for the same type, scenario and seed', async () => {
@@ -134,6 +143,10 @@ test('resources: the schema, catalogs, taxonomy and policy are served, and the s
   assert.ok(dup && dup.errorKinds.includes('duplicate-charge') && dup.usedBy.includes('msn/duplicate-office-visit'));
   const rep = decoyOps.find((o) => o.op === 'repeat-service-other-date');
   assert.ok(rep && rep.decoyKinds.includes('repeat-service-different-date') && rep.usedBy.includes('msn/duplicate-beside-repeat-visit'));
+  const deny = ops.find((o) => o.op === 'ma-deny-line');
+  assert.ok(deny && deny.errorKinds.includes('coverage-denial') && deny.usedBy.includes('ppo-eob/denied-service') && deny.usedBy.includes('hmo-eob/denied-service'));
+  const cap = decoyOps.find((o) => o.op === 'ma-oop-cap-partial-share');
+  assert.ok(cap && cap.decoyKinds.includes('oop-cap-partial-share') && cap.usedBy.includes('hmo-eob/decoys-oop-cap-partial'));
 });
 
 test('the build_test_case prompt carries the goal and points at the tools', async () => {

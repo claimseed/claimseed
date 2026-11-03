@@ -69,8 +69,9 @@ Render a set, run your extractor or bill auditor on the PDFs, and score its repo
     npx @claimseed/core verify --manifest ./set/manifest.jsonl --outputs ./reports
 
 The score gives field accuracy, error recall and precision, false alarms and the paths read wrong or missed. Clean
-scenarios test for false alarms; some scenarios also plant decoys, lines that look like errors but follow the rules
-(the same service on two dates, a charge far above the approved amount), and flagging one counts as a false alarm.
+scenarios test for false alarms; some scenarios of every type also plant decoys, lines that look like errors but
+follow the rules (the same service on two dates, a charge far above the approved amount, a copay cut short where
+the member reaches the out-of-pocket maximum), and flagging one counts as a false alarm.
 Agents can score one document at a time with the MCP tool `verify_document`.
 
 ## Scanned-looking copies
@@ -101,6 +102,26 @@ names its place there (`x12Ref`): a wrong claim total breaks the claim's balance
 duplicate is a repeated service line. Agents ask for it with `also: "835"` on the MCP tool `render_document`. See the
 core README for what the files contain and what they leave out.
 
+## Layout variants
+
+An extractor tested on one layout may have learned the layout rather than the document. The itemized bill and both
+Medicare Advantage EOBs therefore come in 12 layout variants each (`b01`-`b12`, `p01`-`p12`, `h01`-`h12`): an id
+fixes the column order, the header and title wording, the font, density and colors, and how a table continued on
+the next page is marked. The data, every amount and every required item stay as they are, and the answer key
+differs only in naming the variant, the page count and the PDF's hash:
+
+    npx @claimseed/core render ppo-eob combined-three-errors --seed demo --layout-variant p07 --out ./out
+    npx @claimseed/core render hmo-eob baseline-clean --seed demo --layout-variant all --out ./out
+    npx @claimseed/core batch --types itemized-bill,ppo-eob,hmo-eob --seeds 20 --layout-variant seeded --out ./set
+
+`all` (render and batch) writes one document per id. `seeded` picks an id from the seed alone, so for one seed the
+three types take the same position in their lists (`b04`, `p04` and `h04` together); give explicit ids to spread
+layouts across types. Files are named `<type>_<scenario>_<seed>.<id>.pdf`, and the answer key records the variant
+(`documents[0].layout` is `ppo-eob.p07`, with the details in `documents[0].layoutVariant`; ground truth 1.4). The
+option works with `--degrade` and `--also 835` (the 835 is the same as the standard document's). The Medicare
+Summary Notice has one national format and takes no variant. Agents pass `layout_variant` to the MCP tools; the
+ids and what each fixes are listed in `packages/core/data/<type>/variants.json`.
+
 ## How claimseed compares
 
 - [Synthea](https://github.com/synthetichealth/synthea) simulates synthetic patient populations and exports their
@@ -113,14 +134,15 @@ core README for what the files contain and what they leave out.
 
 ## Status
 
-0.4.0 adds 835 remittances (`--also 835`, `also: "835"` on `render_document`: an X12 835 file of the same claims
-beside a Medicare Summary Notice or Medicare Advantage EOB) and scanned-looking copies (`--degrade`,
-`degrade_document`: scan, fax, phone photo, low resolution); 0.3.0 added scoring (`verify`, `verify_document`), batch
-output with a manifest, and decoys; 0.2.0 added page images of every rendered document in the MCP server's results, an
-MCP Apps view, and a mode that writes no files. Versions before 1.0 may still change their interfaces. The layouts
-shipped are `msn`, `itemized-bill`, `ppo-eob` and `hmo-eob`; more are planned (ABN, Part D EOB, collections notice,
-pharmacy receipt); see `docs/roadmap.md`. `examples/` lists one rendered document per scenario. Licensed under
-Apache-2.0 (see `LICENSE` and `NOTICE`).
+0.5.0 adds planted errors and decoys on the Medicare Advantage EOBs (14 new scenarios), layout variants of the
+itemized bill and both EOBs (`--layout-variant`, `layout_variant`: 12 ids per type, with the variant recorded in the
+answer key), and strict MCP arguments (every tool refuses an argument it does not declare). 0.4.0 added 835
+remittances and scanned-looking copies; 0.3.0 scoring, batch output with a manifest, and decoys; 0.2.0 page images
+in the MCP server's results, an MCP Apps view and a mode that writes no files. Versions before 1.0 may still change
+their interfaces. The layouts shipped are `msn`, `itemized-bill`, `ppo-eob` and `hmo-eob`; next is a commercial
+(non-Medicare) health plan EOB, then more (ABN, Part D EOB, collections notice, pharmacy receipt); see
+`docs/roadmap.md`. `examples/` lists one rendered document per scenario and one per layout variant id. Licensed
+under Apache-2.0 (see `LICENSE` and `NOTICE`).
 
 ## Acceptable use
 

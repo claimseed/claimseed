@@ -1,6 +1,9 @@
 // rng.js — one seeded stream per generation, derived from a string seed.
 import { mulberry32, deriveSeed } from './prng.js';
-export function makeRng(seed, ...salt) { return mulberry32(deriveSeed(String(seed), ...salt)); }
+// The seed and salts as text, as they always were (a seed of undefined is "undefined", an absent salt is empty), except
+// that an object, function or symbol is never converted: it counts as empty text.
+const opaque = (v) => v !== null && (typeof v === 'object' || typeof v === 'function' || typeof v === 'symbol');
+export function makeRng(seed, ...salt) { return mulberry32(deriveSeed(opaque(seed) ? '' : String(seed), ...salt.map((v) => (opaque(v) || v == null ? '' : String(v))))); }
 export function pickOne(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
 export function pickWeighted(rng, items, weightOf) {
   const total = items.reduce((s, it) => s + weightOf(it), 0);

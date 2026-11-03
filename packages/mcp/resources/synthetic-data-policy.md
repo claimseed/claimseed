@@ -1,7 +1,8 @@
 # Synthetic data policy
 
-claimseed renders specimens that look like real medical-billing paperwork and contain no real person, provider,
-plan or claim. This policy is binding on maintainers and contributors; CI enforces the parts it can.
+claimseed produces documents that resemble genuine medical bills and statements, yet none of them contains an actual
+claim, plan, provider or person. Every contributor and maintainer must follow this policy, and continuous integration
+checks enforce whatever can be verified automatically.
 
 ## The standard
 **No value in this repository may be traceable to a real document**, and nothing in it may be *derived* from one —
@@ -11,7 +12,7 @@ does not make it synthetic: the physicians, dates and charges still identify a p
 ## How values are made
 | Value | Rule |
 | --- | --- |
-| Patient and provider names | From the curated lists in `src/generate/lexicon.js`. One reference patient keeps the surname "Specimen". Individual-provider names are checked against the public NPPES registry by name and state (`verify-synthetic-npi.js --nppes`). |
+| Patient and provider names | From the curated lists in `src/generate/lexicon.js`. One reference patient keeps the surname "Specimen". Every individual provider is printed with the middle name "Specimen" (first name, Specimen, last name, credential). `verify-synthetic-npi.js --nppes`, run monthly in CI and on demand, looks up each first and last name the lists can produce in each state where providers are placed: it fails only when a real individual provider registered in that state has the full printed name, counts a real provider who shares only the first and last name as a warning (the job still passes), retries the public registry, and reports the names it could not check instead of treating them as clear. |
 | Addresses | Real city, state and ZIP so the format is right; street names from a fictional list. |
 | Phone numbers | Geographic area code + `555-01xx`, the only 555 block reserved for fiction. Never toll-free. The only exceptions are the public federal lines the CMS model notices themselves print: 1-800-MEDICARE and its TTY, Social Security and its TTY, and the HHS Office for Civil Rights voice and TDD lines, portal URL and mailing address exactly as printed in the public nondiscrimination-notice texts the layouts quote (45 CFR 92 Appendix A for the PPO layout; the HHS 2024 sample policy for the HMO layout). No other real organization's contact details appear in any rendered document or stock file. The repository also keeps verbatim snapshots of the public-domain federal source documents (`packages/core/data/public-sources/`) as the reference for the stock-text provenance check; they contain whatever federal contact lines those documents print, are never rendered, and are not part of the npm package. |
 | NPIs | 10 digits, Luhn-valid over the 80840 prefix, first digit **9**. NPPES issues only NPIs starting with 1 (2 is reserved), so a 9-prefixed NPI can never collide. |
@@ -44,7 +45,9 @@ prints the watermark as a dot pattern after thresholding, so it stays visible if
 again (a test re-thresholds every fax page). An X12 835 remittance written beside a document is marked as test data
 (`ISA15` `T`), names a specimen sender, receiver, payer and technical contact (strings written without access to any
 real document, in `packages/core/data/x12/specimen-strings.json`), carries no bank data, and uses identifiers that
-cannot be real or are recognisable sentinels (the core README lists which).
+cannot be real or are recognisable sentinels (the core README lists which). The layout variants of the
+itemized bill and the Medicare Advantage EOBs print claimseed's own wording (`data/<type>/labels.json`) in claimseed's
+own colors and the bundled fonts, and carry the same band, watermark and metadata as every other document.
 
 ## Public sources we build from
 Printed text: the CMS sample Part B MSN, 45 CFR 92 Appendices A and B, the HHS 2024 sample nondiscrimination policy,

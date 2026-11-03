@@ -1,0 +1,78 @@
+{
+  "type": "ppo-eob",
+  "slug": "decoys-partial-deductible",
+  "status": "published",
+  "description": "Nothing on this statement is wrong, but four lines look wrong. Before March 2026 the member had paid $300 out of pocket, $100 of it toward the deductible. Claim 1's biopsy takes the last $50 of the deductible plus 20% of the rest, so its share is above 20%, and claim 2's eye exam was approved at $24, below the $40 copay, so the member pays $24 and the plan $0. Claim 3 shows the same physical therapy service on two dates one day apart, each with its own $30 copay, and claim 4's X-ray of the chest was billed at five times its approved amount. A careful reviewer should report no errors.",
+  "period": {
+    "start": "2026-03-01",
+    "end": "2026-03-31"
+  },
+  "claimCount": 4,
+  "claimShapes": [
+    "DERM",
+    "OPH",
+    "PT",
+    "RAD"
+  ],
+  "maPriorOop": 300,
+  "maDeductibleMetBefore": 100,
+  "mutations": [],
+  "decoys": [
+    {
+      "op": "ma-partial-deductible",
+      "args": {
+        "claim": 0,
+        "line": 1
+      },
+      "rule": "Plan's stated design (evidence of coverage, note C1): the year's in-network deductible is paid first, then 20% coinsurance on the rest of the approved amount",
+      "note": "The biopsy took the last $50 of the deductible plus 20% of the rest, so a share above 20% is correct"
+    },
+    {
+      "op": "ma-approved-below-copay",
+      "args": {
+        "claim": 1,
+        "line": 0
+      },
+      "rule": "Plan's stated design (evidence of coverage): when the plan-approved amount is less than the copay, the member pays the approved amount and the plan pays $0",
+      "note": "The eye exam was approved at $24, below the $40 copay, so the member pays $24 and the plan $0"
+    },
+    {
+      "op": "ma-repeat-service-other-date",
+      "args": {
+        "claim": 2,
+        "line": 0,
+        "days": 1
+      },
+      "rule": "Not a duplicate: exact duplicates must have matching service dates (CMS Medicare Claims Processing Manual ch. 1 §120.2, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c01.pdf); each visit has its own copay (note K1)",
+      "note": "The same therapy service on two dates one day apart is two visits, each with its own $30 copay"
+    },
+    {
+      "op": "ma-charge-far-above-approved",
+      "args": {
+        "claim": 3,
+        "line": 0,
+        "factor": 5
+      },
+      "rule": "A provider's charge is its own fee; cost sharing is figured from the plan-approved amount (CMS sample MSN, https://www.cms.gov/Medicare/Medicare-General-Information/MSN/Downloads/Sample-Part-B-Medicare-Summary-Notice.pdf; plan's evidence of coverage)",
+      "note": "The X-ray of the chest was billed at five times its approved amount; the member still pays only the $25 imaging copay"
+    }
+  ],
+  "sources": [
+    {
+      "what": "This plan's stated deductible is paid first, then its 20% coinsurance; a copay may not exceed the cost of the service (its plan-approved amount)",
+      "source": "eCFR, 42 CFR 422.111(b)(2), Disclosure requirements (deductibles, coinsurance, copayments), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.111; eCFR, 42 CFR 422.100(f)(6) (copay no greater than the cost of the service), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.100"
+    },
+    {
+      "what": "Two lines can be exact duplicates only if their dates of service match",
+      "source": "CMS, Medicare Claims Processing Manual (Pub. 100-04), ch. 1, §120.2 Exact Duplicates, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c01.pdf"
+    },
+    {
+      "what": "Medicare covers medically necessary outpatient physical therapy, with no yearly limit on what it pays",
+      "source": "Medicare.gov, Physical therapy services, https://www.medicare.gov/coverage/physical-therapy-services"
+    },
+    {
+      "what": "The amount a provider charged is its own fee; the approved amount is what the provider can be paid",
+      "source": "CMS, What is in your Medicare Summary Notice (sample Part B notice), https://www.cms.gov/Medicare/Medicare-General-Information/MSN/Downloads/Sample-Part-B-Medicare-Summary-Notice.pdf"
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "type": "hmo-eob",
+  "slug": "decoys-oop-cap-partial",
+  "status": "published",
+  "description": "Nothing on this statement is wrong, but four lines look wrong. Before March 2026 the member had paid $4,825 of the $4,900 out-of-pocket maximum. Claim 1 shows the same physical therapy service on two dates one day apart, each with the $25 copay, and claim 2's eye exam was approved at $21, below the $35 copay, so the member pays $21 and the plan $0. On claim 3 the ECG's $10 copay is cut to $4 because the maximum is reached on that line, so later lines, including claim 4's X-ray of the chest billed at five times its approved amount, charge the member nothing. A careful reviewer should report no errors.",
+  "period": {
+    "start": "2026-03-01",
+    "end": "2026-03-31"
+  },
+  "claimCount": 4,
+  "claimShapes": [
+    "PT",
+    "OPH",
+    "CARD",
+    "RAD"
+  ],
+  "maPriorOop": 4825,
+  "mutations": [],
+  "decoys": [
+    {
+      "op": "ma-repeat-service-other-date",
+      "args": {
+        "claim": 0,
+        "line": 0,
+        "days": 1
+      },
+      "rule": "Not a duplicate: exact duplicates must have matching service dates (CMS Medicare Claims Processing Manual ch. 1 §120.2, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c01.pdf); each visit has its own copay (note K1)",
+      "note": "The same therapy service on two dates one day apart is two visits, each with its own $25 copay"
+    },
+    {
+      "op": "ma-approved-below-copay",
+      "args": {
+        "claim": 1,
+        "line": 0
+      },
+      "rule": "Plan's stated design (evidence of coverage): when the plan-approved amount is less than the copay, the member pays the approved amount and the plan pays $0",
+      "note": "The eye exam was approved at $21, below the $35 copay, so the member pays $21 and the plan $0"
+    },
+    {
+      "op": "ma-oop-cap-partial-share",
+      "args": {
+        "claim": 2,
+        "line": 1
+      },
+      "rule": "In-network out-of-pocket limit, 42 CFR 422.100(f)(4), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.100; per the plan's evidence of coverage the member pays only up to the maximum and the plan pays the rest",
+      "note": "The member reaches the $4,900 maximum on the ECG line, so its $10 copay is cut to $4 and later lines charge nothing"
+    },
+    {
+      "op": "ma-charge-far-above-approved",
+      "args": {
+        "claim": 3,
+        "line": 0,
+        "factor": 5
+      },
+      "rule": "A provider's charge is its own fee; cost sharing is figured from the plan-approved amount (CMS sample MSN, https://www.cms.gov/Medicare/Medicare-General-Information/MSN/Downloads/Sample-Part-B-Medicare-Summary-Notice.pdf; plan's evidence of coverage)",
+      "note": "The X-ray of the chest was billed at five times its approved amount; the member owes nothing because the maximum was already reached"
+    }
+  ],
+  "sources": [
+    {
+      "what": "Two lines can be exact duplicates only if their dates of service match",
+      "source": "CMS, Medicare Claims Processing Manual (Pub. 100-04), ch. 1, §120.2 Exact Duplicates, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c01.pdf"
+    },
+    {
+      "what": "MA plans must have an in-network out-of-pocket maximum and track what enrollees pay toward it (paragraph (f)(4))",
+      "source": "eCFR, 42 CFR 422.100 General requirements, https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.100"
+    },
+    {
+      "what": "A copay may not exceed the cost of the service (its plan-approved amount), and once this plan's in-network maximum is reached the plan pays 100%",
+      "source": "eCFR, 42 CFR 422.100(f)(6) (copay no greater than the cost of the service) and (f)(4) (in-network maximum out-of-pocket), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.100; Medicare.gov, What does Medicare cost?, https://www.medicare.gov/basics/get-started-with-medicare/medicare-basics/what-does-medicare-cost"
+    },
+    {
+      "what": "The amount a provider charged is its own fee; the approved amount is what the provider can be paid",
+      "source": "CMS, What is in your Medicare Summary Notice (sample Part B notice), https://www.cms.gov/Medicare/Medicare-General-Information/MSN/Downloads/Sample-Part-B-Medicare-Summary-Notice.pdf"
+    }
+  ]
+}

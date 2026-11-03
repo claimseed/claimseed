@@ -44,7 +44,7 @@ export function hardenHtml(html) {
   // decoding (with or without semicolons), so "<meta/http-equiv", "http-equiv=&#114efresh", a ">" hidden inside a
   // quoted attribute value or name, and odd casing are all caught. Control characters are removed first. This is
   // defence in depth: renderHtmlToPdf also refuses any render in which the document navigated (the sentinel check).
-  const out = stripMetaBase(String(html).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, ''));
+  const out = stripMetaBase((typeof html === 'string' ? html : '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, ''));
   const csp = `<meta http-equiv="Content-Security-Policy" content="${RENDER_CSP}">`;
   return /<head[^>]*>/i.test(out) ? out.replace(/<head[^>]*>/i, (m) => m + csp) : csp + out;
 }

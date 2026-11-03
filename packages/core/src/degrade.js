@@ -8,6 +8,7 @@
 import fs from 'fs'; import os from 'os'; import path from 'path'; import crypto from 'crypto';
 import { PDFDocument } from 'pdf-lib';
 import { makeRng } from './generate/rng.js';
+import { scalarText } from './scalar-text.js';
 import { finalizePdf, watermarkCells } from './render.js';
 import { withPdfPage, degradePage, drawPage } from './pdf-raster.js';
 import { markImage } from './image-markers.js';
@@ -19,7 +20,8 @@ const between = (rng, lo, hi) => lo + rng() * (hi - lo);
 // The seeded settings of one preset for one document. Every number is rounded, so the answer key states exactly
 // what was applied.
 export function degradationParams(preset, { type, scenario, seed }) {
-  if (!PRESETS.includes(preset)) throw new Error(`degrade: no preset ${preset}; presets: ${PRESETS.join(', ')}`);
+  if (!PRESETS.includes(preset)) throw new Error(`degrade: no such preset; presets: ${PRESETS.join(', ')}`);
+  if ([type, scenario, seed].some((v) => scalarText(v) === '')) throw new Error('degrade: invalid type, scenario or seed');
   const rng = makeRng(seed, type, scenario, 'degrade', preset);
   const base = { seed: Math.floor(rng() * 2 ** 31) };
   if (preset === 'scan') {
@@ -49,7 +51,7 @@ export function degradationParams(preset, { type, scenario, seed }) {
 // recipe's resolution. `label` names the document in the band and in the image markers. keepPictures (for tests)
 // also returns the degraded pictures as they were before stamping, base64, unmarked.
 export async function degradePdf(browser, bytes, { preset, params, label = null, title = null, pageImages = true, keepPictures = false }) {
-  if (!PRESETS.includes(preset)) throw new Error(`degrade: no preset ${preset}`);
+  if (!PRESETS.includes(preset)) throw new Error(`degrade: no such preset; presets: ${PRESETS.join(', ')}`);
   const pictures = await withPdfPage(browser, bytes, async (page, sizes) => {
     const out = [];
     for (let n = 1; n <= sizes.length; n++) {
@@ -72,7 +74,7 @@ export async function degradePdf(browser, bytes, { preset, params, label = null,
   try {
     const p = path.join(work, 'degraded.pdf');
     fs.writeFileSync(p, await doc.save());
-    await finalizePdf(p, { band: label ? `${label} / ${preset}` : preset, title: title || undefined });
+    await finalizePdf(p, { band: label ? `${label} / ${preset}` : preset, title: title || undefined, degraded: true });
     pdf = fs.readFileSync(p);
   } finally { fs.rmSync(work, { recursive: true, force: true }); }
   let images = [];
@@ -97,8 +99,9 @@ export async function degradePdf(browser, bytes, { preset, params, label = null,
 // the same values).
 export async function degradeRendered(browser, { type, scenario, seed, preset, clean, pageImages = true }) {
   const params = degradationParams(preset, { type, scenario, seed });
-  const label = `${type} / ${scenario} / seed ${seed}`;
-  const { pdf, images } = await degradePdf(browser, clean.bytes, { preset, params, label, title: `claimseed specimen - ${type} ${scenario} seed=${seed} (${preset} copy)`, pageImages });
+  const layout = clean.groundTruth.documents[0].layout || type;   // the type, or <type>.<id> for a layout variant
+  const label = `${layout} / ${scenario} / seed ${seed}`;
+  const { pdf, images } = await degradePdf(browser, clean.bytes, { preset, params, label, title: `claimseed specimen - ${layout} ${scenario} seed=${seed} (${preset} copy)`, pageImages });
   const groundTruth = JSON.parse(JSON.stringify(clean.groundTruth)); const doc = groundTruth.documents[0];
   doc.degradation = preset; doc.degradationParams = params;
   doc.sha256 = crypto.createHash('sha256').update(pdf).digest('hex');
@@ -108,18 +111,19 @@ export async function degradeRendered(browser, { type, scenario, seed, preset, c
 // Render a document and a degraded copy of it. Returns { pdf, groundTruth, bytes, images, files }. With outDir, writes
 // <type>_<scenario>_<seed>_<preset>.pdf, its .ground-truth.json and one image per page (_p<N>.jpg, or .png for a
 // fax), each created exclusively.
-export async function renderDegraded({ type, scenario, seed = 'claimseed', preset, outDir = null, browser = null, pageImages = true, also = null }) {
-  if (!PRESETS.includes(preset)) throw new Error(`degrade: no preset ${preset}; presets: ${PRESETS.join(', ')}`);
+export async function renderDegraded({ type, scenario, seed = 'claimseed', preset, outDir = null, browser = null, pageImages = true, also = null, layoutVariant = null }) {
+  if (!PRESETS.includes(preset)) throw new Error(`degrade: no such preset; presets: ${PRESETS.join(', ')}`);
   const { render } = await import('./index.js');
   const { launchBrowser } = await import('./browser.js');
   const own = !browser; const b = browser || await launchBrowser();
   try {
-    const clean = await render({ type, scenario, seed, browser: b, also });
+    const clean = await render({ type, scenario, seed, browser: b, also, layoutVariant });
+    const id = clean.groundTruth.documents[0].layoutVariant?.id;   // a variant names its files: <stem>.<id>_<preset>
     const { bytes, groundTruth, images } = await degradeRendered(b, { type, scenario, seed, preset, clean, pageImages });
     const files = [];
     if (outDir) {
       fs.mkdirSync(outDir, { recursive: true });
-      const base = path.join(outDir, `${type}_${scenario}_${seed}_${preset}`);
+      const base = path.join(outDir, `${type}_${scenario}_${seed}${id ? `.${id}` : ''}_${preset}`);
       fs.writeFileSync(base + '.pdf', bytes, { flag: 'wx' }); files.push(base + '.pdf');
       fs.writeFileSync(base + '.ground-truth.json', JSON.stringify(groundTruth, null, 2), { flag: 'wx' }); files.push(base + '.ground-truth.json');
       for (const i of images) { const f = `${base}_p${i.page}.${i.mimeType === 'image/png' ? 'png' : 'jpg'}`; fs.writeFileSync(f, i.data, { flag: 'wx' }); files.push(f); }

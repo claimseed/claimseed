@@ -1,0 +1,38 @@
+{
+  "type": "hmo-eob",
+  "slug": "duplicate-therapy-visit",
+  "status": "published",
+  "description": "This Tessara Complete (HMO) statement for March 2026 has two claims. Claim 1 prints the same physical therapy visit twice, with the same date and code, so the member pays the $25 therapy copay twice. Claim 2 (lab tests) is correct. A careful reviewer should treat the second therapy line as a duplicate and conclude the member owes one copay, not two.",
+  "period": {
+    "start": "2026-03-01",
+    "end": "2026-03-31"
+  },
+  "claimCount": 2,
+  "claimShapes": [
+    "PT",
+    "LAB"
+  ],
+  "mutations": [
+    {
+      "op": "ma-duplicate-line",
+      "args": {
+        "claim": 0,
+        "line": 0
+      }
+    }
+  ],
+  "sources": [
+    {
+      "what": "An exact duplicate matches another claim line on beneficiary, provider, date of service, procedure code and billed amount",
+      "source": "CMS, Medicare Claims Processing Manual (Pub. 100-04), ch. 1, §120.2 Exact Duplicates, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c01.pdf"
+    },
+    {
+      "what": "Under the rule that a plan must state its copays, this plan charges one therapy copay per visit (note K1)",
+      "source": "eCFR, 42 CFR 422.111(b)(2), Disclosure requirements (benefits and cost sharing, such as copayments), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.111; Medicare.gov, What does Medicare cost?, https://www.medicare.gov/basics/get-started-with-medicare/medicare-basics/what-does-medicare-cost"
+    },
+    {
+      "what": "Review each statement for accuracy and compare it with your own calendar of appointments, tests and X-rays",
+      "source": "Medicare.gov, Protecting Yourself From Fraud (CMS Product No. 10111), https://www.medicare.gov/publications/10111-protecting-yourself-from-fraud.pdf"
+    }
+  ]
+}

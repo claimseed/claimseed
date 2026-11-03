@@ -1,0 +1,58 @@
+{
+  "type": "ppo-eob",
+  "slug": "combined-three-errors",
+  "status": "published",
+  "description": "This statement has three errors. Claim 1 prints the same eye exam twice on one date, charging the $40 copay twice; claim 2's annual wellness visit charges the $20 office-visit copay although preventive services cost the member nothing; and claim 3's member-share total is $15.00 higher than its only line, an X-ray of the chest. A careful reviewer should flag all three: a duplicate line, a preventive cost-sharing charge and a claim total that does not add up.",
+  "period": {
+    "start": "2026-03-01",
+    "end": "2026-03-31"
+  },
+  "claimCount": 3,
+  "claimShapes": [
+    "OPH",
+    "FP",
+    "RAD"
+  ],
+  "mutations": [
+    {
+      "op": "ma-duplicate-line",
+      "args": {
+        "claim": 0,
+        "line": 0
+      }
+    },
+    {
+      "op": "ma-cost-share-on-exempt-line",
+      "args": {
+        "claim": 1,
+        "line": 0
+      }
+    },
+    {
+      "op": "ma-break-claim-total",
+      "args": {
+        "claim": 2,
+        "field": "patientMayBeBilled",
+        "by": 15
+      }
+    }
+  ],
+  "sources": [
+    {
+      "what": "An exact duplicate matches another claim line on beneficiary, provider, date of service, procedure code and billed amount",
+      "source": "CMS, Medicare Claims Processing Manual (Pub. 100-04), ch. 1, §120.2 Exact Duplicates, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c01.pdf"
+    },
+    {
+      "what": "MA organizations may not charge deductibles, copayments or coinsurance for in-network Medicare-covered preventive services (paragraph (k))",
+      "source": "eCFR, 42 CFR 422.100 General requirements, https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.100"
+    },
+    {
+      "what": "The preventive services this rule covers include the annual wellness visit (paragraph (l))",
+      "source": "Cornell LII, 42 CFR 410.152 Amounts of payment, https://www.law.cornell.edu/cfr/text/42/410.152"
+    },
+    {
+      "what": "The EOB must report billed, approved, plan-paid and member amounts per item and as cumulative totals, so a claim's printed totals must add up its lines",
+      "source": "eCFR, 42 CFR 422.111(k)(1) and (k)(2), Disclosure requirements (Part C explanation of benefits: amounts per item and year-to-date totals), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.111"
+    }
+  ]
+}

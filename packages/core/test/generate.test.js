@@ -5,7 +5,8 @@ import path from 'path';
 import { generateData, listScenarios, loadScenario, SCENARIOS_DIR, ASSEMBLERS } from '../src/generate/index.js';
 import { isSyntheticNpi, isSyntheticMbi, syntheticNpi, syntheticMbi, luhnCheckDigit } from '../src/generate/identifiers.js';
 import { makeRng } from '../src/generate/rng.js';
-import { OPS } from '../src/generate/mutations.js';
+import { OPS, DECOY_OPS } from '../src/generate/mutations.js';
+import { MA_OPS, MA_DECOY_OPS } from '../src/generate/ma-mutations.js';
 import { CLAIM_SHAPE_NAMES } from '../src/generate/encounter.js';
 
 const SEEDS = ['t1', 't2', 'alpha', 'beta', 'gamma', '0', '12345', 'claimseed', 'x', 'y', 'z', 'seed-11', 'seed-12', 'seed-13', 'seed-14', 'seed-15'];
@@ -54,9 +55,16 @@ test('every scenario file is well-formed and published', () => {
         assert.ok(/https?:\/\//.test(src.source) || /(CFR|U\.S\.C\.|Social Security Act|Manual|taxonomy)/.test(src.source), `${type}/${slug}: source must be a URL or a precise citation: ${src.source}`);
       }
       for (const sh of s.claimShapes || []) if (sh) assert.ok(CLAIM_SHAPE_NAMES.includes(sh), `${type}/${slug}: unknown claim shape ${sh}`);
+      // the Medicare Advantage layouts take only their own operations (ma-*), every other layout only the Part B ones
+      const ma = ASSEMBLERS[type].maOps === true;
       for (const m of s.mutations) {
-        assert.ok(OPS[m.op], `${type}/${slug}: unknown op ${m.op}`);
-        assert.ok(m.args.claim < s.claimCount, `${type}/${slug}: claim index ${m.args.claim} >= claimCount`);
+        assert.ok(ma ? MA_OPS.includes(m.op) : Object.prototype.hasOwnProperty.call(OPS, m.op), `${type}/${slug}: unknown op ${m.op}`);
+        assert.ok(Number.isInteger(m.args.claim) && m.args.claim < s.claimCount, `${type}/${slug}: claim index ${m.args.claim} >= claimCount`);
+      }
+      for (const d of s.decoys || []) {
+        assert.ok(ma ? MA_DECOY_OPS.includes(d.op) : Object.prototype.hasOwnProperty.call(DECOY_OPS, d.op), `${type}/${slug}: unknown decoy op ${d.op}`);
+        assert.ok(Number.isInteger(d.args.claim) && d.args.claim < s.claimCount, `${type}/${slug}: decoy claim index ${d.args.claim} >= claimCount`);
+        assert.ok(typeof d.rule === 'string' && d.rule.trim(), `${type}/${slug}: decoy rule`);
       }
     }
   }
@@ -218,7 +226,7 @@ test('itemized bill: duplicate, subtotals-mismatch and balance-billing scenarios
 
 test('bill-above-approved refuses to run where it would not exceed the approved share', () => {
   const ctx = { claims: [{ lines: [{ charged: 10, allowed: 10, paid: 8, toDeductible: 0, coinsurance: 2, patientMayBeBilled: 2, approved: true }], totals: {} }], params: { partB: { coinsuranceRate: 0.2, deductible: 283 } } };
-  assert.throws(() => OPS['bill-above-approved'](ctx, { claim: 0, line: 0 }), /does not exceed/);
+  assert.throws(() => OPS['bill-above-approved'](ctx, { claim: 0, line: 0 }), /nothing is left to bill above it/);
   const ok = OPS['bill-above-approved'](ctx, { claim: 0, line: 0, mode: 'extra', by: 5 });
   assert.equal(ok.actual, 7); assert.equal(ok.delta, 5); assert.equal(ctx.claims[0].totals.providerBilled, 7); assert.equal(ctx.claims[0].totals.patientMayBeBilled, 2);
 });
@@ -236,4 +244,22 @@ test('MA layouts generate and reconcile (ppo-eob, hmo-eob)', () => {
     assert.equal(groundTruth.errors.length, 0);
     assert.ok(JSON.stringify(data).includes('SPECIMEN'));
   }
+});
+
+// The taxonomy both ways: every kind a published scenario emits is marked implemented, and every implemented kind is
+// emitted by a published scenario; the same for the decoy kinds in the taxonomy's decoy section.
+test('error taxonomy both ways: emitted kinds are implemented, implemented kinds are emitted (errors and decoys)', () => {
+  const at = TAXONOMY.indexOf('## Decoys'); assert.ok(at > 0); const end = TAXONOMY.indexOf('\n## ', at + 1);
+  const rowsOf = (t) => [...t.matchAll(/^\| `([a-z0-9-]+)` \| (implemented|planned) \|/gm)].filter((m) => m[2] === 'implemented').map((m) => m[1]);
+  const implDecoys = new Set(rowsOf(TAXONOMY.slice(at, end))); const implErrors = new Set(rowsOf(TAXONOMY.slice(0, at) + TAXONOMY.slice(end)));
+  const errors = new Set(); const decoys = new Set();
+  for (const type of TYPES) for (const slug of listScenarios(type)) {
+    if (loadScenario(type, slug).status !== 'published') continue;
+    const { groundTruth } = generateData({ type, scenario: slug, seed: 't1' });
+    for (const e of groundTruth.errors) errors.add(e.kind); for (const d of groundTruth.decoys || []) decoys.add(d.kind);
+  }
+  assert.deepEqual([...errors].filter((k) => !implErrors.has(k)), [], 'emitted error kinds not marked implemented');
+  assert.deepEqual([...implErrors].filter((k) => !errors.has(k)), [], 'implemented error kinds no published scenario emits');
+  assert.deepEqual([...decoys].sort(), [...implDecoys].sort(), 'decoy kinds');
+  assert.ok(implErrors.size >= 10 && implDecoys.size === 5);
 });

@@ -1,0 +1,39 @@
+{
+  "type": "hmo-eob",
+  "slug": "share-after-oop-max",
+  "status": "published",
+  "description": "The member reached the $4,900 out-of-pocket maximum before March 2026, and the cover shows $4,900 of $4,900 used. Even so, claim 1's eye exam charges the $35 eye-exam copay, so the year-to-date member share is higher than the out-of-pocket amount the cover shows. Claim 2 (lab tests) is correct. A careful reviewer should conclude the plan should have paid the full approved amount for the eye exam and the member owes nothing for it.",
+  "period": {
+    "start": "2026-03-01",
+    "end": "2026-03-31"
+  },
+  "claimCount": 2,
+  "claimShapes": [
+    "OPH",
+    "LAB"
+  ],
+  "maPriorOop": 4900,
+  "mutations": [
+    {
+      "op": "ma-share-after-oop-max",
+      "args": {
+        "claim": 0,
+        "line": 0
+      }
+    }
+  ],
+  "sources": [
+    {
+      "what": "MA plans must have an in-network out-of-pocket maximum, track what enrollees pay and tell them when it is reached (paragraph (f)(4))",
+      "source": "eCFR, 42 CFR 422.100 General requirements, https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.100"
+    },
+    {
+      "what": "Once you reach your plan's yearly limit, you pay nothing for covered services for the rest of the year",
+      "source": "Medicare.gov, Compare Original Medicare & Medicare Advantage, https://www.medicare.gov/basics/get-started-with-medicare/get-more-coverage/your-coverage-options/compare-original-medicare-medicare-advantage"
+    },
+    {
+      "what": "Under the in-network maximum rule, once this plan's $4,900 maximum is reached the plan pays the full approved amount for covered in-network services",
+      "source": "eCFR, 42 CFR 422.100(f)(4), General requirements (in-network maximum out-of-pocket), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.100; Medicare.gov, What does Medicare cost? (plan pays 100% after the limit), https://www.medicare.gov/basics/get-started-with-medicare/medicare-basics/what-does-medicare-cost"
+    }
+  ]
+}

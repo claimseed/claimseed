@@ -49,6 +49,10 @@ jobs:
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `packages=${JSON.stringify(pkgs.map(([, p]) => p.name))}\n`);
           console.log(`releasing ${[...names].join(', ')} at ${v}`);
           JS
+      - name: the latest decision can be made (every v-tag is semver), before anything is staged
+        run: |
+          git fetch --tags --force --quiet
+          node packages/core/scripts/is-highest-version.js "${GITHUB_REF_NAME#v}" $(git tag -l 'v[0-9]*')
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
       - run: npm ci
       - run: npm run check
@@ -80,12 +84,12 @@ jobs:
         working-directory: packages/core
         run: |
           v="$(node -p "require('./package.json').version")"
-          tag=latest; case "$v" in *-*) tag=next ;; esac
+          # latest only for the highest release among the repository's tags; a pre-release is next, an older line's
+          # patch maint-<major>.<minor> (the tags decide: a stray higher tag holds latest until it is deleted)
+          git fetch --tags --force --quiet
+          d="$(node ../core/scripts/is-highest-version.js "$v" $(git tag -l 'v[0-9]*'))" || exit 1
+          case "$d" in latest) tag=latest ;; hold) tag="maint-$(echo "$v" | cut -d. -f1,2)"; case "$v" in *-*) tag=next ;; esac ;; *) exit 1 ;; esac
           npm stage publish --provenance --access public --tag "$tag"
-        env:
-          # Only while a package's trusted publisher cannot exist yet (its first release): a one-day STAGE-ONLY granular
-          # token, stored as the NPM_TOKEN secret of the "npm" environment. npm tries the OIDC credential first.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
   publish-mcp:
     # after core, so a re-run of a failed job never stages core twice; approve core first, then mcp (it pins core)
     needs: [gates, publish-core]
@@ -104,10 +108,12 @@ jobs:
         working-directory: packages/mcp
         run: |
           v="$(node -p "require('./package.json').version")"
-          tag=latest; case "$v" in *-*) tag=next ;; esac
+          # latest only for the highest release among the repository's tags; a pre-release is next, an older line's
+          # patch maint-<major>.<minor> (the tags decide: a stray higher tag holds latest until it is deleted)
+          git fetch --tags --force --quiet
+          d="$(node ../core/scripts/is-highest-version.js "$v" $(git tag -l 'v[0-9]*'))" || exit 1
+          case "$d" in latest) tag=latest ;; hold) tag="maint-$(echo "$v" | cut -d. -f1,2)"; case "$v" in *-*) tag=next ;; esac ;; *) exit 1 ;; esac
           npm stage publish --provenance --access public --tag "$tag"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
   image:
     # The MCP server image on GitHub Container Registry, built from the tagged commit and smoke-tested before the push.
     needs: gates
@@ -140,7 +146,10 @@ jobs:
           v="${GITHUB_REF_NAME#v}"; image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/claimseed-mcp"
           echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           docker tag claimseed-mcp "$image:$v" && docker push "$image:$v"
-          case "$v" in *-*) ;; *) docker tag claimseed-mcp "$image:latest" && docker push "$image:latest" ;; esac
+          # latest moves only to the highest release among the repository's tags (never a pre-release or an older line)
+          git fetch --tags --force --quiet
+          d="$(node packages/core/scripts/is-highest-version.js "$v" $(git tag -l 'v[0-9]*'))" || exit 1
+          case "$d" in latest) docker tag claimseed-mcp "$image:latest" && docker push "$image:latest" ;; hold) ;; *) exit 1 ;; esac
           docker logout ghcr.io
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

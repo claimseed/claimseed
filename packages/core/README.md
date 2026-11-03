@@ -1,11 +1,12 @@
 # @claimseed/core
 
-`@claimseed/core` renders fully synthetic US medical-billing specimen documents — Medicare Summary Notices,
-itemized provider bills and, over time, other notices — as PDFs with a machine-readable ground truth beside each
-one. Every value on a page is derived from a seed by a small rules engine (fictional people and facilities,
-public fee-schedule amounts, Original Medicare Part B adjudication), and a scenario file decides which error, if
-any, is deliberately injected and which public rule it breaks. The output exists to test extractors, bill-review
-tools and training pipelines; nothing in it is, or is derived from, a real document.
+`@claimseed/core` renders fully synthetic US medical-billing specimen documents (Medicare Summary Notices,
+itemized provider bills, Medicare Advantage explanations of benefits and, over time, other notices) as PDFs with a
+machine-readable ground truth beside each one. Every value on a page is derived from a seed by a small rules engine
+(fictional people and facilities, public fee-schedule amounts, Original Medicare Part B adjudication or a fictional
+Medicare Advantage plan's), and a scenario file decides which error, if any, is deliberately injected and which
+public rule it breaks. The output exists to test extractors, bill-review tools and training pipelines; nothing in
+it is, or is derived from, a real document.
 
 ## CLI
 
@@ -24,15 +25,18 @@ node src/cli.js render msn baseline-clean --seed demo --out ./output --degrade s
 node src/cli.js render msn baseline-clean --seed demo --out ./output --also 835       # also the X12 835 of the same claims
 node src/cli.js render itemized-bill balance-billing --seed demo --out ./output
 node src/cli.js render ppo-eob baseline-clean --seed demo --out ./output   # also hmo-eob
+node src/cli.js render ppo-eob baseline-clean --seed demo --out ./output --layout-variant p07   # also seeded, all; not msn
 
 # a set: PDFs, answer keys and manifest.jsonl (SHA-256 of each file, the degradation preset or null, claimseed and Chrome versions) in a new DIR;
 # with --also 835 (types msn, ppo-eob and hmo-eob only), each document also gets its .835, listed in the manifest with its SHA-256
 node src/cli.js batch --types msn,itemized-bill --seeds 50 --out ./set          # --scenarios all|S1,S2  --seed-prefix P  --degrade PRESET
+node src/cli.js batch --types ppo-eob,hmo-eob --seeds 20 --layout-variant seeded --out ./set   # or an id, or all; never with msn
 
 # score an extractor's report (see "Scoring an extractor" below)
 node src/cli.js verify --manifest ./set/manifest.jsonl --outputs ./reports     # one <pdf name>.json per document
 node src/cli.js verify --answer-key ./set/X.ground-truth.json --output report.json
 node src/cli.js verify msn duplicate-office-visit --seed demo --output report.json   # rebuilds the key from the seed
+node src/cli.js verify ppo-eob duplicate-visit --seed demo --layout-variant p07 --output report.json   # a variant's key
 ```
 
 Rendering needs a Chrome or Chromium binary. The engine looks at `$CLAIMSEED_CHROME`, then
@@ -53,6 +57,7 @@ const { data, groundTruth } = generateData({ type: 'msn', scenario: 'baseline-cl
 const out = await render({ type: 'msn', scenario: 'baseline-clean', seed: 'demo', outDir: './out' });  // { pdf, groundTruth, bytes }
 const score = scoreExtraction(groundTruth, { fields: { /* path: value */ }, errors: [ /* { kind, fieldRef } */ ] });
 await renderBatch({ types: ['msn'], scenarios: 'all', seeds: 20, outDir: './set' });                 // { count, manifest }
+await render({ type: 'ppo-eob', scenario: 'baseline-clean', seed: 'demo', outDir: './out', layoutVariant: 'p07' });  // or 'seeded'
 ```
 
 `RENDERERS[type](data, stock, workDir, { band, title })` is the lower-level entry the CLI and `render()` use; it returns
@@ -101,6 +106,35 @@ deductible again after it was met shows the extra on the lines, above the cap); 
 `deductibleMetBefore` plus the lines' deductible; the itemized bill prints the lines' deductible as deductible
 applied; the HMO plan has no deductible. The split is derived from the adjudication: it changes no printed value and
 no field.
+
+## Layout variants
+
+`--layout-variant <id>` (on `generate`, `render`, `batch` and the seed form of `verify`, and with `--degrade`) and
+`layoutVariant` (on `generateData`, `render`, `renderDegraded`, `verifyFromSeed` and `renderBatch`) print the same
+document in another layout. The itemized bill, the PPO EOB and the HMO EOB each publish a closed list of 12 ids
+(`b01`-`b12`, `p01`-`p12`, `h01`-`h12`) in `data/<type>/variants.json`. An id fixes four things: the column order;
+a set of header and title wording from `data/<type>/labels.json` (`base` is the standard wording, `alt-a` and
+`alt-b` the others); a style (font, density and palette); and how a table continued on the next page is marked
+(`repeat` prints the claim or department-group header again with a "continued" mark, `marker` prints only a
+"continued" line). `seeded` picks an id from the seed alone, not from the type or scenario, so one seed takes the
+same position in every type's list (`p04`, `h04` and `b04` together) and a batch over several types is
+correlated; pass explicit ids to spread layouts across types. `all` (render and batch only) writes one document
+per id. The Medicare Summary Notice has one national format and takes no variant.
+
+A variant never changes the data, any amount, any required item, the order of the EOBs' money columns (amount
+billed, approved, plan's share, your share), the bill's charge column (always last), the date and money formats
+or the specimen markers. A varied bill prints each line's department code in its department column, where the
+standard bill leaves that cell blank under the group header, and its "SPECIMEN" badge gets a light background so
+it stays legible on every header color. Files are named `<type>_<scenario>_<seed>.<id>.pdf` (a degraded copy
+`<type>_<scenario>_<seed>.<id>_<preset>.pdf`), and a batch manifest line carries `layoutVariant`.
+
+The answer key of a varied document is ground truth 1.4: `documents[0].layout` is `<type>.<id>` (for example
+`ppo-eob.p07`) and `documents[0].layoutVariant` records `{ id, columns, labels, style, breaks }`. Nothing else
+differs from the key of the standard document with the same seed except the page count and the PDF's hash, and
+the 835 is identical. With no variant the output is byte for byte what 0.4.0 printed and the key stays at 1.3.
+An unknown id, an id of another type, an empty or over-long value, `seeded` or `all` on the MSN, `all` outside
+`render` and `batch`, a batch that mixes the MSN with `seeded` or `all`, and the option given twice are refused
+(exit code 2 on the command line, an error from the library) with a message that does not repeat the value.
 
 ## X12 835 remittances
 
@@ -164,7 +198,7 @@ which period, and which mutations to apply.
     { "op": "apply-cost-share-to-exempt-line", "args": { "claim": 0, "line": 0, "rate": 0.2 },
       "kind": null, "severity": null, "rule": null, "note": null }   // optional overrides of what the op reports
   ],
-  "decoys": [                           // optional, MSN and itemized bill only: correct lines that look wrong,
+  "decoys": [                           // optional, every type: correct lines that look wrong,
     { "op": "repeat-service-other-date", "args": { "claim": 1, "line": 0, "days": 7 },   // applied after the mutations
       "rule": "the public rule that makes the line correct (required)", "note": "optional" }
   ],
@@ -192,12 +226,21 @@ mutation needs a particular kind of line or a line beyond index 0 (for example `
 
 Decoy ops (same file) plant a line that looks like an error but follows the rules. Each is listed in the ground
 truth's `decoys[]` with its kind, place and the rule the scenario cites, never in `errors[]`; an op refuses a line
-that carries an error or another decoy, and decoys are refused on the Medicare Advantage layouts.
+that carries an error or another decoy.
 
 | op | args | kind | what it does |
 | --- | --- | --- | --- |
 | `repeat-service-other-date` | claim, line, days | `repeat-service-different-date` | adds the same service `days` later (or earlier, to stay in the period), adjudicated as its own service; refuses preventive services, new-patient visits and HbA1c |
 | `charge-far-above-approved` | claim, line, factor (default 4) | `charge-above-approved` | raises only the provider's charge; the approved amount, payment and patient share stay put |
+
+The Medicare Advantage EOBs take operations of their own, named with an `ma-` prefix (`src/generate/ma-mutations.js`):
+the errors `ma-duplicate-line`, `ma-shift-date`, `ma-deny-line`, `ma-break-claim-total`,
+`ma-cost-share-on-exempt-line`, `ma-reapply-deductible` and `ma-share-after-oop-max`, and the decoys
+`ma-repeat-service-other-date`, `ma-approved-below-copay`, `ma-charge-far-above-approved`, `ma-oop-cap-partial-share`
+and `ma-partial-deductible`. Such a scenario may set `maPriorOop`, what the member had paid out of pocket before
+the period, and, on the PPO, `maDeductibleMetBefore`, the part of it that went to the deductible.
+`docs/error-taxonomy.md` gives the kind each op reports and its rule; the MCP resource `catalog://mutations` lists
+the ops the published scenarios use, with the kinds they produce and the scenarios that use them.
 
 ## Scoring an extractor
 

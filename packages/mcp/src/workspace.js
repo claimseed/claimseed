@@ -50,8 +50,8 @@ export function openWorkspace(dir, { quotaBytes = 500 * 2 ** 20, maxFiles = 2000
     } catch { return []; }
     try {
       const j = JSON.parse(raw);
-      return (Array.isArray(j.files) ? j.files : []).filter((e) => e && NAME.test(String(e.name)) && Number.isSafeInteger(e.bytes) && e.bytes >= 0
-        && /^[0-9a-f]{64}$/.test(String(e.sha256)) && Number.isFinite(e.at) && (mine.has(e.name) || stillThere(e)));
+      return (Array.isArray(j.files) ? j.files : []).filter((e) => e && typeof e.name === 'string' && NAME.test(e.name) && Number.isSafeInteger(e.bytes) && e.bytes >= 0
+        && typeof e.sha256 === 'string' && /^[0-9a-f]{64}$/.test(e.sha256) && Number.isFinite(e.at) && (mine.has(e.name) || stillThere(e)));
     } catch { log(`ignoring ${LEDGER}: not valid JSON (earlier outputs will not be cleaned up automatically)`); return []; }
   }
   function writeLedger(files) {

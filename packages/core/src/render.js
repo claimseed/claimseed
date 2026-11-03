@@ -6,8 +6,9 @@ import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { PDFDocument, PDFName, PDFDict, PDFArray, PDFNumber, PDFRef, PDFStream, StandardFonts, rgb, degrees } from 'pdf-lib';
-import { hardenHtml, printPage } from './print.js';
+import { hardenHtml, printPage, printHooks } from './print.js';
 import { assertBalancedContent } from './pdf-content.js';
+import { variantStock, templateVariant, FONT_WIDTH } from './variants.js';
 export { hardenHtml };
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -264,7 +265,14 @@ export async function finalizePdf(pdfPath, meta = {}) {
   await stampPages(doc, meta.band);
   setSpecimenMetadata(doc, meta);
   fs.writeFileSync(pdfPath, await doc.save());
+  logStamped(meta.degraded ? 'degraded' : 'single');
   return pdfPath;
+}
+// The test scripts count every stamped PDF the suite makes (CLAIMSEED_RENDER_LOG, set by scripts/test-with-render-log.js;
+// one line per PDF, appended, so subprocesses add to the same file). Unset, nothing is written.
+function logStamped(kind) {
+  const f = process.env.CLAIMSEED_RENDER_LOG;
+  if (f && !printHooks.capture) fs.appendFileSync(f, `${kind}\n`);   // capture mode prints nothing (no browser): not counted
 }
 // Merge page PDFs, stamp every page and set the specimen metadata. This is the single exit point of every render
 // function (renderMsn, renderItemizedBill, renderPpoEob, renderHmoEob), through the CLI or the library API, so no
@@ -289,6 +297,7 @@ export async function mergePdfs(pdfPaths, outputPath, meta = {}) {
   await stampPages(merged, meta.band);
   const mergedBytes = await merged.save();
   fs.writeFileSync(outputPath, mergedBytes);
+  logStamped('render');
   console.log(`  Merged ${pdfPaths.length} PDFs -> ${path.basename(outputPath)}`);
   return outputPath;
 }
@@ -615,7 +624,7 @@ export async function renderMsn(data, stock, outputDir, opts = {}) {
 // Groups can split across pages but follow orphan/widow rules.
 // ============================================================
 
-function paginateForItemizedBill(data) {
+export function paginateForItemizedBill(data) {
   const groups = data.revenueCodeGroups || [];
   const grandTotal = data.grandTotal;
 
@@ -755,6 +764,63 @@ function paginateForItemizedBill(data) {
 // Itemized Bill (hospital statement layout) — multi-page portrait
 // ============================================================
 
+// The itemized bill's paginator for a layout variant (0.5.0). Same rules as paginateForItemizedBill, which still
+// paginates the unvaried bill, with its slot costs taken from `cfg` (a density scales every table row) and a
+// continuation rule: `bare` (as unvaried: nothing marks a group carried over), `repeat` (the page a group leaves ends
+// with a continues line, and the group header is repeated with its continued marker) or `marker` (a continues line,
+// then a continued line instead of the header). With the default costs and `bare` it gives the unvaried pages.
+export const BILL_LAYOUT = Object.freeze({ capacity: 40, columnHeaderCost: 1.5, groupHeaderCost: 1.5, lineCost: 1, subtotalCost: 1, grandTotalCost: 1.5, markerCost: 1, breaks: 'bare' });
+export function paginateItemizedBillVariant(data, cfg = BILL_LAYOUT) {
+  const groups = data.revenueCodeGroups || [];
+  const pages = [];
+  let page = { pageNumber: 2, showColumnHeaders: true, blocks: [] };
+  let remaining = cfg.capacity - cfg.columnHeaderCost;
+  let zebra = 0;
+  const carry = cfg.breaks !== 'bare';
+  const newPage = () => { pages.push(page); page = { pageNumber: page.pageNumber + 1, showColumnHeaders: true, blocks: [] }; remaining = cfg.capacity - cfg.columnHeaderCost; };
+  const put = (block, cost) => { page.blocks.push(block); remaining -= cost; };
+  // a variant prints each line's department code in its own column (cfg.lineDept); the unvaried bill leaves it blank
+  const line = (item, group) => ({ type: 'line-item', ...(cfg.lineDept ? { revCode: group.revCode } : {}), date: item.date, hcpcs: item.hcpcs, units: item.units, description: item.description, amount: item.amount, zebraIndex: zebra++ });
+  // leave the page a group runs off: a continues line (when the rule marks it), then the carried-over opening
+  const breakGroup = (group) => {
+    if (carry) put({ type: 'continues-marker' }, cfg.markerCost);
+    newPage();
+    if (cfg.breaks === 'repeat') put({ type: 'group-header', revCode: group.revCode, description: group.description, continued: true }, cfg.groupHeaderCost);
+    else if (cfg.breaks === 'marker') put({ type: 'continued-marker' }, cfg.markerCost);
+  };
+  const reserve = carry ? cfg.markerCost : 0;   // room kept for the continues line on a page a group may leave
+  const cost = (item) => (cfg.itemCost ? cfg.itemCost(item) : cfg.lineCost);
+  for (const group of groups) {
+    const items = group.lineItems;
+    const whole = cfg.groupHeaderCost + items.reduce((t, it) => t + cost(it), 0) + cfg.subtotalCost;
+    if (whole <= remaining) {
+      put({ type: 'group-header', revCode: group.revCode, description: group.description }, cfg.groupHeaderCost);
+      for (const item of items) put(line(item, group), cost(item));
+      put({ type: 'subtotal', amount: group.subtotal }, cfg.subtotalCost);
+      continue;
+    }
+    if (remaining < cfg.groupHeaderCost + cost(items[0]) + reserve) newPage();   // never a header without a line under it
+    put({ type: 'group-header', revCode: group.revCode, description: group.description }, cfg.groupHeaderCost);
+    items.forEach((item, li) => {
+      const last = li === items.length - 1;
+      if (last ? remaining < cost(item) + cfg.subtotalCost : remaining < cost(item) + reserve) breakGroup(group);
+      put(line(item, group), cost(item));
+    });
+    put({ type: 'subtotal', amount: group.subtotal }, cfg.subtotalCost);
+  }
+  if (remaining < cfg.grandTotalCost) newPage();
+  put({ type: 'grand-total', amount: data.grandTotal }, cfg.grandTotalCost);
+  pages.push(page);
+  return pages;
+}
+// A variant's bill costs: every table row scales with the density, a description that wraps in its column costs a
+// second line (about 50 characters fit at regular density in Inter); capacity stays the page's height in base rows.
+export function variantBillLayout(v) {
+  const k = v.styleDef.scale; const per = Math.floor((50 * FONT_WIDTH[v.styleDef.font]) / k);
+  return { ...BILL_LAYOUT, itemCost: (item) => k * (1 + 0.8 * (Math.max(1, Math.ceil(String(item.description || '').length / per)) - 1)), columnHeaderCost: BILL_LAYOUT.columnHeaderCost * k, groupHeaderCost: BILL_LAYOUT.groupHeaderCost * k, lineCost: BILL_LAYOUT.lineCost * k,
+    subtotalCost: BILL_LAYOUT.subtotalCost * k, grandTotalCost: BILL_LAYOUT.grandTotalCost * k, markerCost: BILL_LAYOUT.markerCost * k, breaks: v.breaks, lineDept: true };
+}
+
 export async function renderItemizedBill(data, stock, outputDir, opts = {}) {
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'claimseed-pages-'));   // see renderMsn
   try {
@@ -764,8 +830,10 @@ export async function renderItemizedBill(data, stock, outputDir, opts = {}) {
   let totalPages;
   try {
 
-  // Run pagination engine
-  const chargePages = paginateForItemizedBill(data);
+  // Run pagination engine (a layout variant has its own costs and continuation rule)
+  const variant = data._variant || null;
+  const chargePages = variant ? paginateItemizedBillVariant(data, variantBillLayout(variant)) : paginateForItemizedBill(data);
+  if (variant) stock = variantStock('itemized-bill', stock, variant);
 
   // Total pages: 1 cover + N charge pages + 1 summary
   totalPages = 1 + chargePages.length + 1;
@@ -776,14 +844,19 @@ export async function renderItemizedBill(data, stock, outputDir, opts = {}) {
 
   // --- Page 1: Cover ---
   console.log('  Rendering page 1 (cover)...');
-  const html1 = nunjucks.render('itemized-bill/page1-cover.html', templateData);
+  // a layout variant's pages all know it (the header's badge gets a light ground on the variant's header colour)
+  const vctx = variant ? { v: templateVariant('itemized-bill', variant) } : {};
+  const html1 = nunjucks.render('itemized-bill/page1-cover.html', { ...templateData, ...vctx });
   const pdf1 = path.join(work, '.p1.pdf');
   await printPage(browser, hardenHtml(html1), pdf1, { landscape: false });
   partialPdfs.push(pdf1);
 
   // --- Charge pages (paginated) ---
   console.log(`  Rendering charge pages (${chargePages.length} pages)...`);
-  const htmlCharges = nunjucks.render('itemized-bill/pages-charges.html', {
+  const htmlCharges = nunjucks.render(variant ? 'itemized-bill/charges-v.html' : 'itemized-bill/pages-charges.html', variant ? {
+    ...templateData,
+    chargePages, v: templateVariant('itemized-bill', variant),
+  } : {
     ...templateData,
     chargePages,
   });
@@ -795,7 +868,7 @@ export async function renderItemizedBill(data, stock, outputDir, opts = {}) {
   const summaryPageNumber = 1 + chargePages.length + 1;
   console.log(`  Rendering page ${summaryPageNumber} (insurance summary)...`);
   const htmlSummary = nunjucks.render('itemized-bill/page-summary.html', {
-    ...templateData,
+    ...templateData, ...vctx,
     summaryPageNumber,
   });
   const pdfSummary = path.join(work, '.p-summary.pdf');

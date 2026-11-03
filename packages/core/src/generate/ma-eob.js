@@ -4,6 +4,7 @@
 // Sources: 42 CFR 422.100(f) (MOOP), CMS Plan Benefit Package public-use files (typical copay ranges).
 import { claimNumber, memberId, digits } from './identifiers.js';
 import { intBetween } from './rng.js';
+import { runMaOperations, fail, inCents } from './ma-mutations.js';
 const r2 = (x) => Math.round(x * 100) / 100;
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const longDate = (iso) => { const [y, m, d] = iso.split('-').map(Number); return `${MONTHS[m - 1]} ${d}, ${y}`; };
@@ -50,44 +51,79 @@ export function adjudicateMa(claims, plan, { oopUsedBefore = 0, deductibleMetBef
 }
 
 // Ground-truth claim model for MA documents: the plan's adjudication, not the Part B one it was derived from.
+// A denied line is not approved and the member owes nothing for it (held harmless), so nothing is non-covered. The
+// claim totals are the printed ones, so a planted totals error sits in the model (and the 835) where the PDF has it.
 function maClaimModel(maClaims, rendered) {
-  return maClaims.map((c, i) => ({ claimNumber: rendered[i].claimNumber, provider: c.provider.name, dateOfService: c.dateOfService,
-    lines: c.lines.map((l) => ({ code: l.code, units: l.units, dateOfService: l.dateOfService, charged: l.charged, allowed: l.approved, approved: true, paid: l.planShare, toDeductible: l.deductibleApplied,
+  return maClaims.map((c, i) => { const t = c.printedTotals || c.totals; return { claimNumber: rendered[i].claimNumber, provider: c.provider.name, dateOfService: c.dateOfService,
+    lines: c.lines.map((l) => ({ code: l.code, units: l.units, dateOfService: l.dateOfService, charged: l.charged, allowed: l.approved, approved: !l.denied, paid: l.planShare, toDeductible: l.deductibleApplied,
       coinsurance: l.coinsurance, copay: l.copay, nonCovered: 0, patientMayBeBilled: l.yourShare })),
-    totals: { charged: c.totals.charged, allowed: c.totals.approved, paid: c.totals.planShare, patientMayBeBilled: c.totals.yourShare } }));
+    totals: { charged: t.charged, allowed: t.approved, paid: t.planShare, patientMayBeBilled: t.yourShare } }; });
 }
-// Mutation ops act on the Part B adjudication, which MA documents re-adjudicate, so an MA scenario with mutations
-// would report errors that do not appear on the page. Refuse until MA-aware ops exist.
-function assertNoMutations(groundTruthErrors, type) {
-  if (groundTruthErrors && groundTruthErrors.length) throw new Error(`${type}: mutation ops are not supported for Medicare Advantage layouts yet`);
-}
-const MA_FIELD_PATHS = { line: (i, j) => `claims[${i}].lineItems[${j}]`, totals: (i, field) => `claims[${i}].claimTotal.${field}` };
+// The Part B mutation ops act on the Part B adjudication, which these documents re-adjudicate, so generateData hands
+// an MA layout its scenario's mutations and decoys and the plan-level operations (ma-mutations.js) run here.
+// Totals errors are recorded against the model's field names; the printed claim total of each layout is named here.
+const PRINTED_TOTAL = {
+  'ppo-eob': { charged: 'providerBilled', allowed: 'planApproved', paid: 'planShare', patientMayBeBilled: 'yourShare' },
+  'hmo-eob': { charged: 'providersCharged', allowed: 'planApproved', paid: 'amountPlanPaid', patientMayBeBilled: 'maxYouMayBeBilled' },
+};
+const fieldPathsFor = (type) => ({ line: (i, j) => `claims[${i}].lineItems[${j}]`, totals: (i, field) => `claims[${i}].claimTotal.${PRINTED_TOTAL[type][field] || field}` });
 
-function noteFor(line, plan) {
+// The prior out-of-pocket amount (and on the PPO the deductible already met) is drawn as it always was, so existing
+// seeds keep their numbers; a scenario may force either for an operation or a decoy that needs a known state. The
+// draw is consumed even then, so nothing else in the document moves.
+const isNum = inCents;   // a forced amount is a whole number of cents
+function priorState(type, plan, rng, period, maState = {}) {
+  const month = Number(period.start.split('-')[1]); const mult = type === 'ppo-eob' ? 120 : 100;
+  const drawn = month === 1 ? 0 : r2(rng() * mult * (month - 1));
+  const { maPriorOop, maDeductibleMetBefore } = maState;
+  if (maPriorOop !== undefined && !(isNum(maPriorOop) && maPriorOop >= 0 && maPriorOop <= plan.oopMax)) throw fail('priorOop', { type });
+  if (maDeductibleMetBefore !== undefined) {
+    if (!(plan.deductible > 0) && maDeductibleMetBefore !== 0) throw fail('planNoDeductible', { type });
+    if (!(isNum(maDeductibleMetBefore) && maDeductibleMetBefore >= 0 && maDeductibleMetBefore <= plan.deductible)) throw fail('deductibleRange', { type });
+    if (maPriorOop === undefined) throw fail('deductibleNeedsPrior', { type });
+    if (maDeductibleMetBefore > maPriorOop) throw fail('deductibleAbovePrior', { type });
+  }
+  const oopUsedBefore = maPriorOop ?? drawn;
+  const deductibleMetBefore = maDeductibleMetBefore ?? (plan.deductible > 0 ? Math.min(plan.deductible, oopUsedBefore) : 0);
+  return { forced: maPriorOop !== undefined, oopUsedBefore, deductibleMetBefore };
+}
+// enrich, run the operations around one adjudication, and settle the denial notes
+function prepareMa(type, { rng, adjudicated, period, dateOfNotice, catalogByCode, mutations = [], decoys = [], maState }) {
+  const plan = PLANS[type];
+  const enriched = adjudicated.claims.map((c) => ({ ...c, lines: c.lines.map((l) => ({ ...l, category: catalogByCode[l.code]?.category || 'visit' })) }));
+  const state = priorState(type, plan, rng, period, maState);
+  const { ma, errors, decoys: decoyList, flags } = runMaOperations({ type, plan, period, dateOfNotice, enriched, state },
+    (claims) => adjudicateMa(claims, plan, { oopUsedBefore: state.oopUsedBefore, deductibleMetBefore: state.deductibleMetBefore }), mutations, decoys);
+  const denialIds = new Map();
+  for (const c of ma.claims) for (const l of c.lines) if (l.denied && !denialIds.has(l.denialNote.text)) denialIds.set(l.denialNote.text, `D${denialIds.size + 1}`);
+  return { plan, ma, errors, decoys: decoyList, flags, state, denialIds };
+}
+
+function noteFor(line, plan, denialIds) {
+  if (line.denied) return [denialIds.get(line.denialNote.text), line.denialNote.text];
   if (line.preventiveNoCostShare) return ['P1', 'Covered preventive service. No copayment, coinsurance, or deductible applies.'];
   if (line.labNoCostShare) return ['L1', 'Laboratory services are covered in full under this plan.'];
   if (plan.coinsurance[line.category] != null) return ['C1', `You pay ${Math.round(plan.coinsurance[line.category] * 100)}% of the plan-approved amount for this service after any deductible.`];
   return ['K1', 'Your share is the plan copayment for this type of service.'];
 }
 
-export function assemblePpoEob({ rng, beneficiary, adjudicated, period, dateOfNotice, year, stock, groundTruthErrors, catalogByCode }) {
-  const plan = PLANS['ppo-eob']; assertNoMutations(groundTruthErrors, 'ppo-eob');
-  const enriched = adjudicated.claims.map((c) => ({ ...c, lines: c.lines.map((l) => ({ ...l, category: catalogByCode[l.code]?.category || 'visit' })) }));
-  const [, ms0] = period.start.split('-'); const oopBefore = Number(ms0) === 1 ? 0 : r2(rng() * 120 * (Number(ms0) - 1)); const ma = adjudicateMa(enriched, plan, { oopUsedBefore: oopBefore, deductibleMetBefore: Math.min(plan.deductible, oopBefore) });
+export function assemblePpoEob({ rng, beneficiary, adjudicated, period, dateOfNotice, year, stock, catalogByCode, mutations, decoys, maState }) {
+  const { plan, ma, errors, decoys: decoyList, flags, state, denialIds } = prepareMa('ppo-eob', { rng, adjudicated, period, dateOfNotice, catalogByCode, mutations, decoys, maState });
   const notes = []; const noteIds = {};
   const addNote = (id, text) => { if (!noteIds[id]) { noteIds[id] = true; notes.push({ id, text }); } return id; };
   const claims = ma.claims.map((c) => ({
     providerName: c.provider.name, networkStatus: 'In-network provider', claimNumber: claimNumber(rng, 'ma'), section: 'medical',
-    lineItems: c.lines.map((l) => { const [id, text] = noteFor(l, plan); addNote(id, text); return {
+    lineItems: c.lines.map((l) => { const [id, text] = noteFor(l, plan, denialIds); addNote(id, text); return {
       description: l.lay, dateOfService: shortDate(l.dateOfService), cptCode: l.code, providerBilled: l.charged, planApproved: l.approved,
       notes: [id], planShare: l.planShare, yourShare: l.yourShare, yourShareNotes: l.yourShare > 0 ? [id] : [] }; }),
-    claimTotal: { providerBilled: c.totals.charged, planApproved: c.totals.approved, planShare: c.totals.planShare, yourShare: c.totals.yourShare },
+    claimTotal: (({ charged, approved, planShare, yourShare }) => ({ providerBilled: charged, planApproved: approved, planShare, yourShare }))(c.printedTotals || c.totals),
   }));
-  const monthly = claims.reduce((t, c) => ({ providerBilled: r2(t.providerBilled + c.claimTotal.providerBilled), planApproved: r2(t.planApproved + c.claimTotal.planApproved), planShare: r2(t.planShare + c.claimTotal.planShare), yourShare: r2(t.yourShare + c.claimTotal.yourShare) }), { providerBilled: 0, planApproved: 0, planShare: 0, yourShare: 0 });
+  // the month and the year to date come from the adjudicated line sums, so a planted claim-total error stays in its row
+  const monthly = ma.claims.reduce((t, c) => ({ providerBilled: r2(t.providerBilled + c.totals.charged), planApproved: r2(t.planApproved + c.totals.approved), planShare: r2(t.planShare + c.totals.planShare), yourShare: r2(t.yourShare + c.totals.yourShare) }), { providerBilled: 0, planApproved: 0, planShare: 0, yourShare: 0 });
   // Year to date = this month plus a simulated prior-months block with the same approved/billed ratio and the
   // plan's share derived, so the four YTD figures always reconcile (billed >= approved = planShare + yourShare).
   const priorMonths = Number(period.start.split('-')[1]) - 1; const priorFactor = priorMonths * (0.5 + rng() * 0.8);
-  const priorYour = r2(ma.oopUsed - monthly.yourShare);
+  const priorYour = flags.ytdFromPrior ? state.oopUsedBefore : r2(ma.oopUsed - monthly.yourShare);
   const priorApproved = r2(Math.max(monthly.planApproved * priorFactor, priorYour * 1.5)); // = oopUsedBefore, so YTD your share equals the out-of-pocket figure
   const ytdBase = { providerBilled: r2(monthly.providerBilled + priorApproved * (monthly.providerBilled / Math.max(monthly.planApproved, 0.01))),
     planApproved: r2(monthly.planApproved + priorApproved), planShare: r2(monthly.planShare + priorApproved - Math.max(priorYour, 0)), yourShare: r2(monthly.yourShare + Math.max(priorYour, 0)) };
@@ -107,29 +143,28 @@ export function assemblePpoEob({ rng, beneficiary, adjudicated, period, dateOfNo
       monthly: { label: 'This month', sublabel: `Claims processed in ${MONTHS[Number(ms) - 1]}`, ...monthly },
       ytd: { label: 'Year to date', sublabel: `January 1 through ${longDate(period.end)}`, ...ytdBase },
     },
-    paymentSummary, claims, notes, hasDenial: false,
-    _groundTruthErrors: groundTruthErrors,
-    _fieldPaths: MA_FIELD_PATHS,
-    _groundTruth: { payer: { name: stock.payer.legalName, planType: 'Medicare Advantage PPO', planName: plan.name }, claims: maClaimModel(ma.claims, claims), deductibleMetBefore: Math.min(plan.deductible, oopBefore), identifiers: { memberId: beneficiary.memberId, ...Object.fromEntries(claims.map((c, i) => [`claimNumber[${i}]`, c.claimNumber])) } },
+    paymentSummary, claims, notes, hasDenial: denialIds.size > 0,
+    _groundTruthErrors: errors, _groundTruthDecoys: decoyList,
+    _fieldPaths: fieldPathsFor('ppo-eob'),
+    _groundTruth: { payer: { name: stock.payer.legalName, planType: 'Medicare Advantage PPO', planName: plan.name }, claims: maClaimModel(ma.claims, claims), deductibleMetBefore: state.deductibleMetBefore, identifiers: { memberId: beneficiary.memberId, ...Object.fromEntries(claims.map((c, i) => [`claimNumber[${i}]`, c.claimNumber])) } },
   };
 }
 
-export function assembleHmoEob({ rng, beneficiary, adjudicated, period, dateOfNotice, year, stock, groundTruthErrors, catalogByCode }) {
-  const plan = PLANS['hmo-eob']; assertNoMutations(groundTruthErrors, 'hmo-eob');
-  const enriched = adjudicated.claims.map((c) => ({ ...c, lines: c.lines.map((l) => ({ ...l, category: catalogByCode[l.code]?.category || 'visit' })) }));
-  const [, ms0] = period.start.split('-'); const ma = adjudicateMa(enriched, plan, { oopUsedBefore: Number(ms0) === 1 ? 0 : r2(rng() * 100 * (Number(ms0) - 1)), deductibleMetBefore: 0 });
+export function assembleHmoEob({ rng, beneficiary, adjudicated, period, dateOfNotice, year, stock, catalogByCode, mutations, decoys, maState }) {
+  const { plan, ma, errors, decoys: decoyList, flags, state, denialIds } = prepareMa('hmo-eob', { rng, adjudicated, period, dateOfNotice, catalogByCode, mutations, decoys, maState });
   const notes = []; const noteIds = {};
   const addNote = (id, text) => { if (!noteIds[id]) { noteIds[id] = true; notes.push({ id, text }); } return id; };
   const claims = ma.claims.map((c) => ({
     providerName: c.provider.nameUpper, networkStatus: 'Plan provider', claimNumber: claimNumber(rng, 'ma'), section: 'medical',
-    lineItems: c.lines.map((l) => { const [id, text] = noteFor(l, plan); addNote(id, text); return {
+    lineItems: c.lines.map((l) => { const [id, text] = noteFor(l, plan, denialIds); addNote(id, text); return {
       description: l.lay, dateOfService: shortDate(l.dateOfService), billingCode: l.code, providersCharged: l.charged, planApproved: l.approved,
       amountPlanPaid: l.planShare, maxYouMayBeBilled: l.yourShare, notes: [id] }; }),
-    claimTotal: { providersCharged: c.totals.charged, planApproved: c.totals.approved, amountPlanPaid: c.totals.planShare, maxYouMayBeBilled: c.totals.yourShare },
+    claimTotal: (({ charged, approved, planShare, yourShare }) => ({ providersCharged: charged, planApproved: approved, amountPlanPaid: planShare, maxYouMayBeBilled: yourShare }))(c.printedTotals || c.totals),
   }));
-  const monthly = claims.reduce((t, c) => ({ providersCharged: r2(t.providersCharged + c.claimTotal.providersCharged), planApproved: r2(t.planApproved + c.claimTotal.planApproved), amountPlanPaid: r2(t.amountPlanPaid + c.claimTotal.amountPlanPaid), maxYouMayBeBilled: r2(t.maxYouMayBeBilled + c.claimTotal.maxYouMayBeBilled) }), { providersCharged: 0, planApproved: 0, amountPlanPaid: 0, maxYouMayBeBilled: 0 });
+  // the month and the year to date come from the adjudicated line sums, so a planted claim-total error stays in its row
+  const monthly = ma.claims.reduce((t, c) => ({ providersCharged: r2(t.providersCharged + c.totals.charged), planApproved: r2(t.planApproved + c.totals.approved), amountPlanPaid: r2(t.amountPlanPaid + c.totals.planShare), maxYouMayBeBilled: r2(t.maxYouMayBeBilled + c.totals.yourShare) }), { providersCharged: 0, planApproved: 0, amountPlanPaid: 0, maxYouMayBeBilled: 0 });
   const priorMonths = Number(period.start.split('-')[1]) - 1; const priorFactor = priorMonths * (0.5 + rng() * 0.8);
-  const priorYour = r2(ma.oopUsed - monthly.maxYouMayBeBilled);
+  const priorYour = flags.ytdFromPrior ? state.oopUsedBefore : r2(ma.oopUsed - monthly.maxYouMayBeBilled);
   const priorApproved = r2(Math.max(monthly.planApproved * priorFactor, priorYour * 1.5));
   const ytd = { providersCharged: r2(monthly.providersCharged + priorApproved * (monthly.providersCharged / Math.max(monthly.planApproved, 0.01))),
     planApproved: r2(monthly.planApproved + priorApproved), amountPlanPaid: r2(monthly.amountPlanPaid + priorApproved - priorYour), maxYouMayBeBilled: r2(monthly.maxYouMayBeBilled + priorYour) };
@@ -144,9 +179,11 @@ export function assembleHmoEob({ rng, beneficiary, adjudicated, period, dateOfNo
     financialSummary: { oopAsOfDate: longDate(period.end), oopMax: plan.oopMax, oopUsed: ma.oopUsed,
       monthly: { label: 'This month', sublabel: `Claims processed in ${MONTHS[Number(ms) - 1]} ${ys}`, ...monthly },
       ytd: { label: 'Year to date', sublabel: `January 1 through ${longDate(period.end)}`, ...ytd } },
-    claims, notes, hasDenial: false,
-    _groundTruthErrors: groundTruthErrors,
-    _fieldPaths: MA_FIELD_PATHS,
-    _groundTruth: { payer: { name: stock.payer.legalName, planType: 'Medicare Advantage HMO', planName: plan.name }, claims: maClaimModel(ma.claims, claims), deductibleMetBefore: 0, identifiers: { memberId: beneficiary.memberId, ...Object.fromEntries(claims.map((c, i) => [`claimNumber[${i}]`, c.claimNumber])) } },
+    claims, notes, hasDenial: denialIds.size > 0,
+    _groundTruthErrors: errors, _groundTruthDecoys: decoyList,
+    _fieldPaths: fieldPathsFor('hmo-eob'),
+    _groundTruth: { payer: { name: stock.payer.legalName, planType: 'Medicare Advantage HMO', planName: plan.name }, claims: maClaimModel(ma.claims, claims), deductibleMetBefore: state.deductibleMetBefore, identifiers: { memberId: beneficiary.memberId, ...Object.fromEntries(claims.map((c, i) => [`claimNumber[${i}]`, c.claimNumber])) } },
   };
 }
+// generateData passes these layouts their scenario's mutations and decoys instead of applying the Part B ops
+assemblePpoEob.maOps = true; assembleHmoEob.maOps = true;

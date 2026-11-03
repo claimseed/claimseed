@@ -1,0 +1,38 @@
+{
+  "type": "ppo-eob",
+  "slug": "duplicate-visit",
+  "status": "published",
+  "description": "This Corvane Medicare Advantage Choice (PPO) statement for March 2026 has three claims. Claim 1 prints the same eye exam twice, with the same date and code, so the member is charged the $40 eye-exam copay two times. Claim 2 (lab tests) and the third claim are processed correctly. A careful reviewer should treat the second eye-exam line as a duplicate and conclude the member owes one copay, not two.",
+  "period": {
+    "start": "2026-03-01",
+    "end": "2026-03-31"
+  },
+  "claimCount": 3,
+  "claimShapes": [
+    "OPH",
+    "LAB"
+  ],
+  "mutations": [
+    {
+      "op": "ma-duplicate-line",
+      "args": {
+        "claim": 0,
+        "line": 0
+      }
+    }
+  ],
+  "sources": [
+    {
+      "what": "An exact duplicate matches another claim line on beneficiary, provider, date of service, procedure code and billed amount",
+      "source": "CMS, Medicare Claims Processing Manual (Pub. 100-04), ch. 1, §120.2 Exact Duplicates, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c01.pdf"
+    },
+    {
+      "what": "CMS treats payments for the same beneficiary, code and service date by the same provider, beyond the code's daily unit limit, as duplicates",
+      "source": "CMS Recovery Audit Program, topic 0091 Duplicate Claims - Professional Services, https://www.cms.gov/Research-Statistics-Data-and-Systems/Monitoring-Programs/Medicare-FFS-Compliance-Programs/Recovery-Audit-Program/Approved-RAC-Topics-Items/0091-Exact-Duplicate-Claims"
+    },
+    {
+      "what": "Review each statement for accuracy and compare it with your own calendar of appointments, tests and X-rays",
+      "source": "Medicare.gov, Protecting Yourself From Fraud (CMS Product No. 10111), https://www.medicare.gov/publications/10111-protecting-yourself-from-fraud.pdf"
+    }
+  ]
+}

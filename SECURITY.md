@@ -9,8 +9,12 @@ that lets caller-supplied data reach the filesystem, the network, or JavaScript 
 code; a malicious layout is out of scope, a malicious *data* object is in scope.
 
 What the MCP server (`packages/mcp`) adds to the renderer guarantees below (`packages/mcp/test/` exercises it): a client
-supplies only a type, a scenario slug and a seed, each checked against a fixed pattern, plus, for `verify_document`,
-an extractor's report; no tool reads a file a client names.
+supplies only a type, a scenario slug and a seed, each checked against a fixed pattern, and optionally a layout
+variant, checked against the type's closed list of ids, plus, for `verify_document`, an extractor's report; no tool
+reads a file a client names. Every tool refuses an argument it does not declare, with a message that names no
+argument (a misspelt argument used to be ignored). Known limit: the MCP SDK drops an argument (a top-level key of a
+call's arguments) literally named `__proto__` before claimseed's check can see it, so that one is discarded rather
+than refused; nothing reaches a tool through it.
 
 - **Files.** Started without a workspace folder, the server saves no file. Its browser's working files (profile,
   settings, caches and temporary files, which Chrome would otherwise put under the home folder and the temp folder)
@@ -246,10 +250,14 @@ Further limits:
   second part starts with a capital letter or with an opening quotation mark, whose first part ends in a colon, or
   whose second line is set further apart (more than about 1.8 line heights) or indented by more than two line heights,
   is judged line by line (two short lines).
-- Label lines the templates print only for some data are judged only when a scanned seed prints them: with four seeds,
-  `scan-rendered` reports the PPO claim header of a claim continued from the previous page ("In-network provider
-  (continued from the previous page) Claim number", seed `scan-3`) as an unreviewed assembled line; it needs a
-  reviewed-original entry before more seeds are scanned in CI.
+- Label lines the templates print only for some data are judged only when a scanned document prints them. The PPO
+  header of a claim continued from the previous page, which a four-seed scan once reported as an unreviewed
+  assembled line, is reviewed as an original line since 0.5.0. `scan-rendered` also renders every layout variant id
+  once, so every variant is scanned, but a line that a variant prints only for some data (a continued-table mark,
+  for one) is judged only when that render prints it.
+- A table header whose labels wrap onto two lines can stand more than four line heights above the first row, out of
+  reach of the column test, so `scan-rendered` reads the header's labels as one line; such header lines are reviewed
+  once as original lines.
 - PDF marks: Rendering behaviour was measured in poppler, PDFium and Chrome only; other viewers (pdf.js, Preview,
 Acrobat) were not tested, in particular for state left open inside nested Form XObjects. Inline images that are
 well formed but use a compression filter (Flate, DCT, LZW, RunLength, CCITT, JBIG2) or a named colour space are

@@ -33,6 +33,13 @@ test('disguised binaries fail regardless of extension or directory', () => {
     assert.equal(r.code, 1, `${name} passed`); assert.match(r.out, /binary file/);
   }
 });
+test('an OMB ICR reference after "ICR" or in a reginfo ref_nbr link is a citation; the same digits anywhere else are a phone', () => {
+  const ref = J('2023', '12-0938', '-004');
+  assert.equal(run({ 'a.md': `model: OMB ICR ${ref} (CMS-10453), https://www.reginfo.gov/public/do/PRAViewICR?ref_nbr=${ref}` }).code, 0);
+  for (const bad of [`call ${ref}`, `ICR ${J('2023', '12-0938')}`, `ICR ${ref}5`, `see ${J('(202) ', '312-0938')}`, `ICR ${ref} or ${J('202-', '312-0938')}`, `ref ${ref}`])
+    assert.equal(run({ 'a.md': `model: ${bad}` }).code, 1, `not caught: ${bad}`);
+});
+
 test('phones with 19x/20x area codes, data images and brands are caught', () => {
   assert.equal(run({ 'LICENSE': J('call (206) ', D('555_1234')) }).code, 1);
   assert.equal(run({ 'x.svg': J('<svg><image href="', DATA, 'image/png;base64,AAAA"/></svg>') }).code, 1);

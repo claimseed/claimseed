@@ -1,0 +1,41 @@
+{
+ "note": "Header and title wording of the layout variants (0.5.0). base is today's wording, plus the itemized bill's new continued-group markers; alt-a and alt-b are alternative wordings. Each set replaces only these stock keys.",
+ "sets": {
+  "base": {
+   "labels.columnRevCode": "DEPT CODE",
+   "labels.columnDate": "SERVICE DATE",
+   "labels.columnHcpcs": "HCPCS CODE",
+   "labels.columnUnits": "QTY",
+   "labels.columnDescription": "DESCRIPTION",
+   "labels.columnAmount": "CHARGE",
+   "labels.subtotalLabel": "Subtotal:",
+   "labels.totalChargesLabel": "TOTAL CHARGES:",
+   "labels.groupContinuedFrom": "(CONTINUED)",
+   "labels.groupContinuesOn": "CONTINUED ON NEXT PAGE"
+  },
+  "alt-a": {
+   "labels.columnRevCode": "REVENUE CODE",
+   "labels.columnDate": "DATE",
+   "labels.columnHcpcs": "HCPCS",
+   "labels.columnUnits": "UNITS",
+   "labels.columnDescription": "SERVICE DESCRIPTION",
+   "labels.columnAmount": "AMOUNT",
+   "labels.subtotalLabel": "Dept total:",
+   "labels.totalChargesLabel": "TOTAL BILLED:",
+   "labels.groupContinuedFrom": "(FROM PREVIOUS PAGE)",
+   "labels.groupContinuesOn": "CHARGES CONTINUE ON NEXT PAGE"
+  },
+  "alt-b": {
+   "labels.columnRevCode": "DEPARTMENT",
+   "labels.columnDate": "DATE OF CARE",
+   "labels.columnHcpcs": "CPT/HCPCS",
+   "labels.columnUnits": "QUANTITY",
+   "labels.columnDescription": "ITEM OR SERVICE",
+   "labels.columnAmount": "AMOUNT BILLED",
+   "labels.subtotalLabel": "Section total:",
+   "labels.totalChargesLabel": "GRAND TOTAL:",
+   "labels.groupContinuedFrom": "(CARRIED FORWARD)",
+   "labels.groupContinuesOn": "SEE NEXT PAGE FOR MORE CHARGES"
+  }
+ }
+}

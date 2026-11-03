@@ -5,6 +5,7 @@
 //   claimseed-core render <type> <scenario> --seed S --out DIR  -> PDF + <name>.ground-truth.json
 //        [--degrade scan|fax|photo|low-res]                    -> a degraded copy instead: image-only PDF, answer key, page images
 //        [--also 835]                                          -> also the X12 835 remittance of the same claims (<name>.835)
+//        [--layout-variant ID|seeded|all]                      -> a layout variant (itemized-bill, ppo-eob, hmo-eob): <name>.<id>.pdf
 //   claimseed-core batch --types T1,T2 [--scenarios all|S1,S2] [--seeds N] [--seed-prefix P] [--degrade PRESET] [--also 835] --out DIR
 //                                                              -> PDFs, answer keys and manifest.jsonl in DIR
 //   claimseed-core verify --answer-key FILE --output FILE      -> score one extractor output (JSON on stdout)
@@ -17,6 +18,8 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { generateData, listScenarios } from './generate/index.js';
 import { readRegularFile } from './safe-read.js';
+import { VARIANT_STRINGS, checkVariantOption, variantIds } from './variants.js';
+const VARIANT_MESSAGES = VARIANT_STRINGS.messages;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -29,10 +32,10 @@ const SEED = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 // repeats what was typed.
 const COMMANDS = {
   list: { positional: 1, options: [] },
-  generate: { positional: 2, options: ['seed'] },
-  render: { positional: 2, options: ['seed', 'out', 'degrade', 'also'] },
-  batch: { positional: 0, options: ['types', 'scenarios', 'seeds', 'seed-prefix', 'degrade', 'also', 'out'] },
-  verify: { positional: 2, options: ['answer-key', 'output', 'seed', 'manifest', 'outputs'] },
+  generate: { positional: 2, options: ['seed', 'layout-variant'] },
+  render: { positional: 2, options: ['seed', 'out', 'degrade', 'also', 'layout-variant'] },
+  batch: { positional: 0, options: ['types', 'scenarios', 'seeds', 'seed-prefix', 'degrade', 'also', 'out', 'layout-variant'] },
+  verify: { positional: 2, options: ['answer-key', 'output', 'seed', 'manifest', 'outputs', 'layout-variant'] },
 };
 function refuse(message) { console.error(message); process.exit(2); }
 function parseArgs(cmd, rest) {
@@ -46,9 +49,9 @@ function parseArgs(cmd, rest) {
       if (eq > 0 && spec.options.includes(name.slice(0, eq))) refuse(`--${name.slice(0, eq)} takes its value in the next argument, not after an equals sign`);
       refuse(spec.options.length ? `${cmd}: unknown option; the options are ${spec.options.map((o) => `--${o}`).join(', ')}` : `${cmd}: unknown option; this command takes no options`);
     }
-    if (values.has(name)) refuse(`--${name} may be given only once`);
+    if (values.has(name)) refuse(name === 'layout-variant' ? VARIANT_MESSAGES.variantRepeated : `--${name} may be given only once`);
     const v = rest[i + 1];
-    if (v === undefined || v === '' || v.startsWith('--')) refuse(`--${name} needs a value`);
+    if (v === undefined || v === '' || v.startsWith('--')) refuse(name === 'layout-variant' ? VARIANT_MESSAGES.variantEmpty : `--${name} needs a value`);
     values.set(name, v); i++;
   }
   return { positional, values };
@@ -78,6 +81,13 @@ function readReport(file) {
 const total = (rs, part, key) => rs.reduce((n, r) => n + (r[part]?.[key] || 0), 0);
 const ratio = (n, d) => (d ? Math.round((n / d) * 10000) / 10000 : null);
 const [type, scenario] = parsed.positional;
+// --layout-variant: checked against the type's published ids before anything is made; refusals repeat nothing typed
+function variantFlag(types, { allowAll = false } = {}) {
+  const v = flag('layout-variant', null); if (v === null) return null;
+  if (types.includes('msn') && types.length > 1 && (v === 'seeded' || v === 'all')) refuse(VARIANT_MESSAGES.variantSeededAll);
+  try { for (const t of types) checkVariantOption(t, v, { allowAll }); } catch (e) { if (e.code === 'LAYOUT_VARIANT') refuse(e.message); throw e; }
+  return v;
+}
 // --also: a closed list, checked before anything is generated; an 835 only for the document types that have one
 async function alsoFlag(types) {
   const also = flag('also', null); if (also === null) return null;
@@ -96,7 +106,7 @@ async function main() {
   }
   if (cmd === 'generate' || cmd === 'render') { mustMatch(type, SLUG, 'type'); mustMatch(scenario, SLUG, 'scenario'); mustMatch(flag('seed', 'claimseed'), SEED, 'seed'); }
   if (cmd === 'generate') {
-    const out = generateData({ type, scenario, seed: flag('seed', 'claimseed') });
+    const out = generateData({ type, scenario, seed: flag('seed', 'claimseed'), layoutVariant: variantFlag([type]) });
     process.stdout.write(JSON.stringify(out, null, 2)); return;
   }
   if (cmd === 'render') {
@@ -104,15 +114,19 @@ async function main() {
     const degrade = flag('degrade', null);
     if (degrade !== null) { const { PRESETS } = await import('./degrade.js'); if (!PRESETS.includes(degrade)) { console.error(`--degrade must be one of ${PRESETS.join(', ')}`); process.exit(2); } }
     const also = await alsoFlag([type]);
-    if (degrade !== null) {
-      const { renderDegraded } = await import('./degrade.js');
-      const r = await renderDegraded({ type, scenario, seed, preset: degrade, outDir, also });
-      console.log(`wrote ${r.pdf} (${r.bytes.length} bytes), its ground truth${also ? ', its 835' : ''} and ${r.images.length} page image(s)`);
-      return;
+    const lv = variantFlag([type], { allowAll: true });
+    const variants = lv === 'all' ? variantIds(type) : [lv];   // all: one document per published id, the same data
+    for (const layoutVariant of variants) {
+      if (degrade !== null) {
+        const { renderDegraded } = await import('./degrade.js');
+        const r = await renderDegraded({ type, scenario, seed, preset: degrade, outDir, also, layoutVariant });
+        console.log(`wrote ${r.pdf} (${r.bytes.length} bytes), its ground truth${also ? ', its 835' : ''} and ${r.images.length} page image(s)`);
+        continue;
+      }
+      const { render } = await import('./index.js');
+      const { pdf, bytes } = await render({ type, scenario, seed, outDir, also, layoutVariant });
+      console.log(`wrote ${pdf} (${bytes.length} bytes) and ground truth${also ? ' and its 835' : ''}`);
     }
-    const { render } = await import('./index.js');
-    const { pdf, bytes } = await render({ type, scenario, seed, outDir, also });
-    console.log(`wrote ${pdf} (${bytes.length} bytes) and ground truth${also ? ' and its 835' : ''}`);
     return;
   }
   if (cmd === 'batch') {
@@ -123,7 +137,8 @@ async function main() {
     const degrade = flag('degrade', null);
     if (degrade !== null) { const { PRESETS } = await import('./degrade.js'); if (!PRESETS.includes(degrade)) { console.error(`--degrade must be one of ${PRESETS.join(', ')}`); process.exit(2); } }
     const also = await alsoFlag(types);
-    const r = await renderBatch({ types, scenarios: sc === 'all' ? 'all' : sc.split(',').filter(Boolean), seeds, seedPrefix: flag('seed-prefix', 'batch'), outDir: path.resolve(out), degrade, also,
+    const layoutVariant = variantFlag(types, { allowAll: true });
+    const r = await renderBatch({ types, scenarios: sc === 'all' ? 'all' : sc.split(',').filter(Boolean), seeds, seedPrefix: flag('seed-prefix', 'batch'), outDir: path.resolve(out), degrade, also, layoutVariant,
       onProgress: (n, of) => { if (n === of || n % 10 === 0) console.log(`batch: ${n} of ${of}`); } });
     console.log(`wrote ${r.count} documents and ${r.manifest}`);
     return;
@@ -133,7 +148,7 @@ async function main() {
     const manifest = flag('manifest', null);
     // three forms, each with its own options: an option of another form, or a type and scenario beside an answer key or
     // a manifest, would be ignored, so it is refused
-    const form = manifest ? ['--manifest', ['manifest', 'outputs']] : flag('answer-key', null) ? ['--answer-key', ['answer-key', 'output']] : ['a type and scenario', ['seed', 'output']];
+    const form = manifest ? ['--manifest', ['manifest', 'outputs']] : flag('answer-key', null) ? ['--answer-key', ['answer-key', 'output']] : ['a type and scenario', ['seed', 'output', 'layout-variant']];
     for (const name of parsed.values.keys()) if (!form[1].includes(name)) refuse(`verify: --${name} cannot be used with ${form[0]}`);
     if (form[0] !== 'a type and scenario' && parsed.positional.length) refuse('verify: too many arguments');
     if (manifest) {
@@ -171,11 +186,12 @@ async function main() {
     const key = flag('answer-key', null);
     let r;
     if (key) r = scoreExtraction(readJson(key, 'the answer key'), output);
-    else { mustMatch(type, SLUG, 'type'); mustMatch(scenario, SLUG, 'scenario'); mustMatch(flag('seed', 'claimseed'), SEED, 'seed'); r = verifyFromSeed({ type, scenario, seed: flag('seed', 'claimseed'), output }); }
+    else { mustMatch(type, SLUG, 'type'); mustMatch(scenario, SLUG, 'scenario'); mustMatch(flag('seed', 'claimseed'), SEED, 'seed'); r = verifyFromSeed({ type, scenario, seed: flag('seed', 'claimseed'), output, layoutVariant: variantFlag([type]) }); }
     process.stdout.write(JSON.stringify(r, null, 2) + '\n'); return;
   }
   console.error('usage: claimseed-core list [type] | generate <type> <scenario> --seed S | render <type> <scenario> --seed S --out DIR [--degrade PRESET] [--also 835]\n'
-    + '       | batch --types T1,T2 [--scenarios all|S1,S2] [--seeds N] [--seed-prefix P] [--degrade PRESET] [--also 835] --out DIR\n'
+    + '       | batch --types T1,T2 [--scenarios all|S1,S2] [--seeds N] [--seed-prefix P] [--degrade PRESET] [--also 835] [--layout-variant ID|seeded|all] --out DIR\n'
+    + `         --layout-variant ID|seeded|all (render, generate, batch, verify): ${VARIANT_STRINGS.developer.cliUsage}\n`
     + '       | verify (--answer-key FILE | <type> <scenario> --seed S) --output FILE | verify --manifest FILE --outputs DIR');
   process.exit(2);
 }

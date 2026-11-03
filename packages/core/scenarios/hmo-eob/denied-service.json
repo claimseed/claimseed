@@ -1,0 +1,46 @@
+{
+  "type": "hmo-eob",
+  "slug": "denied-service",
+  "status": "published",
+  "description": "Claim 1 is a dermatology visit with a skin biopsy. The plan denied the biopsy: its plan-approved amount, plan's share and member's share are all $0, and a denial note says why. The back page explains denials and how to appeal, and claim 2 (lab tests) is correct. Nothing here is an error: a careful reviewer should record the denial, note that the member owes nothing for the biopsy, and note the right to appeal.",
+  "period": {
+    "start": "2026-03-01",
+    "end": "2026-03-31"
+  },
+  "claimCount": 2,
+  "claimShapes": [
+    "DERM",
+    "LAB"
+  ],
+  "mutations": [
+    {
+      "op": "ma-deny-line",
+      "args": {
+        "claim": 0,
+        "line": 1,
+        "note": {
+          "text": "Tessara Complete did not cover this biopsy because the medical records we received do not show it was medically necessary. You owe nothing for it. You can appeal this decision; the back page explains how.",
+          "rule": "In-network service denied without advance notice: the member owes nothing (plan design, consistent with 42 CFR 422.504(g)(1)(i)); written notice with reasons and appeal rights under 42 CFR 422.568(d)-(e), https://www.law.cornell.edu/cfr/text/42/422.568"
+        }
+      }
+    }
+  ],
+  "sources": [
+    {
+      "what": "If your plan denies coverage, it must tell you in writing, and you have the right to appeal",
+      "source": "Medicare.gov, Understanding Medicare Advantage Plans (CMS Product No. 12026), https://www.medicare.gov/publications/12026-understanding-medicare-advantage-plans.pdf"
+    },
+    {
+      "what": "A plan's written denial notice must give the specific reasons and explain the right to a reconsideration",
+      "source": "Cornell LII, 42 CFR 422.568 Standard timeframes and notice requirements for organization determinations, https://www.law.cornell.edu/cfr/text/42/422.568"
+    },
+    {
+      "what": "Contracted providers may not hold enrollees liable for fees that are the MA organization's obligation",
+      "source": "eCFR, 42 CFR 422.504(g)(1)(i), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-K/section-422.504"
+    },
+    {
+      "what": "Follow the plan's denial notice to appeal; the appeal must be filed within 65 days of that notice",
+      "source": "Medicare.gov, Appeals in Medicare health plans, https://www.medicare.gov/providers-services/claims-appeals-complaints/appeals/medicare-health-plans"
+    }
+  ]
+}

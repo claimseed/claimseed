@@ -4,7 +4,8 @@
 // (scripts/lib/brand-denylist.js), NPIs that do not start with 9, phone numbers outside geographic NNN-555-01xx
 // (federal lines excepted), real-format Medicare numbers, homoglyph words — and, on EVERY page, the specimen band
 // and watermark. Runs in CI on every push.
-//   node scripts/scan-rendered.js [--seeds 3] [--type msn]
+//   node scripts/scan-rendered.js [--seeds 3] [--type msn] [--variants all|none]   (all: one more document per layout
+//   variant id of each type, the default; none: the scenarios only)
 import fs from 'fs'; import os from 'os'; import path from 'path';
 import { execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
@@ -16,6 +17,7 @@ import { RENDERERS } from '../src/layouts.js';
 import { watermarkRectsPerPage } from './lib/pdf-markers.js';
 import { norm, words, loadPublic, loadOriginal, loadVerifiedSentences, PLAN_NAMES, inlineSelectors, cssOf, textByLayout, pdfWords, assembledLines } from './lib/provenance.js';
 import { generateData } from '../src/generate/index.js';
+import { variantIds } from '../src/variants.js';
 
 const args = process.argv.slice(2);
 // an option without a value, or a count that is not a whole number of at least 1, is refused rather than read as a default
@@ -25,7 +27,8 @@ const flag = (n, d) => {
   const v = args[i + 1]; if (v === undefined || v === '' || v.startsWith('--')) { console.error(`--${n} needs a value`); process.exit(2); }
   return v;
 };
-const seeds = Number(flag('seeds', '2')); const only = flag('type', null);
+const seeds = Number(flag('seeds', '2')); const only = flag('type', null); const variants = flag('variants', 'all');
+if (!['all', 'none'].includes(variants)) { console.error('--variants must be all or none'); process.exit(2); }
 if (!Number.isSafeInteger(seeds) || seeds < 1) { console.error('--seeds must be a whole number of at least 1'); process.exit(2); }
 const CLI = path.join(path.dirname(fileURLToPath(import.meta.url)), '../src/cli.js');
 const problems = []; let rendered = 0;
@@ -69,6 +72,8 @@ const classify = (v) => { for (const n of pieces(v)) { const w = words(n); if (w
 for (const t of fs.readdirSync(path.join(CORE, 'data'))) {
   const sp = path.join(CORE, 'data', t, 'stock-content.json');
   if (fs.existsSync(sp)) for (const v of allStrings(JSON.parse(fs.readFileSync(sp, 'utf-8')))) classify(v);   // a stock SENTENCE is neither free nor blanked: it must be verified text
+  const lp = path.join(CORE, 'data', t, 'labels.json');   // layout-variant label sets print like stock labels
+  if (fs.existsSync(lp)) for (const v of allStrings(JSON.parse(fs.readFileSync(lp, 'utf-8')).sets)) classify(v);
 }
 function walkTpl(dir, out = []) { for (const e of fs.readdirSync(dir, { withFileTypes: true })) { const p = path.join(dir, e.name); if (e.isDirectory()) walkTpl(p, out); else if (/\.(html|njk)$/.test(p)) out.push(p); } return out; }
 const TPL_INLINE = inlineSelectors(walkTpl(path.join(CORE, 'templates')).map((f) => cssOf(fs.readFileSync(f, 'utf-8'))).join('\n'));
@@ -129,42 +134,47 @@ function provenanceProblems(text, data, dataAlts, where, out) {
   return random;
 }
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'cs-scan-'));
+async function scanOne(type, scenario, seed, id = null) {
+  execFileSync(process.execPath, [CLI, 'render', type, scenario, '--seed', seed, '--out', work, ...(id ? ['--layout-variant', id] : [])], { stdio: ['ignore', 'ignore', 'inherit'] });
+  const stem = `${type}_${scenario}_${seed}${id ? `.${id}` : ''}`; const pdf = path.join(work, `${stem}.pdf`); rendered++;
+  const text = execFileSync('pdftotext', ['-layout', pdf, '-'], { encoding: 'utf-8' });
+  const layout = id ? `${type}.${id}` : type; const where = `${layout}/${scenario} seed ${seed}`;
+  const data = generateData({ type, scenario, seed }).data, dataAlts = ['-alt', '-alt2', '-alt3'].map((x) => generateData({ type, scenario, seed: seed + x }).data);
+  const values = provenanceProblems(execFileSync('pdftotext', ['-raw', pdf, '-'], { encoding: 'utf-8' }), data, dataAlts, where, problems);
+  if (PUB) {
+    for (const f of assembledLines(pdfWords(pdf), { grams: GRAMS, verified: VERIFIED, values: new Set([...values].filter(Boolean)), band: `${layout} ${scenario} seed ${seed}`, fields: new Set([...allStrings(data)].flatMap(pieces).filter((n) => words(n) >= 2)) }))
+      problems.push(`${where}: printed line on page ${f.page} assembles text neither public nor reviewed original: "${f.text}" (printed as: ${f.line.slice(0, 160)})`);
+  }
+  for (const b of findBrands(text)) problems.push(`${where}: real organization name "${b}"`);
+  for (const m of text.matchAll(/\b(\d{10})\b/g)) {
+    const npi = m[1];
+    if (npi[0] !== '9' && luhnCheckDigit('80840' + npi.slice(0, 9)) === +npi[9] && /npi/i.test(text.slice(Math.max(0, m.index - 40), m.index))) problems.push(`${where}: real-format NPI ${npi}`);
+  }
+  phoneProblems(text.normalize('NFKC'), where, problems);
+  for (const m of text.matchAll(REAL_MBI)) problems.push(`${where}: real-format MBI ${m[0]}`);
+  for (const w of mixedScriptWords(text)) problems.push(`${where}: word mixing scripts "${w}"`);
+  const pages = Number(/Pages:\s+(\d+)/.exec(execFileSync('pdfinfo', [pdf], { encoding: 'utf-8' }))?.[1] || 0);
+  if (!pages) problems.push(`${where}: page count unreadable`);
+  const rects = await watermarkRectsPerPage(pdf);
+  for (let p = 1; p <= pages; p++) {
+    const pt = execFileSync('pdftotext', ['-raw', '-f', String(p), '-l', String(p), pdf, '-'], { encoding: 'utf-8' }).replace(/\s+/g, '');
+    if (!pt.includes('SYNTHETICSPECIMEN')) problems.push(`${where}: specimen band missing on page ${p}`);
+    if (!(rects[p - 1] >= 100)) problems.push(`${where}: watermark missing on page ${p}`);
+  }
+  fs.rmSync(pdf, { force: true }); fs.rmSync(path.join(work, `${stem}.ground-truth.json`), { force: true });
+}
+// every scenario for each seed, then every layout variant id once (on the scenarios in turn, seed scan-v), so the
+// printed text of every label set and continuation rule is judged; the count is checked against that formula
+let expected = 0;
 for (const type of Object.keys(RENDERERS)) {
   if (only && type !== only) continue;
-  for (const scenario of listScenarios(type)) {
-    for (let k = 1; k <= seeds; k++) {
-      const seed = `scan-${k}`;
-      execFileSync(process.execPath, [CLI, 'render', type, scenario, '--seed', seed, '--out', work], { stdio: ['ignore', 'ignore', 'inherit'] });
-      const pdf = path.join(work, `${type}_${scenario}_${seed}.pdf`); rendered++;
-      const text = execFileSync('pdftotext', ['-layout', pdf, '-'], { encoding: 'utf-8' });
-      const where = `${type}/${scenario} seed ${seed}`;
-      const data = generateData({ type, scenario, seed }).data, dataAlts = ['-alt', '-alt2', '-alt3'].map((x) => generateData({ type, scenario, seed: seed + x }).data);
-      const values = provenanceProblems(execFileSync('pdftotext', ['-raw', pdf, '-'], { encoding: 'utf-8' }), data, dataAlts, where, problems);
-      if (PUB) {
-        for (const f of assembledLines(pdfWords(pdf), { grams: GRAMS, verified: VERIFIED, values: new Set([...values].filter(Boolean)), band: `${type} ${scenario} seed ${seed}`, fields: new Set([...allStrings(data)].flatMap(pieces).filter((n) => words(n) >= 2)) }))
-          problems.push(`${where}: printed line on page ${f.page} assembles text neither public nor reviewed original: "${f.text}" (printed as: ${f.line.slice(0, 160)})`);
-      }
-      for (const b of findBrands(text)) problems.push(`${where}: real organization name "${b}"`);
-      for (const m of text.matchAll(/\b(\d{10})\b/g)) {
-        const npi = m[1];
-        if (npi[0] !== '9' && luhnCheckDigit('80840' + npi.slice(0, 9)) === +npi[9] && /npi/i.test(text.slice(Math.max(0, m.index - 40), m.index))) problems.push(`${where}: real-format NPI ${npi}`);
-      }
-      phoneProblems(text.normalize('NFKC'), where, problems);
-      for (const m of text.matchAll(REAL_MBI)) problems.push(`${where}: real-format MBI ${m[0]}`);
-      for (const w of mixedScriptWords(text)) problems.push(`${where}: word mixing scripts "${w}"`);
-      const pages = Number(/Pages:\s+(\d+)/.exec(execFileSync('pdfinfo', [pdf], { encoding: 'utf-8' }))?.[1] || 0);
-      if (!pages) problems.push(`${where}: page count unreadable`);
-      const rects = await watermarkRectsPerPage(pdf);
-      for (let p = 1; p <= pages; p++) {
-        const pt = execFileSync('pdftotext', ['-raw', '-f', String(p), '-l', String(p), pdf, '-'], { encoding: 'utf-8' }).replace(/\s+/g, '');
-        if (!pt.includes('SYNTHETICSPECIMEN')) problems.push(`${where}: specimen band missing on page ${p}`);
-        if (!(rects[p - 1] >= 100)) problems.push(`${where}: watermark missing on page ${p}`);
-      }
-      fs.rmSync(pdf, { force: true }); fs.rmSync(pdf.replace(/\.pdf$/, '.ground-truth.json'), { force: true });
-    }
-  }
+  for (const scenario of listScenarios(type)) for (let k = 1; k <= seeds; k++) await scanOne(type, scenario, `scan-${k}`);
+  const ids = variants === 'all' ? variantIds(type) : []; const scen = listScenarios(type);
+  for (const [i, id] of ids.entries()) await scanOne(type, scen[i % scen.length], 'scan-v', id);
+  expected += scen.length * seeds + ids.length;
 }
+if (rendered !== expected) problems.push(`scan-rendered: ${rendered} documents rendered, ${expected} expected (scenarios x seeds + variant ids)`);
 fs.rmSync(work, { recursive: true, force: true });
 if (problems.length) { console.error([...new Set(problems)].join('\n')); console.error(`\n${problems.length} problem(s) in ${rendered} rendered documents`); process.exit(1); }
 if (!rendered) { console.error('scan-rendered: the options select no documents, so nothing was scanned'); process.exit(1); }
-console.log(`scan-rendered: ok (${rendered} documents, ${seeds} seed(s) per scenario)`);
+console.log(`scan-rendered: ok (${rendered} documents, ${seeds} seed(s) per scenario, every layout variant id once)`);

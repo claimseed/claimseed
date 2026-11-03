@@ -25,4 +25,9 @@ Every commit carries a `Signed-off-by:` line (`git commit -s`) certifying the
 - [ ] No real names, identifiers, phone numbers outside `555-01xx` with a geographic area code, NPIs outside the `9` prefix
 - [ ] New scenario has `sources`; new layout has a `LINEAGE.md` saying what public document it follows
 - [ ] `npm test` and `npm run check` pass
+- [ ] A test that adds renders updates its workspace's `test/render-budget.json` (`npm test` counts the stamped PDFs it
+  makes and fails on a mismatch; both workspaces together stay within 300 documents and 50 degraded copies)
+- [ ] A change to a standard layout's HTML is recorded on purpose in `packages/core/test/fixtures/html-guard.json` (run
+  the core tests with `CLAIMSEED_WRITE_HTML_GUARD=1`); variant wording lives in `data/<type>/labels.json` and, like
+  all printed text, must be public or a reviewed original
 - [ ] Commits are signed off
