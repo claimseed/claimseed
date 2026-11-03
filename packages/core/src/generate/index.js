@@ -9,9 +9,12 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { makeRng, intBetween } from './rng.js';
 import { makePlace, makeBeneficiary } from './entities.js';
-import { makeEncounters, CATALOG } from './encounter.js';
-import { adjudicatePartB } from './rules.js';
-import { applyMutations, applyDecoys } from './mutations.js';
+import { makeEncounters, CATALOG, CLAIM_SHAPE_NAMES } from './encounter.js';
+import { adjudicatePartB, ANNUAL } from './rules.js';
+import { fail, inCents } from './ma-mutations.js';
+import { scalarText } from '../scalar-text.js';
+import { applyMutations, applyDecoys, settleTotals } from './mutations.js';
+import { resolveVariant, variantRecord } from '../variants.js';
 import { assembleMsn } from './msn.js';
 import { assembleItemizedBill } from './itemized-bill.js';
 
@@ -20,17 +23,17 @@ export const SCENARIOS_DIR = path.resolve(__dirname, '../../scenarios');
 
 const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
 export function listScenarios(type) {
-  if (!SLUG.test(String(type))) throw new Error(`invalid type slug: ${type}`);
+  if (!SLUG.test(scalarText(type))) throw new Error('invalid type slug');
   const dir = path.join(SCENARIOS_DIR, type);
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''));
 }
 export function loadScenario(type, slug) {
-  if (!SLUG.test(String(type)) || !SLUG.test(String(slug))) throw new Error(`invalid type/scenario slug: ${type}/${slug}`);
+  if (!SLUG.test(scalarText(type)) || !SLUG.test(scalarText(slug))) throw new Error('invalid type or scenario slug');
   const p = path.join(SCENARIOS_DIR, type, `${slug}.json`);
-  if (!fs.existsSync(p)) throw new Error(`scenario not found: ${type}/${slug}`);
+  if (!fs.existsSync(p)) throw new Error('scenario not found');
   const s = JSON.parse(fs.readFileSync(p, 'utf-8'));
-  if (!Array.isArray(s.sources) || s.sources.length === 0) throw new Error(`scenario ${type}/${slug} has no sources[] — required`);
+  if (!Array.isArray(s.sources) || s.sources.length === 0) throw new Error('scenario has no sources[] — required');
   return s;
 }
 // One assembler per document type. An assembler receives { rng, beneficiary, adjudicated, period, dateOfNotice, year,
@@ -41,8 +44,39 @@ const CATALOG_BY_CODE = Object.fromEntries(CATALOG.services.map((s) => [s.code, 
 export const ASSEMBLERS = { msn: assembleMsn, 'itemized-bill': assembleItemizedBill, 'ppo-eob': assemblePpoEob, 'hmo-eob': assembleHmoEob };
 export const DATA_DIR_FOR_STOCK = path.resolve(__dirname, '../../data');
 
-export function generateData({ type, scenario, seed = 'claimseed', overrides = {} }) {
+// The scenario's own figures (from its file or a caller's overrides), held to what the documents can print before
+// anything is drawn: a whole number of claims up to the most any check renders (16), known claim shapes, real dates in
+// order within one calendar year (the year whose figures the document uses, which the reference data must cover), a
+// notice date at most MAX_NOTICE_DAYS after the period, and a deductible already met in whole cents. Every date the
+// generator derives (notice, appeal deadline, a shifted or repeated service) then stays within a year or so of it.
+const MAX_CLAIMS = 16; const MAX_NOTICE_DAYS = 90;
+const daysAfter = (from, to) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
+const realDate = (v) => typeof v === 'string' && /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`))
+  && new Date(`${v}T00:00:00Z`).toISOString().slice(0, 10) === v;
+function checkScenario(type, sc) {
+  const max = MAX_CLAIMS;
+  if (!Number.isInteger(sc.claimCount) || sc.claimCount < 1 || sc.claimCount > max) throw fail('badClaimCount', { type, max });
+  if (sc.claimShapes !== undefined && !(Array.isArray(sc.claimShapes) && sc.claimShapes.every((s) => s === null || s === undefined || s === '' || CLAIM_SHAPE_NAMES.includes(s)))) throw fail('badShape', { type, known: CLAIM_SHAPE_NAMES.join(', ') });
+  const p = sc.period;
+  if (!p || typeof p !== 'object' || !realDate(p.start) || !realDate(p.end) || p.end < p.start || p.start.slice(0, 4) !== p.end.slice(0, 4)) throw fail('badPeriod', { type });
+  const year = Number(p.start.slice(0, 4));
+  if (sc.year !== undefined && sc.year !== year) throw fail('yearNotPeriod', { type });   // one year's figures for the whole document
+  if (!Object.prototype.hasOwnProperty.call(ANNUAL.years, String(year))) throw fail('badYear', { type });
+  if (sc.dateOfNotice !== undefined && !(realDate(sc.dateOfNotice) && sc.dateOfNotice >= p.end && daysAfter(p.end, sc.dateOfNotice) <= MAX_NOTICE_DAYS)) throw fail('badNoticeDate', { type, max: MAX_NOTICE_DAYS });
+  const ded = ANNUAL.years[String(year)].partB.deductible;
+  if (sc.deductibleMetBefore !== undefined && !(inCents(sc.deductibleMetBefore) && sc.deductibleMetBefore >= 0 && sc.deductibleMetBefore <= ded)) throw fail('deductibleRange', { type });
+}
+
+export function generateData({ type, scenario, seed = 'claimseed', overrides = {}, layoutVariant = null }) {
+  // the type and scenario are slugs and the seed is text or a number (written out); any other value is refused before
+  // it is converted or used to look anything up
+  if (!SLUG.test(scalarText(type)) || !SLUG.test(scalarText(scenario))) throw new Error('invalid type or scenario slug');
+  if (scalarText(seed) === '') throw new Error('invalid seed');
+  // a layout variant is checked first and drawn from a stream of its own: it moves no draw of the document
+  const variant = resolveVariant(type, layoutVariant, seed);
+  if (overrides === null || typeof overrides !== 'object' || Array.isArray(overrides)) throw new Error('invalid overrides');
   const sc = { ...loadScenario(type, scenario), ...overrides };
+  checkScenario(type, sc);
   const rng = makeRng(seed, type, scenario);
   const place = makePlace(rng);
   const beneficiary = makeBeneficiary(rng, place, { referenceSurname: !!sc.referenceSurname });
@@ -50,18 +84,29 @@ export function generateData({ type, scenario, seed = 'claimseed', overrides = {
   const year = sc.year || Number(sc.period.start.slice(0, 4));
   const claims = makeEncounters(rng, place, { claimCount: sc.claimCount, claimShapes: sc.claimShapes, periodStart: sc.period.start, periodEnd: sc.period.end });
   const adjudicated = adjudicatePartB(claims, { year, deductibleMetBefore: sc.deductibleMetBefore ?? 0, rng });
-  const ctx = { claims: adjudicated.claims, params: adjudicated.params, period: sc.period, deductibleMetBefore: sc.deductibleMetBefore ?? 0 };
-  const errors = applyMutations(ctx, sc.mutations || []).map((e) => ({ documentId: `${type}-1`, ...e }));
-  const decoys = applyDecoys(ctx, sc.decoys || [], errors).map((d) => ({ id: d.id, kind: d.kind, documentId: `${type}-1`, ...d }));
+  const assemble = ASSEMBLERS[type]; if (!assemble) throw new Error('no assembler for type');
+  // The Medicare Advantage layouts (assemble.maOps) re-adjudicate the claims under the plan, so they run their own
+  // operations on the plan's figures (ma-mutations.js); every other layout gets the Part B operations here.
+  let errors = []; let decoys = [];
+  if (!assemble.maOps) {
+    const ctx = { type, claims: adjudicated.claims, params: adjudicated.params, period: sc.period, deductibleMetBefore: sc.deductibleMetBefore ?? 0 };
+    const planted = applyMutations(ctx, sc.mutations || []); const placed = applyDecoys(ctx, sc.decoys || [], planted);
+    settleTotals(ctx);   // a shifted claim total, on the lines as every operation left them
+    errors = planted.map((e) => ({ documentId: `${type}-1`, ...e }));
+    decoys = placed.map((d) => ({ id: d.id, kind: d.kind, documentId: `${type}-1`, ...d }));
+  }
   const dateOfNotice = sc.dateOfNotice || (() => { const d = new Date(sc.period.end + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + intBetween(rng, 5, 12)); return d.toISOString().slice(0, 10); })();
-  const assemble = ASSEMBLERS[type]; if (!assemble) throw new Error(`no assembler for type ${type}`);
   const stockPath = path.join(DATA_DIR_FOR_STOCK, type, 'stock-content.json');
   const stock = fs.existsSync(stockPath) ? JSON.parse(fs.readFileSync(stockPath, 'utf-8')) : {};
-  const data = assemble({ rng, beneficiary, adjudicated, period: sc.period, dateOfNotice, year, groundTruthErrors: errors, stock, catalogByCode: CATALOG_BY_CODE });
-  data.scenario = scenario; data._dateOfNotice = dateOfNotice;   // not printed: the date an 835 written beside it carries
+  const data = assemble({ rng, beneficiary, adjudicated, period: sc.period, dateOfNotice, year, groundTruthErrors: errors, stock, catalogByCode: CATALOG_BY_CODE,
+    ...(assemble.maOps ? { mutations: sc.mutations || [], decoys: sc.decoys || [], maState: { maPriorOop: sc.maPriorOop, maDeductibleMetBefore: sc.maDeductibleMetBefore } } : {}) });
+  if (assemble.maOps) {
+    errors = data._groundTruthErrors.map((e) => ({ documentId: `${type}-1`, ...e }));
+    decoys = data._groundTruthDecoys.map((d) => ({ id: d.id, kind: d.kind, documentId: `${type}-1`, ...d }));
+  }
+  data.scenario = scenario; data._dateOfNotice = dateOfNotice;
+  if (variant) Object.defineProperty(data, '_variant', { value: variant, enumerable: false });   // for the renderer; never in fields or JSON   // not printed: the date an 835 written beside it carries
   const gtOverrides = data._groundTruth || {};
-  // A layout that brings its own claims block (the Medicare Advantage EOBs) does not print the claims decoys change.
-  if (decoys.length && gtOverrides.claims) throw new Error(`${type}: decoys are not supported for this layout yet`);
   // Every error carries two references: `lineRef` into the adjudication model (groundTruth.claims — the same
   // shape for every document type) and `fieldRef`, the corresponding path into documents[0].fields for this layout.
   const fieldPaths = data._fieldPaths || DEFAULT_FIELD_PATHS;
@@ -88,6 +133,8 @@ export function generateData({ type, scenario, seed = 'claimseed', overrides = {
     sources: [...(sc.sources || []), ...CATALOG.sources],
     pricing: { status: CATALOG.priceSource, year: CATALOG.year },
   };
+  // a varied document: schema 1.4, the variant's layout name and its record; nothing else in the key changes
+  if (variant) { groundTruth.schemaVersion = '1.4'; Object.assign(groundTruth.documents[0], { layout: variant.layout, layoutVariant: variantRecord(variant) }); }
   return { data, groundTruth };
 }
 // Internal keys that are not printed and so never appear in fields.

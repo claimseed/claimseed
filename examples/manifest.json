@@ -272,6 +272,109 @@
       "remittanceSha256": "3c1efdfd4efcdf2b457c0a371b2fbe79f2bda6c4f1f39d6499dc017095749d7d"
     },
     {
+      "type": "ppo-eob",
+      "scenario": "claim-total-math-error",
+      "seed": "example",
+      "file": "ppo-eob_claim-total-math-error_example.pdf",
+      "pages": 4,
+      "errors": [
+        "math-error"
+      ],
+      "decoys": [],
+      "textSha256": "b529fe0a75d869296acdda7c52f83b387604ec53e27da959632c88294f115b29",
+      "groundTruthSha256": "f3c3880a25343a6ad82373a32d1eba37db20a721f6b72f88d50db1eee4c42998",
+      "remittanceSha256": "3a24ee8b2d0b4750b28f5152e3f49f73e0518541e283428a84e278b390bc4919"
+    },
+    {
+      "type": "ppo-eob",
+      "scenario": "combined-three-errors",
+      "seed": "example",
+      "file": "ppo-eob_combined-three-errors_example.pdf",
+      "pages": 4,
+      "errors": [
+        "duplicate-charge",
+        "preventive-cost-sharing",
+        "math-error"
+      ],
+      "decoys": [],
+      "textSha256": "7c5a9def41d04a9119d0e656a0d6e78c6bbc3949ed35b8ec6261b4d8d7d7c3df",
+      "groundTruthSha256": "18f8e7610d7c6a6d4998ca243baf177e43f28f8bb96b271634e143bf0bc5dc1d",
+      "remittanceSha256": "4b326a5efdce7407a5ce5d5e7836ad111d9ccb65e5db59f97dd3affae06399d0"
+    },
+    {
+      "type": "ppo-eob",
+      "scenario": "decoys-partial-deductible",
+      "seed": "example",
+      "file": "ppo-eob_decoys-partial-deductible_example.pdf",
+      "pages": 5,
+      "errors": [],
+      "decoys": [
+        "partial-deductible",
+        "approved-below-copay",
+        "repeat-service-different-date",
+        "charge-above-approved"
+      ],
+      "textSha256": "fc23693ab02167b16e82c536ddb6f0b26e6bb4d3399d2dca6d51391ab050675c",
+      "groundTruthSha256": "79346d468854ac5ceb713f2cb63b1c8921a06915cc9a10854fff81a0f3d0bb58",
+      "remittanceSha256": "aaed075c8e98092571c7070b17cc8e7771005ae2cef5dc6578fa8bae2f5011cd"
+    },
+    {
+      "type": "ppo-eob",
+      "scenario": "deductible-reapplied",
+      "seed": "example",
+      "file": "ppo-eob_deductible-reapplied_example.pdf",
+      "pages": 4,
+      "errors": [
+        "deductible-misapplied"
+      ],
+      "decoys": [],
+      "textSha256": "c1a3400e9d75b2faa2f9e90851aa3a4ba6d479269023ca28490953d4dba5655a",
+      "groundTruthSha256": "ff30ccfec66de1368b9f6c2307c0d21c2c05917d051b6fbc6c01908ef411158b",
+      "remittanceSha256": "aea1632a7600a02853151e70f601beb4e0462a22abbdc4aaae0a9d12ccf16228"
+    },
+    {
+      "type": "ppo-eob",
+      "scenario": "denied-service",
+      "seed": "example",
+      "file": "ppo-eob_denied-service_example.pdf",
+      "pages": 4,
+      "errors": [
+        "coverage-denial"
+      ],
+      "decoys": [],
+      "textSha256": "626488296e560bb0110611bab2f7783acf901f111592564319d66f9d1a0a780c",
+      "groundTruthSha256": "e10d83e74a1d19fe174efd962a1d32b7d1687aa4a605e6f385fb0580fcc80fdd",
+      "remittanceSha256": "c2fd41ef95c1d2824a2893f6b4340e23a03f0c5d24c7e97064b68cb78a9f4ce2"
+    },
+    {
+      "type": "ppo-eob",
+      "scenario": "duplicate-visit",
+      "seed": "example",
+      "file": "ppo-eob_duplicate-visit_example.pdf",
+      "pages": 4,
+      "errors": [
+        "duplicate-charge"
+      ],
+      "decoys": [],
+      "textSha256": "6c151d840b8609d556b2086e286698fb32f329a4a347f7fcd2b2bf6a0381c4ff",
+      "groundTruthSha256": "4bf5304c1611b6b6014a8fafae4ff60ebea2884645b52d8443fff97ea392056f",
+      "remittanceSha256": "bb2af6c3782dc02ae3f168dc7f5724906af57e5e014bfb197b05ad8355138e01"
+    },
+    {
+      "type": "ppo-eob",
+      "scenario": "preventive-cost-sharing",
+      "seed": "example",
+      "file": "ppo-eob_preventive-cost-sharing_example.pdf",
+      "pages": 4,
+      "errors": [
+        "preventive-cost-sharing"
+      ],
+      "decoys": [],
+      "textSha256": "9b37525db1a87831d94d466c76129c58ee984b205f6f844316e92a5304f4b4e0",
+      "groundTruthSha256": "ded286eda94a14d9d814a91f8d8a1c8954b132fa53ab981738812217d9015c8a",
+      "remittanceSha256": "058628f27c24586ee5bf49ce1649c8a21fa6c618f7f2d532de16445c3ac60c0b"
+    },
+    {
       "type": "hmo-eob",
       "scenario": "baseline-clean",
       "seed": "example",
@@ -282,6 +385,657 @@
       "textSha256": "f9751eae90bbf65af6a1db8442841b3b9f8d0125728bd324ee90df05fe570483",
       "groundTruthSha256": "7791c6d045c45fc3f9fd780dcab1a5615585d15233aa574063510ca29242db89",
       "remittanceSha256": "e87b017ca86d7e8c553a070283cd2ee59fa39ee14bc537bc857dcd6f80320262"
+    },
+    {
+      "type": "hmo-eob",
+      "scenario": "claim-total-math-error",
+      "seed": "example",
+      "file": "hmo-eob_claim-total-math-error_example.pdf",
+      "pages": 4,
+      "errors": [
+        "math-error"
+      ],
+      "decoys": [],
+      "textSha256": "6126f0499e9d8454312e20359086f1fb21f2a8bb8ba94071a623c259b9a283f0",
+      "groundTruthSha256": "57138c5be0347bf0485b3017332ca605a242468b53aa005d259e56574e7d94b7",
+      "remittanceSha256": "92df29352bcdb3f123c7de8019176a104ca36b4c000f1992aae2aa51cac112a1"
+    },
+    {
+      "type": "hmo-eob",
+      "scenario": "combined-three-errors",
+      "seed": "example",
+      "file": "hmo-eob_combined-three-errors_example.pdf",
+      "pages": 4,
+      "errors": [
+        "duplicate-charge",
+        "cost-sharing-error",
+        "service-date-anomaly"
+      ],
+      "decoys": [],
+      "textSha256": "55942912c3d11f07607b5778445f85cd34d86d5c957360e2658cadadcd5fb3bd",
+      "groundTruthSha256": "5ff209baff6e25a315315cba45f6bad0fe21b8ad58e088c7216507a0bffd16bd",
+      "remittanceSha256": "66d1724010759528fe10894b1e5b88e139cb8e9cdf03d914f45d1c8743f8d48d"
+    },
+    {
+      "type": "hmo-eob",
+      "scenario": "decoys-oop-cap-partial",
+      "seed": "example",
+      "file": "hmo-eob_decoys-oop-cap-partial_example.pdf",
+      "pages": 4,
+      "errors": [],
+      "decoys": [
+        "repeat-service-different-date",
+        "approved-below-copay",
+        "oop-cap-partial-share",
+        "charge-above-approved"
+      ],
+      "textSha256": "ff0872d7c46d57af48875abc478ae3926d2ebfc291697ea0a005cad4e246031a",
+      "groundTruthSha256": "15cd6aa41f4fb79ea056468851faeb40fe1154320f570a18a6081b02231fe68a",
+      "remittanceSha256": "0466d3b57e257df2e9ac306f0b21496005e008f2d9df9d8ba5e68ace49f8ad11"
+    },
+    {
+      "type": "hmo-eob",
+      "scenario": "denied-service",
+      "seed": "example",
+      "file": "hmo-eob_denied-service_example.pdf",
+      "pages": 4,
+      "errors": [
+        "coverage-denial"
+      ],
+      "decoys": [],
+      "textSha256": "40ff83f8f6cf05728768e49d195305f8effe966f154bb087c42f267f210bcd96",
+      "groundTruthSha256": "3b1c591418eb0ca73ef7379b3bf9d0dfd801a29ab569a727a3dbf6b3ae971579",
+      "remittanceSha256": "6c0c69a1a42c2451d3545ed492c5c784c85e82c88bf59847cede289da877848e"
+    },
+    {
+      "type": "hmo-eob",
+      "scenario": "duplicate-therapy-visit",
+      "seed": "example",
+      "file": "hmo-eob_duplicate-therapy-visit_example.pdf",
+      "pages": 4,
+      "errors": [
+        "duplicate-charge"
+      ],
+      "decoys": [],
+      "textSha256": "3febf8f3313b3b69dd27f807ba598d8c90bbb2b46301771e7e920f23ade1e3d8",
+      "groundTruthSha256": "039ce78a575d215404f8793d63fa208feaf8facc94b212e6930f0050f945da46",
+      "remittanceSha256": "01b0a997ebbe190d736055d3fa7e15af73405a4fc846a941d62ab7999f8f668f"
+    },
+    {
+      "type": "hmo-eob",
+      "scenario": "lab-cost-sharing",
+      "seed": "example",
+      "file": "hmo-eob_lab-cost-sharing_example.pdf",
+      "pages": 4,
+      "errors": [
+        "cost-sharing-error"
+      ],
+      "decoys": [],
+      "textSha256": "21a907a3f6b37c4b3fc7d9f103a6b060a2e17ab2c396aa549f06a1be6c414303",
+      "groundTruthSha256": "b2ec82b21b01c4c19cdf8cf873f2d948a8d6867c8017374dbd7fb59b7571eb2e",
+      "remittanceSha256": "ccdd58853916a591a7a53beb4e3a860feef9397b6c951313151dcba90bd154e6"
+    },
+    {
+      "type": "hmo-eob",
+      "scenario": "share-after-oop-max",
+      "seed": "example",
+      "file": "hmo-eob_share-after-oop-max_example.pdf",
+      "pages": 4,
+      "errors": [
+        "oop-max-exceeded"
+      ],
+      "decoys": [],
+      "textSha256": "37e03ee0ccd1ee49c8b142257b17d55a399f9c3dd465efbb922f920983ccd1aa",
+      "groundTruthSha256": "434ce4062f0f9a51ffd287e32b2e75e8dd4835f2e6e8ad0cd9945378bfb486a9",
+      "remittanceSha256": "25ebb35baea57796852d203d8b8fda812f0ca1d44787815129a01133bc82e6bc"
+    },
+    {
+      "type": "itemized-bill",
+      "scenario": "balance-billing",
+      "seed": "example",
+      "layoutVariant": "b01",
+      "file": "itemized-bill_balance-billing_example.b01.pdf",
+      "pages": 3,
+      "errors": [
+        "assignment-violation"
+      ],
+      "decoys": [],
+      "textSha256": "9b6f7f5f572e02041d9dd2a2e3cde4586b9f66219b5e0087ca08c8fa1b5441d1",
+      "groundTruthSha256": "f83206bf6a4cc7c41c27f748fd2185a194b53fa7030bdaa0750806e78bdf3d69",
+      "remittanceSha256": null
+    },
+    {
+      "type": "itemized-bill",
+      "scenario": "baseline-clean",
+      "seed": "example",
+      "layoutVariant": "b02",
+      "file": "itemized-bill_baseline-clean_example.b02.pdf",
+      "pages": 3,
+      "errors": [],
+      "decoys": [],
+      "textSha256": "f0413a4acfee286343707bf2b445137bcad67a8bb3f3fa88454dec1a78cc8a8c",
+      "groundTruthSha256": "481c2b2e4908a4b7bf1451a84c72ea779ed6e570646279c77302690b780e739b",
+      "remittanceSha256": null
+    },
+    {
+      "type": "itemized-bill",
+      "scenario": "decoys-repeat-therapy-high-charge",
+      "seed": "example",
+      "layoutVariant": "b03",
+      "file": "itemized-bill_decoys-repeat-therapy-high-charge_example.b03.pdf",
+      "pages": 3,
+      "errors": [],
+      "decoys": [
+        "repeat-service-different-date",
+        "charge-above-approved"
+      ],
+      "textSha256": "9463bbc2649083f3dfe26cbb23e4165658a0f97101a8e8006c64052e74306aac",
+      "groundTruthSha256": "8826f0d3b3f25355144139d52ec0f967e40c3ecdaedf7da9ba4e087c283990b2",
+      "remittanceSha256": null
+    },
+    {
+      "type": "itemized-bill",
+      "scenario": "duplicate-charge",
+      "seed": "example",
+      "layoutVariant": "b04",
+      "file": "itemized-bill_duplicate-charge_example.b04.pdf",
+      "pages": 3,
+      "errors": [
+        "duplicate-charge"
+      ],
+      "decoys": [],
+      "textSha256": "5f4587620bfb7efae701d433c09c37b02de3b1c23b4191adbee971b8d120a518",
+      "groundTruthSha256": "24c95b07f0d86003dc8590356d351f85b3651e4ffc8c1758912a55c94f7ae740",
+      "remittanceSha256": null
+    },
+    {
+      "type": "itemized-bill",
+      "scenario": "subtotals-mismatch",
+      "seed": "example",
+      "layoutVariant": "b05",
+      "file": "itemized-bill_subtotals-mismatch_example.b05.pdf",
+      "pages": 3,
+      "errors": [
+        "subtotals-mismatch"
+      ],
+      "decoys": [],
+      "textSha256": "97d9d95ee71a647f243d0dab113a41960817c6ff8ee7c106d3fef1b7e55030d3",
+      "groundTruthSha256": "2d74d443aa54e2685ba219b0d1b9423ddfe83dea8166078eb268a2189bb08863",
+      "remittanceSha256": null
+    },
+    {
+      "type": "itemized-bill",
+      "scenario": "balance-billing",
+      "seed": "example",
+      "layoutVariant": "b06",
+      "file": "itemized-bill_balance-billing_example.b06.pdf",
+      "pages": 3,
+      "errors": [
+        "assignment-violation"
+      ],
+      "decoys": [],
+      "textSha256": "d6510401439f614c9fbfa32f40edc5854829868282345237013f29c202ddd807",
+      "groundTruthSha256": "5daa25506f35f52da940b8686e3a5978175eaf335ce005dea2be5a6d4471d8f7",
+      "remittanceSha256": null
+    },
+    {
+      "type": "itemized-bill",
+      "scenario": "baseline-clean",
+      "seed": "example",
+      "layoutVariant": "b07",
+      "file": "itemized-bill_baseline-clean_example.b07.pdf",
+      "pages": 3,
+      "errors": [],
+      "decoys": [],
+      "textSha256": "99f0758b9d019e7e9b81cd1d9e4d77d69654fdde3f1406f75f9c16247a858f23",
+      "groundTruthSha256": "9f71ae2dde1463dd287f42e8a0b2c814eaba50237a339c415ef20a57f3253f66",
+      "remittanceSha256": null
+    },
+    {
+      "type": "itemized-bill",
+      "scenario": "decoys-repeat-therapy-high-charge",
+      "seed": "example",
+      "layoutVariant": "b08",
+      "file": "itemized-bill_decoys-repeat-therapy-high-charge_example.b08.pdf",
+      "pages": 3,
+      "errors": [],
+      "decoys": [
+        "repeat-service-different-date",
+        "charge-above-approved"
+      ],
+      "textSha256": "0f7b71aea7b14c1867dd0f511846ff1c5cc9def2303557dc1703e34318125b8f",
+      "groundTruthSha256": "6dfce14efa995c0205e4de378dafb9134b0c5c09af25411bf60cec3607824e66",
+      "remittanceSha256": null
+    },
+    {
+      "type": "itemized-bill",
+      "scenario": "duplicate-charge",
+      "seed": "example",
+      "layoutVariant": "b09",
+      "file": "itemized-bill_duplicate-charge_example.b09.pdf",
+      "pages": 3,
+      "errors": [
+        "duplicate-charge"
+      ],
+      "decoys": [],
+      "textSha256": "5942c0312d10ddab6b3663c46d09ca864b87c2fb224d3d67dc24c07fda618985",
+      "groundTruthSha256": "6b5735dbb9ffd13759b3c5d2ccc8db0189458b47a1f09fc229cb5a93400fb1a6",
+      "remittanceSha256": null
+    },
+    {
+      "type": "itemized-bill",
+      "scenario": "subtotals-mismatch",
+      "seed": "example",
+      "layoutVariant": "b10",
+      "file": "itemized-bill_subtotals-mismatch_example.b10.pdf",
+      "pages": 3,
+      "errors": [
+        "subtotals-mismatch"
+      ],
+      "decoys": [],
+      "textSha256": "5c9cff4f76d53e439a56c1f3a6536ad969cdb9bb6082be8e22df5422c01cc26c",
+      "groundTruthSha256": "4ff03b620a311c325b23b0d052d05f3969230284b177522a52dd776096b1ae7e",
+      "remittanceSha256": null
+    },
+    {
+      "type": "itemized-bill",
+      "scenario": "balance-billing",
+      "seed": "example",
+      "layoutVariant": "b11",
+      "file": "itemized-bill_balance-billing_example.b11.pdf",
+      "pages": 3,
+      "errors": [
+        "assignment-violation"
+      ],
+      "decoys": [],
+      "textSha256": "efa62b358c87d9cc98f27c5b4ce24075ca6f9e85daf73803510f52d5b6f4f0f4",
+      "groundTruthSha256": "80f425fd7d7c8dacdca0f5f2168bcae0e910a1568e7ea82c6e942c7823c5efbf",
+      "remittanceSha256": null
+    },
+    {
+      "type": "itemized-bill",
+      "scenario": "baseline-clean",
+      "seed": "example",
+      "layoutVariant": "b12",
+      "file": "itemized-bill_baseline-clean_example.b12.pdf",
+      "pages": 3,
+      "errors": [],
+      "decoys": [],
+      "textSha256": "e9b2904776219892d0c73b4ecbba75b5b9898ea5e7ee6ccacaa709d971da5e4b",
+      "groundTruthSha256": "ec5d736d21c50b8171e79500a5e3165502cdee8080707e1a471e7c828abc220d",
+      "remittanceSha256": null
+    },
+    {
+      "type": "ppo-eob",
+      "scenario": "baseline-clean",
+      "seed": "example",
+      "layoutVariant": "p01",
+      "file": "ppo-eob_baseline-clean_example.p01.pdf",
+      "pages": 4,
+      "errors": [],
+      "decoys": [],
+      "textSha256": "e44dccb7d3e64b008fd50fc6da1d5ecbd632fd4356cd64e036bf65a09e9180e1",
+      "groundTruthSha256": "d9f39fc8b94864b7f1f8ed67892d75318a4d9a13ef6d24f26ad04d0821e3b36c",
+      "remittanceSha256": "3c1efdfd4efcdf2b457c0a371b2fbe79f2bda6c4f1f39d6499dc017095749d7d"
+    },
+    {
+      "type": "ppo-eob",
+      "scenario": "claim-total-math-error",
+      "seed": "example",
+      "layoutVariant": "p02",
+      "file": "ppo-eob_claim-total-math-error_example.p02.pdf",
+      "pages": 4,
+      "errors": [
+        "math-error"
+      ],
+      "decoys": [],
+      "textSha256": "1de1a7c72e4c247a72083cbc72059efff75438c101ae2d225ff974eb045d20a3",
+      "groundTruthSha256": "ea05035806c1d2263dbf3a04b5a5b5f0fddb6afe65f30fd15bd0d970c40e1139",
+      "remittanceSha256": "3a24ee8b2d0b4750b28f5152e3f49f73e0518541e283428a84e278b390bc4919"
+    },
+    {
+      "type": "ppo-eob",
+      "scenario": "combined-three-errors",
+      "seed": "example",
+      "layoutVariant": "p03",
+      "file": "ppo-eob_combined-three-errors_example.p03.pdf",
+      "pages": 4,
+      "errors": [
+        "duplicate-charge",
+        "preventive-cost-sharing",
+        "math-error"
+      ],
+      "decoys": [],
+      "textSha256": "9a40e4005382b4ce5115ebd67347981b5627ede554a1629a0519b3b953dd9855",
+      "groundTruthSha256": "450956e1ad38add77bed6a6982617856f2bdfa874a941e156462ec9637cd6ff9",
+      "remittanceSha256": "4b326a5efdce7407a5ce5d5e7836ad111d9ccb65e5db59f97dd3affae06399d0"
+    },
+    {
+      "type": "ppo-eob",
+      "scenario": "decoys-partial-deductible",
+      "seed": "example",
+      "layoutVariant": "p04",
+      "file": "ppo-eob_decoys-partial-deductible_example.p04.pdf",
+      "pages": 5,
+      "errors": [],
+      "decoys": [
+        "partial-deductible",
+        "approved-below-copay",
+        "repeat-service-different-date",
+        "charge-above-approved"
+      ],
+      "textSha256": "8508afddf3692e9f58ac086966314bb822ca167e01ff6272051729d172732c42",
+      "groundTruthSha256": "d857b83071d42f46e697507004e18de321932c0c67218f9f0bdad274880979bf",
+      "remittanceSha256": "aaed075c8e98092571c7070b17cc8e7771005ae2cef5dc6578fa8bae2f5011cd"
+    },
+    {
+      "type": "ppo-eob",
+      "scenario": "deductible-reapplied",
+      "seed": "example",
+      "layoutVariant": "p05",
+      "file": "ppo-eob_deductible-reapplied_example.p05.pdf",
+      "pages": 4,
+      "errors": [
+        "deductible-misapplied"
+      ],
+      "decoys": [],
+      "textSha256": "9f383742bbf8b4764b2878a124a59b6a4914619ac8eee83c685b1bcab3d27d2b",
+      "groundTruthSha256": "3cfce34e7a5f6458bd5299b8f92c6e4ef5a3403125e5096fc50c02d8e6fa2a66",
+      "remittanceSha256": "aea1632a7600a02853151e70f601beb4e0462a22abbdc4aaae0a9d12ccf16228"
+    },
+    {
+      "type": "ppo-eob",
+      "scenario": "denied-service",
+      "seed": "example",
+      "layoutVariant": "p06",
+      "file": "ppo-eob_denied-service_example.p06.pdf",
+      "pages": 4,
+      "errors": [
+        "coverage-denial"
+      ],
+      "decoys": [],
+      "textSha256": "e7d27f2c31eefe42175ef6935ed1a6059c7c158bed0f9235390b44e7a1d56ce3",
+      "groundTruthSha256": "9f0669d1fdb906d31c08b4abad50e397ee8e5de524ea1c5d25891e737b48af81",
+      "remittanceSha256": "c2fd41ef95c1d2824a2893f6b4340e23a03f0c5d24c7e97064b68cb78a9f4ce2"
+    },
+    {
+      "type": "ppo-eob",
+      "scenario": "duplicate-visit",
+      "seed": "example",
+      "layoutVariant": "p07",
+      "file": "ppo-eob_duplicate-visit_example.p07.pdf",
+      "pages": 4,
+      "errors": [
+        "duplicate-charge"
+      ],
+      "decoys": [],
+      "textSha256": "bb74ec1c660fe56f5ff8b68df615d78b78f0fe0993188106bd2554e378919747",
+      "groundTruthSha256": "8cdd131d565d1df1fceec51b544bd370a22985f79a516834d90afb72dbffee51",
+      "remittanceSha256": "bb2af6c3782dc02ae3f168dc7f5724906af57e5e014bfb197b05ad8355138e01"
+    },
+    {
+      "type": "ppo-eob",
+      "scenario": "preventive-cost-sharing",
+      "seed": "example",
+      "layoutVariant": "p08",
+      "file": "ppo-eob_preventive-cost-sharing_example.p08.pdf",
+      "pages": 4,
+      "errors": [
+        "preventive-cost-sharing"
+      ],
+      "decoys": [],
+      "textSha256": "1c1387743eda02673f2eea466fa307202ce05f7d7c284bc396c5fd8fe3b5937d",
+      "groundTruthSha256": "13694b89cd29c445c256578b6248e829761c20c2a19e214b904b29ba7a715d74",
+      "remittanceSha256": "058628f27c24586ee5bf49ce1649c8a21fa6c618f7f2d532de16445c3ac60c0b"
+    },
+    {
+      "type": "ppo-eob",
+      "scenario": "baseline-clean",
+      "seed": "example",
+      "layoutVariant": "p09",
+      "file": "ppo-eob_baseline-clean_example.p09.pdf",
+      "pages": 4,
+      "errors": [],
+      "decoys": [],
+      "textSha256": "90f5ca09eccef37d93a98ec97d148215e75db286338eb0ac04eb9e4951282ac7",
+      "groundTruthSha256": "4fd7a59220204ae731cf7e7e6e1f7b1271984cf897b091f54127ac93b70d3fdb",
+      "remittanceSha256": "3c1efdfd4efcdf2b457c0a371b2fbe79f2bda6c4f1f39d6499dc017095749d7d"
+    },
+    {
+      "type": "ppo-eob",
+      "scenario": "claim-total-math-error",
+      "seed": "example",
+      "layoutVariant": "p10",
+      "file": "ppo-eob_claim-total-math-error_example.p10.pdf",
+      "pages": 4,
+      "errors": [
+        "math-error"
+      ],
+      "decoys": [],
+      "textSha256": "bc915ac5e3171f28e12adc047982b9b6a4005ad80964bf634104f63e2f9ffaa7",
+      "groundTruthSha256": "2a369ebc76831f7846537bc975aed927bbb8504915ecc374cd5e3f784885181a",
+      "remittanceSha256": "3a24ee8b2d0b4750b28f5152e3f49f73e0518541e283428a84e278b390bc4919"
+    },
+    {
+      "type": "ppo-eob",
+      "scenario": "combined-three-errors",
+      "seed": "example",
+      "layoutVariant": "p11",
+      "file": "ppo-eob_combined-three-errors_example.p11.pdf",
+      "pages": 4,
+      "errors": [
+        "duplicate-charge",
+        "preventive-cost-sharing",
+        "math-error"
+      ],
+      "decoys": [],
+      "textSha256": "9bc46dffb7cbf6fc86a6fe9323ff4264fa7a38cf66fb32e1cbb01f464678a473",
+      "groundTruthSha256": "4bbd2038804d9e73906f144bbc27beacb408c35c916c90b3091cbe25d5b3e219",
+      "remittanceSha256": "4b326a5efdce7407a5ce5d5e7836ad111d9ccb65e5db59f97dd3affae06399d0"
+    },
+    {
+      "type": "ppo-eob",
+      "scenario": "decoys-partial-deductible",
+      "seed": "example",
+      "layoutVariant": "p12",
+      "file": "ppo-eob_decoys-partial-deductible_example.p12.pdf",
+      "pages": 4,
+      "errors": [],
+      "decoys": [
+        "partial-deductible",
+        "approved-below-copay",
+        "repeat-service-different-date",
+        "charge-above-approved"
+      ],
+      "textSha256": "a16c800fff2a4811f099c63f327fdfca022abb86f2019312d70fa634dbb34eb3",
+      "groundTruthSha256": "00296f5cc5f778f28ad8ee2ab89a3145bf55afd0c26688cabc5f5902112bb0e6",
+      "remittanceSha256": "aaed075c8e98092571c7070b17cc8e7771005ae2cef5dc6578fa8bae2f5011cd"
+    },
+    {
+      "type": "hmo-eob",
+      "scenario": "baseline-clean",
+      "seed": "example",
+      "layoutVariant": "h01",
+      "file": "hmo-eob_baseline-clean_example.h01.pdf",
+      "pages": 5,
+      "errors": [],
+      "decoys": [],
+      "textSha256": "34c23f284e745467fa6268aa4c04fc9cfcbc9777537a453528de5cc2f1ee059a",
+      "groundTruthSha256": "76113e575718dd948977a15a1f935dedec17d6267a82e6103f66a6599ea6714f",
+      "remittanceSha256": "e87b017ca86d7e8c553a070283cd2ee59fa39ee14bc537bc857dcd6f80320262"
+    },
+    {
+      "type": "hmo-eob",
+      "scenario": "claim-total-math-error",
+      "seed": "example",
+      "layoutVariant": "h02",
+      "file": "hmo-eob_claim-total-math-error_example.h02.pdf",
+      "pages": 4,
+      "errors": [
+        "math-error"
+      ],
+      "decoys": [],
+      "textSha256": "b5c1ba021e2552a7e5e7fce95d76d1afcab8c0cef0e738e8dafc94187fc714bb",
+      "groundTruthSha256": "3d1e538ee5728ea4ee0d9d3f5639d68cc9f5ffb6d70b7f47887eab73625e2760",
+      "remittanceSha256": "92df29352bcdb3f123c7de8019176a104ca36b4c000f1992aae2aa51cac112a1"
+    },
+    {
+      "type": "hmo-eob",
+      "scenario": "combined-three-errors",
+      "seed": "example",
+      "layoutVariant": "h03",
+      "file": "hmo-eob_combined-three-errors_example.h03.pdf",
+      "pages": 4,
+      "errors": [
+        "duplicate-charge",
+        "cost-sharing-error",
+        "service-date-anomaly"
+      ],
+      "decoys": [],
+      "textSha256": "61264b9f0de8fb9f425d6a743a790295b475466b9fb87f879f128c65b8c21319",
+      "groundTruthSha256": "84968e9721bf0b7540b5be9fda0ea63b277b3de3705eaa374446d34af812827f",
+      "remittanceSha256": "66d1724010759528fe10894b1e5b88e139cb8e9cdf03d914f45d1c8743f8d48d"
+    },
+    {
+      "type": "hmo-eob",
+      "scenario": "decoys-oop-cap-partial",
+      "seed": "example",
+      "layoutVariant": "h04",
+      "file": "hmo-eob_decoys-oop-cap-partial_example.h04.pdf",
+      "pages": 4,
+      "errors": [],
+      "decoys": [
+        "repeat-service-different-date",
+        "approved-below-copay",
+        "oop-cap-partial-share",
+        "charge-above-approved"
+      ],
+      "textSha256": "13e282ecb88d523e2f7c83ba70b0ec7ecd2f520265657205c5c6f181b0ab675a",
+      "groundTruthSha256": "56932704919c5d05527872c76470277e9e66211a2d850079f4c7672eb78cb5b0",
+      "remittanceSha256": "0466d3b57e257df2e9ac306f0b21496005e008f2d9df9d8ba5e68ace49f8ad11"
+    },
+    {
+      "type": "hmo-eob",
+      "scenario": "denied-service",
+      "seed": "example",
+      "layoutVariant": "h05",
+      "file": "hmo-eob_denied-service_example.h05.pdf",
+      "pages": 4,
+      "errors": [
+        "coverage-denial"
+      ],
+      "decoys": [],
+      "textSha256": "82aef66a38267e9bd3612db4433d70ef9990ed92c6d14345e24d8773d78b673f",
+      "groundTruthSha256": "b697d01bf0a47272cd3c317c1a11a39f922ef426705b45f9a42dd5964d893315",
+      "remittanceSha256": "6c0c69a1a42c2451d3545ed492c5c784c85e82c88bf59847cede289da877848e"
+    },
+    {
+      "type": "hmo-eob",
+      "scenario": "duplicate-therapy-visit",
+      "seed": "example",
+      "layoutVariant": "h06",
+      "file": "hmo-eob_duplicate-therapy-visit_example.h06.pdf",
+      "pages": 4,
+      "errors": [
+        "duplicate-charge"
+      ],
+      "decoys": [],
+      "textSha256": "502d865957a6c4d6069d91af8ef2aea4c15a99bb03c8805fe8a299c9915168c3",
+      "groundTruthSha256": "2f5f1f2a9b5b2e4fef1e7bbe8691121dcdce1049d5810756fb6127a57f41aa07",
+      "remittanceSha256": "01b0a997ebbe190d736055d3fa7e15af73405a4fc846a941d62ab7999f8f668f"
+    },
+    {
+      "type": "hmo-eob",
+      "scenario": "lab-cost-sharing",
+      "seed": "example",
+      "layoutVariant": "h07",
+      "file": "hmo-eob_lab-cost-sharing_example.h07.pdf",
+      "pages": 4,
+      "errors": [
+        "cost-sharing-error"
+      ],
+      "decoys": [],
+      "textSha256": "8745358109bdcc87c7b748ce82796b3bab6882e497d88ea9ce11a09ebb551428",
+      "groundTruthSha256": "ba8913f0be35372adad3ef231876e8c7e79e047a4df69cae7e86dc90987c2f81",
+      "remittanceSha256": "ccdd58853916a591a7a53beb4e3a860feef9397b6c951313151dcba90bd154e6"
+    },
+    {
+      "type": "hmo-eob",
+      "scenario": "share-after-oop-max",
+      "seed": "example",
+      "layoutVariant": "h08",
+      "file": "hmo-eob_share-after-oop-max_example.h08.pdf",
+      "pages": 4,
+      "errors": [
+        "oop-max-exceeded"
+      ],
+      "decoys": [],
+      "textSha256": "68e9e7026b42d762c257a1a0b245aa22e2470493fbee79ee1932e43b1b94a81f",
+      "groundTruthSha256": "6111c057fa22c976b13843425ec2897a055f1b22a4ec1944cef2dca93df230e7",
+      "remittanceSha256": "25ebb35baea57796852d203d8b8fda812f0ca1d44787815129a01133bc82e6bc"
+    },
+    {
+      "type": "hmo-eob",
+      "scenario": "baseline-clean",
+      "seed": "example",
+      "layoutVariant": "h09",
+      "file": "hmo-eob_baseline-clean_example.h09.pdf",
+      "pages": 5,
+      "errors": [],
+      "decoys": [],
+      "textSha256": "e06bb43d606afb99570b7a6bb0a11416ced03df76b410f965c0c79307ab11205",
+      "groundTruthSha256": "e3fb94f25fa9cda3ae4c7d4b34d655748698e8cfd0b13abfefd4e13d498afabc",
+      "remittanceSha256": "e87b017ca86d7e8c553a070283cd2ee59fa39ee14bc537bc857dcd6f80320262"
+    },
+    {
+      "type": "hmo-eob",
+      "scenario": "claim-total-math-error",
+      "seed": "example",
+      "layoutVariant": "h10",
+      "file": "hmo-eob_claim-total-math-error_example.h10.pdf",
+      "pages": 4,
+      "errors": [
+        "math-error"
+      ],
+      "decoys": [],
+      "textSha256": "4df8486e8803df22f12cec1030a570d6b68f100cf1a13ef0a90e5b0262e332c2",
+      "groundTruthSha256": "e5b0125ff31c9233e6616c31943a9e71e9e2a1423c2036f9b3f90fce372621a1",
+      "remittanceSha256": "92df29352bcdb3f123c7de8019176a104ca36b4c000f1992aae2aa51cac112a1"
+    },
+    {
+      "type": "hmo-eob",
+      "scenario": "combined-three-errors",
+      "seed": "example",
+      "layoutVariant": "h11",
+      "file": "hmo-eob_combined-three-errors_example.h11.pdf",
+      "pages": 4,
+      "errors": [
+        "duplicate-charge",
+        "cost-sharing-error",
+        "service-date-anomaly"
+      ],
+      "decoys": [],
+      "textSha256": "2595430fcc29c5f2a704a759abe144da41f4f6c66f975f90d9d18307ef48a778",
+      "groundTruthSha256": "129d2593b9a27d94c1f8cb4e8d03f58d16f744bdb8ea6e016ae57c77b29f36c8",
+      "remittanceSha256": "66d1724010759528fe10894b1e5b88e139cb8e9cdf03d914f45d1c8743f8d48d"
+    },
+    {
+      "type": "hmo-eob",
+      "scenario": "decoys-oop-cap-partial",
+      "seed": "example",
+      "layoutVariant": "h12",
+      "file": "hmo-eob_decoys-oop-cap-partial_example.h12.pdf",
+      "pages": 4,
+      "errors": [],
+      "decoys": [
+        "repeat-service-different-date",
+        "approved-below-copay",
+        "oop-cap-partial-share",
+        "charge-above-approved"
+      ],
+      "textSha256": "38eeea5fd8ed4c482606eae44b5a43c27e8f32c1a0f2e4a6d4690a280017ebe5",
+      "groundTruthSha256": "664935e6f783816436357a7e6e0972184128c9b96748dfed1a0f892e882dfb0b",
+      "remittanceSha256": "0466d3b57e257df2e9ac306f0b21496005e008f2d9df9d8ba5e68ace49f8ad11"
     }
   ]
 }

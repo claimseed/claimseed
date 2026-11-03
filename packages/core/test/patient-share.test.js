@@ -48,7 +48,13 @@ test('the lines\' deductible adds up to the printed deductible met, less what wa
       // again after it was met shows the extra on the lines, above the cap)
       assert.equal(Math.min(cents(data.deductible.annual), cents(g.deductibleMetBefore) + lineDed), cents(data.deductible.met), where);
     } else if (type === 'itemized-bill') assert.equal(lineDed, cents(data.insuranceSummary.deductibleApplied), where);
-    else if (type === 'ppo-eob') assert.equal(lineDed, cents(data.financialSummary.deductibleMet) - cents(g.deductibleMetBefore), where);
+    else if (type === 'ppo-eob') {
+      const met = cents(data.financialSummary.deductibleMet), before = cents(g.deductibleMetBefore);
+      // a deductible taken again after it was met shows on its line only; the cover keeps the met amount, capped at the
+      // deductible. Every other document foots exactly.
+      if (g.errors.some((e) => e.kind === 'deductible-misapplied')) { assert.equal(Math.min(cents(data.financialSummary.deductible), before + lineDed), met, where); assert.ok(lineDed > met - before, `${where}: the extra deductible is on the lines`); }
+      else assert.equal(lineDed, met - before, where);
+    }
     else { assert.equal(lineDed, 0, `${where}: the HMO plan has no deductible`); assert.equal(g.deductibleMetBefore, 0); }
   }
 });
@@ -56,9 +62,12 @@ test('the lines\' deductible adds up to the printed deductible met, less what wa
 test('Medicare Advantage lines: coinsurance only on coinsurance services, a copay only on copay services, as the notes print', () => {
   for (const type of ['ppo-eob', 'hmo-eob']) for (const scenario of listScenarios(type)) for (const seed of SEEDS) {
     const { data, groundTruth: g } = generateData({ type, scenario, seed });
+    // a line carrying a cost-share error on an exempt service breaks its note on purpose: it must show a share
+    const exempt = new Set(g.errors.filter((e) => ['preventive-cost-sharing', 'cost-sharing-error'].includes(e.kind)).map((e) => e.lineRef));
     g.claims.forEach((c, i) => c.lines.forEach((l, j) => {
       const note = data.claims[i].lineItems[j].notes[0]; const where = `${type}/${scenario}/${seed} line ${i}.${j} note ${note}`;
-      if (note === 'K1') { assert.equal(l.coinsurance, 0, where); assert.equal(l.toDeductible, 0, where); }
+      if (exempt.has(`claims[${i}].lines[${j}]`)) { assert.ok(['P1', 'L1'].includes(note), where); assert.ok(cents(l.patientMayBeBilled) > 0, `${where}: the error shows a share`); }
+      else if (note === 'K1') { assert.equal(l.coinsurance, 0, where); assert.equal(l.toDeductible, 0, where); }
       else if (note === 'C1') assert.equal(l.copay, 0, where);
       else assert.equal(cents(l.patientMayBeBilled), 0, where);
     }));

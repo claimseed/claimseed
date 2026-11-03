@@ -31,10 +31,13 @@ test('printed lines: side-by-side pieces are judged as the line they print on; c
   assert.deepEqual(judge([...run(40, 290, 'We mailed your refund'), ...run(160, 302, 'to another person')]), []);
   assert.deepEqual(judge([...run(40, 290, 'We mailed your refund'), ...run(40, 340, 'to another person')]), []);
   // a table row on its own (its header and the next row too far away to line up with): a cell that holds one of the
-  // document's data fields is a cell, whatever lines up with it ("Full eye exam, returning patient | YES")
-  const far = [...run(40, 100, 'Service'), ...run(260, 100, 'Approved?'), ...run(40, 240, 'Full eye exam, returning patient'), ...run(260, 240, 'YES')];
-  assert.deepEqual(judge(far, [], ['Full eye exam, returning patient', 'Drawing blood from a vein']), []);
-  assert.deepEqual(judge(far), ['full eye exam returning patient yes'], 'without the data field the row is one assembled line');
+  // document's data fields is a cell, whatever lines up with it ("Walking boot fitting, left foot | YES"). The
+  // service text is one no reviewed sentence covers (a covered one would be passed as reviewed, not as a cell).
+  const svc = 'Walking boot fitting, left foot';
+  assert.ok(!norm(svc).split(' ').some((_, i, w) => i + 5 <= w.length && grams.has(w.slice(i, i + 5).join(' '))), 'the fixture service text is not reviewed text');
+  const far = [...run(40, 100, 'Service'), ...run(260, 100, 'Approved?'), ...run(40, 240, svc), ...run(260, 240, 'YES')];
+  assert.deepEqual(judge(far, [], [svc, 'Drawing blood from a vein']), []);
+  assert.deepEqual(judge(far), ['walking boot fitting left foot yes'], 'without the data field the row is one assembled line');
   // ... but template text in two cells is one sentence, even when another row far below lines up with its cells
   const split = [...run(40, 100, 'We mailed your refund'), ...run(260, 100, 'to another person'), ...run(40, 240, 'Account details'), ...run(260, 240, 'Payment details')];
   assert.deepEqual(judge(split, [], ['Full eye exam, returning patient']), ['we mailed your refund to another person']);
@@ -60,7 +63,7 @@ function scanCover(html, stockAdd) {
   assert.ok(t.includes('{{ stock.cover.intro }}'), 'template anchor moved');
   fs.writeFileSync(tp, t.replace('{{ stock.cover.intro }}', html));
   if (stockAdd) { const sp = path.join(d, 'data/hmo-eob/stock-content.json'); const st = JSON.parse(fs.readFileSync(sp, 'utf-8')); Object.assign(st.cover, stockAdd); fs.writeFileSync(sp, JSON.stringify(st)); }
-  try { return spawnSync(process.execPath, [path.join(d, 'scripts/scan-rendered.js'), '--seeds', '1', '--type', 'hmo-eob'], { encoding: 'utf-8', cwd: d }); }
+  try { return spawnSync(process.execPath, [path.join(d, 'scripts/scan-rendered.js'), '--seeds', '1', '--type', 'hmo-eob', '--variants', 'none'], { encoding: 'utf-8', cwd: d }); }
   finally { fs.rmSync(d, { recursive: true, force: true }); }
 }
 test('scan-rendered reports a sentence printed side by side from positioned boxes, columns and grid cells', { skip: !findChrome() && !process.env.CI && 'no Chrome (set CLAIMSEED_CHROME); never skipped in CI' }, () => {
@@ -89,6 +92,7 @@ test('scan-rendered and examples refuse an option without a value, a count of ze
   const script = (name, ...a) => spawnSync(process.execPath, [path.join(core, 'scripts', name), ...a], { encoding: 'utf-8', cwd, timeout: 60000 });
   for (const [a, status, message] of [[['--seeds', ''], 2, /^--seeds needs a value\n$/], [['--seeds'], 2, /^--seeds needs a value\n$/], [['--seeds', '0'], 2, /^--seeds must be a whole number of at least 1\n$/],
     [['--seeds', 'two'], 2, /^--seeds must be a whole number of at least 1\n$/], [['--seeds', '1.5'], 2, /^--seeds must be a whole number of at least 1\n$/], [['--type', ''], 2, /^--type needs a value\n$/],
+    [['--variants', ''], 2, /^--variants needs a value\n$/], [['--variants', 'some'], 2, /^--variants must be all or none\n$/],
     [['--seeds', '1', '--type', 'no-such-type'], 1, /^scan-rendered: the options select no documents, so nothing was scanned\n$/]]) {
     const r = script('scan-rendered.js', ...a);
     assert.equal(r.status, status, `scan-rendered ${JSON.stringify(a)}: exit ${r.status}`); assert.match(r.stderr, message, JSON.stringify(a)); assert.doesNotMatch(r.stdout, /ok/);

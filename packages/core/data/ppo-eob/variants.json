@@ -1,0 +1,243 @@
+{
+ "note": "Layout variants of this type (0.5.0): a closed list of ids, each a column order, a label set (labels.json), a style and a continuation rule. Data, not text.",
+ "styles": {
+  "s1": {
+   "font": "inter",
+   "density": "compact",
+   "palette": "p1"
+  },
+  "s2": {
+   "font": "noto-sans",
+   "density": "regular",
+   "palette": "p2"
+  },
+  "s3": {
+   "font": "noto-serif",
+   "density": "roomy",
+   "palette": "p3"
+  },
+  "s4": {
+   "font": "inter",
+   "density": "regular",
+   "palette": "p3"
+  },
+  "s5": {
+   "font": "noto-sans",
+   "density": "roomy",
+   "palette": "p1"
+  },
+  "s6": {
+   "font": "noto-serif",
+   "density": "compact",
+   "palette": "p2"
+  }
+ },
+ "palettes": {
+  "p2": {
+   "text": "#1F2430",
+   "ink": "#2B3F5C",
+   "inkSoft": "#E8EDF4",
+   "accent": "#3A6EA5",
+   "accentSoft": "#E6EEF7",
+   "rule": "#B7C2D0",
+   "muted": "#556070",
+   "tableHeaderBg": "#2B3F5C",
+   "tableHeaderText": "#FFFFFF",
+   "zebra": "#F4F6F9"
+  },
+  "p3": {
+   "text": "#1E2626",
+   "ink": "#1F4E4A",
+   "inkSoft": "#E3F0EE",
+   "accent": "#2C7A73",
+   "accentSoft": "#E2F1EF",
+   "rule": "#B5C9C6",
+   "muted": "#4F5E5C",
+   "tableHeaderBg": "#1F4E4A",
+   "tableHeaderText": "#FFFFFF",
+   "zebra": "#F3F7F7"
+  }
+ },
+ "ids": {
+  "p01": {
+   "columns": [
+    "service",
+    "code",
+    "date",
+    "billed",
+    "approved",
+    "planShare",
+    "yourShare",
+    "notes"
+   ],
+   "labels": "alt-a",
+   "style": "s1",
+   "breaks": "marker"
+  },
+  "p02": {
+   "columns": [
+    "service",
+    "date",
+    "code",
+    "billed",
+    "approved",
+    "planShare",
+    "yourShare",
+    "notes"
+   ],
+   "labels": "alt-b",
+   "style": "s2",
+   "breaks": "repeat"
+  },
+  "p03": {
+   "columns": [
+    "code",
+    "service",
+    "date",
+    "billed",
+    "approved",
+    "planShare",
+    "yourShare",
+    "notes"
+   ],
+   "labels": "base",
+   "style": "s3",
+   "breaks": "marker"
+  },
+  "p04": {
+   "columns": [
+    "notes",
+    "date",
+    "service",
+    "code",
+    "billed",
+    "approved",
+    "planShare",
+    "yourShare"
+   ],
+   "labels": "alt-a",
+   "style": "s4",
+   "breaks": "repeat"
+  },
+  "p05": {
+   "columns": [
+    "notes",
+    "service",
+    "code",
+    "date",
+    "billed",
+    "approved",
+    "planShare",
+    "yourShare"
+   ],
+   "labels": "alt-b",
+   "style": "s5",
+   "breaks": "marker"
+  },
+  "p06": {
+   "columns": [
+    "notes",
+    "service",
+    "date",
+    "code",
+    "billed",
+    "approved",
+    "planShare",
+    "yourShare"
+   ],
+   "labels": "base",
+   "style": "s6",
+   "breaks": "repeat"
+  },
+  "p07": {
+   "columns": [
+    "notes",
+    "code",
+    "service",
+    "date",
+    "billed",
+    "approved",
+    "planShare",
+    "yourShare"
+   ],
+   "labels": "alt-a",
+   "style": "s1",
+   "breaks": "repeat"
+  },
+  "p08": {
+   "columns": [
+    "date",
+    "service",
+    "code",
+    "billed",
+    "approved",
+    "planShare",
+    "yourShare",
+    "notes"
+   ],
+   "labels": "alt-b",
+   "style": "s2",
+   "breaks": "marker"
+  },
+  "p09": {
+   "columns": [
+    "service",
+    "code",
+    "date",
+    "billed",
+    "approved",
+    "planShare",
+    "yourShare",
+    "notes"
+   ],
+   "labels": "base",
+   "style": "s3",
+   "breaks": "repeat"
+  },
+  "p10": {
+   "columns": [
+    "service",
+    "date",
+    "code",
+    "billed",
+    "approved",
+    "planShare",
+    "yourShare",
+    "notes"
+   ],
+   "labels": "alt-a",
+   "style": "s4",
+   "breaks": "marker"
+  },
+  "p11": {
+   "columns": [
+    "code",
+    "service",
+    "date",
+    "billed",
+    "approved",
+    "planShare",
+    "yourShare",
+    "notes"
+   ],
+   "labels": "alt-b",
+   "style": "s5",
+   "breaks": "repeat"
+  },
+  "p12": {
+   "columns": [
+    "notes",
+    "date",
+    "service",
+    "code",
+    "billed",
+    "approved",
+    "planShare",
+    "yourShare"
+   ],
+   "labels": "base",
+   "style": "s6",
+   "breaks": "marker"
+  }
+ }
+}

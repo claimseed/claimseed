@@ -1,0 +1,217 @@
+{
+ "note": "Layout variants of this type (0.5.0): a closed list of ids, each a column order, a label set (labels.json), a style and a continuation rule. Data, not text.",
+ "styles": {
+  "s1": {
+   "font": "inter",
+   "density": "compact",
+   "palette": "p1"
+  },
+  "s2": {
+   "font": "noto-sans",
+   "density": "regular",
+   "palette": "p2"
+  },
+  "s3": {
+   "font": "noto-serif",
+   "density": "roomy",
+   "palette": "p3"
+  },
+  "s4": {
+   "font": "inter",
+   "density": "regular",
+   "palette": "p3"
+  },
+  "s5": {
+   "font": "noto-sans",
+   "density": "roomy",
+   "palette": "p1"
+  },
+  "s6": {
+   "font": "noto-serif",
+   "density": "compact",
+   "palette": "p2"
+  }
+ },
+ "palettes": {
+  "p2": {
+   "text": "#1C2230",
+   "ink": "#2A4570",
+   "inkSoft": "#E8EEF6",
+   "sand": "#E9EEF5",
+   "sandDeep": "#A9B8CC",
+   "rule": "#C3CCD8",
+   "muted": "#525C6B",
+   "tableHeaderBg": "#E9EEF5",
+   "tableHeaderText": "#1C2230"
+  },
+  "p3": {
+   "text": "#1D2422",
+   "ink": "#265C52",
+   "inkSoft": "#E5F0ED",
+   "sand": "#E6EFEC",
+   "sandDeep": "#A3C0B8",
+   "rule": "#C0D0CB",
+   "muted": "#4E5B57",
+   "tableHeaderBg": "#E6EFEC",
+   "tableHeaderText": "#1D2422"
+  }
+ },
+ "ids": {
+  "h01": {
+   "columns": [
+    "notes",
+    "service(code,date)",
+    "charged",
+    "approved",
+    "paid",
+    "owe"
+   ],
+   "labels": "alt-b",
+   "style": "s2",
+   "breaks": "repeat"
+  },
+  "h02": {
+   "columns": [
+    "service(date,code)",
+    "charged",
+    "approved",
+    "paid",
+    "owe",
+    "notes"
+   ],
+   "labels": "alt-a",
+   "style": "s1",
+   "breaks": "marker"
+  },
+  "h03": {
+   "columns": [
+    "notes",
+    "service(date,code)",
+    "charged",
+    "approved",
+    "paid",
+    "owe"
+   ],
+   "labels": "base",
+   "style": "s3",
+   "breaks": "marker"
+  },
+  "h04": {
+   "columns": [
+    "service(code,date)",
+    "charged",
+    "approved",
+    "paid",
+    "owe",
+    "notes"
+   ],
+   "labels": "alt-a",
+   "style": "s4",
+   "breaks": "repeat"
+  },
+  "h05": {
+   "columns": [
+    "service(date,code)",
+    "charged",
+    "approved",
+    "paid",
+    "owe",
+    "notes"
+   ],
+   "labels": "alt-b",
+   "style": "s5",
+   "breaks": "marker"
+  },
+  "h06": {
+   "columns": [
+    "notes",
+    "service(code,date)",
+    "charged",
+    "approved",
+    "paid",
+    "owe"
+   ],
+   "labels": "base",
+   "style": "s6",
+   "breaks": "repeat"
+  },
+  "h07": {
+   "columns": [
+    "notes",
+    "service(date,code)",
+    "charged",
+    "approved",
+    "paid",
+    "owe"
+   ],
+   "labels": "alt-a",
+   "style": "s1",
+   "breaks": "repeat"
+  },
+  "h08": {
+   "columns": [
+    "service(code,date)",
+    "charged",
+    "approved",
+    "paid",
+    "owe",
+    "notes"
+   ],
+   "labels": "alt-b",
+   "style": "s2",
+   "breaks": "marker"
+  },
+  "h09": {
+   "columns": [
+    "service(date,code)",
+    "charged",
+    "approved",
+    "paid",
+    "owe",
+    "notes"
+   ],
+   "labels": "base",
+   "style": "s3",
+   "breaks": "repeat"
+  },
+  "h10": {
+   "columns": [
+    "notes",
+    "service(code,date)",
+    "charged",
+    "approved",
+    "paid",
+    "owe"
+   ],
+   "labels": "alt-a",
+   "style": "s4",
+   "breaks": "marker"
+  },
+  "h11": {
+   "columns": [
+    "notes",
+    "service(date,code)",
+    "charged",
+    "approved",
+    "paid",
+    "owe"
+   ],
+   "labels": "alt-b",
+   "style": "s5",
+   "breaks": "repeat"
+  },
+  "h12": {
+   "columns": [
+    "service(code,date)",
+    "charged",
+    "approved",
+    "paid",
+    "owe",
+    "notes"
+   ],
+   "labels": "base",
+   "style": "s6",
+   "breaks": "marker"
+  }
+ }
+}

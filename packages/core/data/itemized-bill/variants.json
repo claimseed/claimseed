@@ -1,0 +1,233 @@
+{
+ "note": "Layout variants of this type (0.5.0): a closed list of ids, each a column order, a label set (labels.json), a style and a continuation rule. Data, not text.",
+ "styles": {
+  "s1": {
+   "font": "inter",
+   "density": "compact",
+   "palette": "p1"
+  },
+  "s2": {
+   "font": "noto-sans",
+   "density": "regular",
+   "palette": "p2"
+  },
+  "s3": {
+   "font": "noto-serif",
+   "density": "roomy",
+   "palette": "p3"
+  },
+  "s4": {
+   "font": "inter",
+   "density": "regular",
+   "palette": "p3"
+  },
+  "s5": {
+   "font": "noto-sans",
+   "density": "roomy",
+   "palette": "p1"
+  },
+  "s6": {
+   "font": "noto-serif",
+   "density": "compact",
+   "palette": "p2"
+  }
+ },
+ "palettes": {
+  "p2": {
+   "text": "#000000",
+   "headerBg": "#2D3E50",
+   "headerText": "#FFFFFF",
+   "infoBg": "#EDF1F5",
+   "infoBorder": "#2D3E50",
+   "columnHeaderBg": "#2D3E50",
+   "columnHeaderText": "#FFFFFF",
+   "groupHeaderBg": "#EEF1F4",
+   "zebraStripeBg": "#F7F8FA",
+   "subtotalBorder": "#C8CDD3",
+   "grandTotalBg": "#2D3E50",
+   "grandTotalText": "#FFFFFF",
+   "noticeBg": "#EEF3F8",
+   "noticeBorder": "#5B7FA6",
+   "summaryHeaderBg": "#2D3E50",
+   "summaryHeaderText": "#FFFFFF",
+   "footerText": "#5F6B78"
+  },
+  "p3": {
+   "text": "#111111",
+   "headerBg": "#24524C",
+   "headerText": "#FFFFFF",
+   "infoBg": "#EAF3F1",
+   "infoBorder": "#24524C",
+   "columnHeaderBg": "#24524C",
+   "columnHeaderText": "#FFFFFF",
+   "groupHeaderBg": "#EAF2F0",
+   "zebraStripeBg": "#F5F9F8",
+   "subtotalBorder": "#BFD0CC",
+   "grandTotalBg": "#24524C",
+   "grandTotalText": "#FFFFFF",
+   "noticeBg": "#EAF4F2",
+   "noticeBorder": "#3D8579",
+   "summaryHeaderBg": "#24524C",
+   "summaryHeaderText": "#FFFFFF",
+   "footerText": "#56645F"
+  }
+ },
+ "ids": {
+  "b01": {
+   "columns": [
+    "date",
+    "dept",
+    "hcpcs",
+    "description",
+    "units",
+    "charge"
+   ],
+   "labels": "alt-a",
+   "style": "s1",
+   "breaks": "marker"
+  },
+  "b02": {
+   "columns": [
+    "date",
+    "hcpcs",
+    "description",
+    "units",
+    "dept",
+    "charge"
+   ],
+   "labels": "alt-b",
+   "style": "s2",
+   "breaks": "repeat"
+  },
+  "b03": {
+   "columns": [
+    "dept",
+    "date",
+    "description",
+    "hcpcs",
+    "units",
+    "charge"
+   ],
+   "labels": "base",
+   "style": "s3",
+   "breaks": "marker"
+  },
+  "b04": {
+   "columns": [
+    "date",
+    "description",
+    "hcpcs",
+    "units",
+    "dept",
+    "charge"
+   ],
+   "labels": "alt-a",
+   "style": "s4",
+   "breaks": "repeat"
+  },
+  "b05": {
+   "columns": [
+    "hcpcs",
+    "description",
+    "date",
+    "units",
+    "dept",
+    "charge"
+   ],
+   "labels": "alt-b",
+   "style": "s5",
+   "breaks": "marker"
+  },
+  "b06": {
+   "columns": [
+    "dept",
+    "date",
+    "hcpcs",
+    "units",
+    "description",
+    "charge"
+   ],
+   "labels": "alt-a",
+   "style": "s6",
+   "breaks": "repeat"
+  },
+  "b07": {
+   "columns": [
+    "date",
+    "dept",
+    "hcpcs",
+    "description",
+    "units",
+    "charge"
+   ],
+   "labels": "base",
+   "style": "s1",
+   "breaks": "repeat"
+  },
+  "b08": {
+   "columns": [
+    "date",
+    "hcpcs",
+    "description",
+    "units",
+    "dept",
+    "charge"
+   ],
+   "labels": "alt-a",
+   "style": "s2",
+   "breaks": "marker"
+  },
+  "b09": {
+   "columns": [
+    "dept",
+    "date",
+    "description",
+    "hcpcs",
+    "units",
+    "charge"
+   ],
+   "labels": "alt-b",
+   "style": "s3",
+   "breaks": "repeat"
+  },
+  "b10": {
+   "columns": [
+    "date",
+    "description",
+    "hcpcs",
+    "units",
+    "dept",
+    "charge"
+   ],
+   "labels": "base",
+   "style": "s4",
+   "breaks": "marker"
+  },
+  "b11": {
+   "columns": [
+    "hcpcs",
+    "description",
+    "date",
+    "units",
+    "dept",
+    "charge"
+   ],
+   "labels": "alt-a",
+   "style": "s5",
+   "breaks": "repeat"
+  },
+  "b12": {
+   "columns": [
+    "dept",
+    "date",
+    "hcpcs",
+    "units",
+    "description",
+    "charge"
+   ],
+   "labels": "alt-b",
+   "style": "s6",
+   "breaks": "marker"
+  }
+ }
+}

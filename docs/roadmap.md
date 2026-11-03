@@ -14,8 +14,11 @@ available under that licence; a licence granted with a release cannot be withdra
 - Scoring: `claimseed-core verify` and the library's `scoreExtraction` score an extractor's or bill auditor's report
   against the answer key (fields read, errors found and missed, false alarms); `claimseed-core batch` renders a set
   with a manifest of hashes, and `verify --manifest` scores the whole set.
-- Decoys on the MSN and the itemized bill: lines that look wrong but follow the rules, listed in the ground truth's
-  `decoys[]` so that flagging one counts as a false alarm.
+- Errors and decoys on all four layouts, the Medicare Advantage EOBs included since 0.5.0; decoys are lines that look
+  wrong but follow the rules, listed in the ground truth's `decoys[]` so that flagging one counts as a false alarm.
+- Layout variants: the itemized bill and both Medicare Advantage EOBs in 12 layouts each (column order, header
+  wording, style, continued-table marks), chosen with `--layout-variant` or `layout_variant` and recorded in the
+  answer key.
 - Scanned-looking copies: `render --degrade` and `batch --degrade` (`scan`, `fax`, `photo`, `low-res`) make an
   image-only copy of a document with seeded skew, blur, noise, thresholding or low resolution, stamped after
   degradation, and record the preset and its settings in the ground truth (`degradation`, `degradationParams`).
@@ -26,16 +29,17 @@ available under that licence; a licence granted with a release cannot be withdra
   `render_document` (page images in the result and an MCP Apps view), `degrade_document` and `verify_document`,
   the ground-truth and extractor-output schemas and catalogs as resources, and a `build_test_case` prompt.
 - A Docker image (`Dockerfile`) with Chromium, for running the MCP server without installing a browser.
-- `examples/`: one document per published scenario, re-rendered and compared in CI on every push.
+- `examples/`: one document per published scenario and one per layout variant id, re-rendered and compared in CI on
+  every push.
 
 ## Next
 
+- **A commercial health plan EOB** (0.6.0): an explanation of benefits from a fictional non-Medicare health plan.
 - **More MCP tools.**
   - `render_scenario_pair`: two documents of one encounter (for example an MSN and the provider's itemized bill)
     that agree or disagree on purpose, with one ground truth across both.
   - Adversarial fixtures (prompt-injection text and other hostile content inside a specimen, for testing an agent's
     defences), only when a call asks for them explicitly.
-- **Error injection and decoys on the Medicare Advantage EOBs**, which accept neither today.
 - **More layouts**, each with its public model cited in its `LINEAGE.md`: Advance Beneficiary Notice (ABN), Part D
   explanation of benefits, collections notice, pharmacy receipt. Each brings the error kinds marked `planned` in
   `docs/error-taxonomy.md` that need it.

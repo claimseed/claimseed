@@ -3,6 +3,7 @@
 // documents[0].fields, and errors as { kind, fieldRef or lineRef }. The result names only the answer key's paths,
 // kinds and decoy ids, never text the caller sent, so it is safe to hand back to an agent.
 import { generateData } from './generate/index.js';
+import { scalarText } from './scalar-text.js';
 
 export const LIMITS = Object.freeze({ fields: 5000, errors: 1000, pathLength: 200, valueLength: 1000, kindLength: 64, listed: 500 });
 // Known only once a PDF exists (the page count), so not scored when the key is rebuilt from a seed.
@@ -42,7 +43,7 @@ const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 
 const pad = (n) => String(n).padStart(2, '0');
 // A date written the ways documents print them, as YYYY-MM-DD; null when it is not a date.
 export function normDate(s) {
-  s = String(s).trim();
+  s = scalarText(s).trim();
   let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s); if (m) return `${m[1]}-${pad(m[2])}-${pad(m[3])}`;
   m = /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/.exec(s); if (m) return `${m[3].length === 2 ? `20${m[3]}` : m[3]}-${pad(m[1])}-${pad(m[2])}`;
   m = /^([A-Za-z]+)\.?\s+(\d{1,2}),?\s+(\d{4})$/.exec(s);
@@ -60,7 +61,7 @@ export function normNumber(v) {
   if (!/^\d+(\.\d+)?$/.test(s)) return null;
   return (neg ? -1 : 1) * Number(s);
 }
-const normText = (v) => String(v).normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+const normText = (v) => scalarText(v).normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 const empty = (v) => v === null || v === undefined || (typeof v === 'string' && v.trim() === '');
 // Does a reported value match the answer key's value? Dates match in any supported form on either side.
 export function sameValue(expected, got) {
@@ -149,9 +150,9 @@ export function scoreExtraction(answerKey, output) {
 // version may differ: score against the saved answer-key file when the documents came from another version.
 const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const SEED = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
-export function verifyFromSeed({ type, scenario, seed = 'claimseed', output }) {
-  if (!SLUG.test(String(type)) || !SLUG.test(String(scenario)) || !SEED.test(String(seed))) throw new Error('verify: invalid type, scenario or seed');
+export function verifyFromSeed({ type, scenario, seed = 'claimseed', output, layoutVariant = null }) {
+  if (!SLUG.test(scalarText(type)) || !SLUG.test(scalarText(scenario)) || !SEED.test(scalarText(seed))) throw new Error('verify: invalid type, scenario or seed');
   checkOutput(output);
-  const { groundTruth } = generateData({ type, scenario, seed });
+  const { groundTruth } = generateData({ type, scenario, seed, layoutVariant });
   return scoreExtraction(groundTruth, output);
 }

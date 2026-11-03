@@ -11,6 +11,7 @@ import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import { launchBrowser, findChrome, render, renderDegraded, degradePdf, degradationParams, DEGRADE_PRESETS, withPdfPage, finalizePdf, BAND_TEXT, SPECIMEN_SUBJECT } from '../src/index.js';
 import { readMarkers } from './markers-read.js';
+import { measureWatermark } from './watermark-measure.js';
 import { pdfWords } from '../scripts/lib/provenance.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -35,39 +36,12 @@ test('the settings come from the seed: the same document and preset give the sam
   const s = degradationParams('scan', doc); assert.ok(Math.abs(s.rotate) <= 0.8 && s.quality >= 0.72 && s.quality <= 0.88);
   const f = degradationParams('fax', doc); assert.ok(f.threshold >= 0.5 && f.threshold <= 0.66 && Array.isArray(f.streaks));
   const p = degradationParams('photo', doc); assert.ok(Math.abs(p.rotate) <= 4 && p.keystone > 0 && p.keystone <= 0.06);
-  assert.throws(() => degradationParams('blur', doc), /no preset blur/);
+  assert.throws(() => degradationParams('blur', doc), (e) => e.message === 'degrade: no such preset; presets: scan, fax, photo, low-res');
 });
 
-// On one page of a degraded PDF, compare the stamped raster with the picture before stamping and with a blank page
-// stamped the same way (which shows where the watermark goes). Returns the tint the watermark adds inside its own
-// shapes and elsewhere, and how the band strip looks.
-async function measure(pdf, picture, n, label) {
-  const scale = 100 / 72;
-  const [w, h] = await withPdfPage(browser, pdf, async (page, sizes) => sizes[n - 1]);
-  const ref = await PDFDocument.create(); ref.addPage([w, h]);
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cs-ref-')); const refPath = path.join(dir, 'ref.pdf');
-  fs.writeFileSync(refPath, await ref.save()); await finalizePdf(refPath, { band: label });
-  const refPng = await withPdfPage(browser, fs.readFileSync(refPath), async (page) => { await page.evaluate((s) => window.claimseedCanvas(1, s), scale); return page.evaluate(() => window.claimseedLast.toDataURL('image/png')); });
-  return withPdfPage(browser, pdf, async (page) => {
-    await page.evaluate((a, s) => window.claimseedCanvas(a, s), n, scale);
-    return page.evaluate(async (refUrl, picUrl, bandPt, s) => {
-      const A = window.claimseedLast; const W = A.width, H = A.height;
-      const load = (u) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = u; });
-      const pixels = (img) => { const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); g.drawImage(img, 0, 0, W, H); return g.getImageData(0, 0, W, H).data; };
-      const a = A.getContext('2d').getImageData(0, 0, W, H).data; const r = pixels(await load(refUrl)); const p = pixels(await load(picUrl));
-      const bandTop = H - Math.round(bandPt * s);
-      let inSum = 0, inN = 0, outSum = 0, outN = 0, bg = 0, dark = 0, bandN = 0;
-      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-        const i = (y * W + x) * 4;
-        if (y > bandTop + 1 && y < H - 1) { bandN++; if (Math.abs(a[i] - 251) + Math.abs(a[i + 1] - 243) + Math.abs(a[i + 2] - 234) < 30) bg++; if (a[i] + a[i + 1] + a[i + 2] < 420) dark++; continue; }
-        if (y >= bandTop - 2) continue;
-        const tint = (a[i] - p[i]) - (a[i + 2] - p[i + 2]);
-        if (r[i] - r[i + 2] > 12) { inSum += tint; inN++; } else if ((x + y) % 7 === 0) { outSum += tint; outN++; }
-      }
-      return { tintIn: inSum / inN, tintOut: outSum / outN, maskPixels: inN, bandBackground: bg / bandN, bandDark: dark };
-    }, refPng, `data:${picture.mimeType};base64,${picture.data}`, 11, scale);
-  });
-}
+// On one page of a degraded PDF: the tint the watermark adds inside its own shapes and elsewhere, and how the band strip
+// looks (test/watermark-measure.js, shared with the layout-variant renders).
+const measure = (pdf, picture, n, label) => measureWatermark(browser, pdf, picture, n, label);
 
 // On one fax page image, threshold it again at the preset's own threshold (as a fax reader would) and compare the black
 // share inside the watermark's letters with the ring around them (the letters grown by 6 pixels, minus the letters,
@@ -192,8 +166,8 @@ test('the command line refuses an empty, missing, blank or unknown preset or fol
   const more = [
     [['--degrade=fax'], () => /^--degrade takes its value in the next argument, not after an equals sign\n$/],
     [['--degrade=canary'], () => /^--degrade takes its value in the next argument, not after an equals sign\n$/],
-    [['--degrad', 'fax'], (c) => (c === 'render' ? /^render: unknown option; the options are --seed, --out, --degrade, --also\n$/
-      : /^batch: unknown option; the options are --types, --scenarios, --seeds, --seed-prefix, --degrade, --also, --out\n$/)],
+    [['--degrad', 'fax'], (c) => (c === 'render' ? /^render: unknown option; the options are --seed, --out, --degrade, --also, --layout-variant\n$/
+      : /^batch: unknown option; the options are --types, --scenarios, --seeds, --seed-prefix, --degrade, --also, --out, --layout-variant\n$/)],
     [['--canary=1'], (c) => new RegExp(`^${c}: unknown option; the options are --`)],
     [['--degrade', 'fax', '--degrade', 'scan'], () => /^--degrade may be given only once\n$/],
     [['canary-extra'], (c) => new RegExp(`^${c}: too many arguments\n$`)],

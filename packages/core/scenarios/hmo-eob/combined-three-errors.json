@@ -1,0 +1,58 @@
+{
+  "type": "hmo-eob",
+  "slug": "combined-three-errors",
+  "status": "published",
+  "description": "This statement has three errors. Claim 1 prints the same physical therapy visit twice on one date, charging the $25 copay twice; claim 2 charges the member 20% for a lab test although note L1 says labs are covered in full; and claim 3's X-ray of the chest is dated two days after the statement date. A careful reviewer should flag the duplicate line, the lab charge and the impossible service date.",
+  "period": {
+    "start": "2026-03-01",
+    "end": "2026-03-31"
+  },
+  "claimCount": 3,
+  "claimShapes": [
+    "PT",
+    "LAB",
+    "RAD"
+  ],
+  "mutations": [
+    {
+      "op": "ma-duplicate-line",
+      "args": {
+        "claim": 0,
+        "line": 0
+      }
+    },
+    {
+      "op": "ma-cost-share-on-exempt-line",
+      "args": {
+        "claim": 1,
+        "line": 0
+      }
+    },
+    {
+      "op": "ma-shift-date",
+      "args": {
+        "claim": 2,
+        "line": 0,
+        "days": 2
+      }
+    }
+  ],
+  "sources": [
+    {
+      "what": "An exact duplicate matches another claim line on beneficiary, provider, date of service, procedure code and billed amount",
+      "source": "CMS, Medicare Claims Processing Manual (Pub. 100-04), ch. 1, §120.2 Exact Duplicates, https://www.cms.gov/regulations-and-guidance/guidance/manuals/downloads/clm104c01.pdf"
+    },
+    {
+      "what": "Under the rule that a plan must state its cost sharing, this plan charges $0 for covered lab tests, as Original Medicare usually does (note L1)",
+      "source": "eCFR, 42 CFR 422.111(b)(2), Disclosure requirements (benefits and cost sharing), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.111; Medicare.gov, Diagnostic laboratory tests, https://www.medicare.gov/coverage/diagnostic-laboratory-tests"
+    },
+    {
+      "what": "Compare each statement with your own calendar of appointments, tests and X-rays to check the dates",
+      "source": "Medicare.gov, Protecting Yourself From Fraud (CMS Product No. 10111), https://www.medicare.gov/publications/10111-protecting-yourself-from-fraud.pdf"
+    },
+    {
+      "what": "A Medicare Advantage plan mails an EOB each month you visit a provider, summarizing your claims and costs",
+      "source": "Medicare.gov, Checking the status of a claim, https://www.medicare.gov/providers-services/claims-appeals-complaints/claims/check-status"
+    }
+  ]
+}

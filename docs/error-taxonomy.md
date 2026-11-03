@@ -4,7 +4,7 @@ Every injected error in a claimseed scenario has a `kind` from this list, and ev
 violates. Every scenario instance (which codes, which amounts, which dates) cites its own public source in the scenario's `sources` field.
 
 **Status column.** `implemented` means the engine has a mutation op that produces this kind today (see
-`src/generate/mutations.js` and the scenarios); `planned` means the kind is reserved in the taxonomy, with its rule
+`src/generate/mutations.js`, `src/generate/ma-mutations.js` and the scenarios); `planned` means the kind is reserved in the taxonomy, with its rule
 citation, so that a future scenario or layout can use it, but no code produces it yet. The ground-truth schema accepts
 every kind in this table.
 
@@ -28,7 +28,7 @@ is present.
 | --- | --- | --- | --- | --- |
 | `deductible-misapplied` | implemented | Deductible applied twice, at the wrong amount, or after it was already met | Annual Part B deductible (CMS annual notice); plan EOC for MA plans | EOB, MSN |
 | `cost-sharing-error` | implemented | Coinsurance or copay outside what the plan or Original Medicare allows for that service | 42 CFR 422.100(f) (MA cost-sharing limits); Part B 20% coinsurance, SSA §1833 | EOB, MSN |
-| `oop-max-exceeded` | planned | Member charged after the annual out-of-pocket maximum was reached | 42 CFR 422.100(f)(4)-(5) (MA MOOP) | EOB |
+| `oop-max-exceeded` | implemented | A line charges the member a copay or coinsurance after the out-of-pocket maximum was reached, so the year-to-date member share is more than the out-of-pocket amount the cover shows. | In-network out-of-pocket limit, 42 CFR 422.100(f)(4), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.100; plan's evidence of coverage: once the maximum is reached, the plan pays the full approved amount for covered in-network services | EOB |
 | `preventive-cost-sharing` | implemented | A preventive service that must be $0 carries cost sharing | SSA §1861(ddd), 42 CFR 410.152(l); ACA §2713 for commercial | MSN, EOB |
 | `preventive-miscoded-as-diagnostic` | planned | Preventive service billed with diagnostic codes or modifiers, triggering cost sharing | CMS Preventive Services chart (MLN006559); screening vs. diagnostic ICD-10 Z-codes | MSN, EOB, lab report |
 | `qmb-cost-sharing-violation` | planned | A Qualified Medicare Beneficiary is billed Medicare cost sharing | SSA §1902(n)(3)(B); CMS MLN SE1128 | MSN, itemized bill, collections letter |
@@ -66,7 +66,7 @@ is present.
 
 | kind | status | What is wrong | Rule / reference | Typical documents |
 | --- | --- | --- | --- | --- |
-| `coverage-denial` | implemented | A line Medicare denied (not reasonable and necessary, not covered) with the patient liable because written notice was given. Not a billing error in itself; a reviewer should surface it as an appealable denial, so the default severity is `info` | SSA §1862(a)(1)(A); liability SSA §1879, 42 CFR 411.404; redetermination 42 CFR 405.942 | MSN, itemized bill |
+| `coverage-denial` | implemented | A line Medicare denied (not reasonable and necessary, not covered) with the patient liable because written notice was given. Not a billing error in itself; a reviewer should surface it as an appealable denial, so the default severity is `info`. On a Medicare Advantage EOB, the plan denies an in-network line and the member owes nothing for it; a denial note flags the line and the back page explains how to appeal. | SSA §1862(a)(1)(A); liability SSA §1879, 42 CFR 411.404; redetermination 42 CFR 405.942; MA: organization determination 42 CFR 422.566(b)(3); denial notice 42 CFR 422.568(d), (e); EOB denied-claim and appeal-rights notice 42 CFR 422.111(k)(3)(iii); reconsideration SSA §1852(g), 42 CFR 422.582; contracted providers may not bill members for the plan's obligation 42 CFR 422.504(g)(1)(i) | MSN, itemized bill, MA EOB |
 | `wrong-appeal-deadline` | planned | Notice states a shorter appeal window than the law allows | 42 CFR 422.582 (MA reconsideration, 65 days); 42 CFR 405.942 (redetermination, 120 days) | Denial notices, MSN |
 | `missing-clinical-rationale` | planned | Denial lacks the specific clinical reason required | 42 CFR 422.568(e); CMS-4201-F | CMS-10003 denial notice |
 | `wrong-denial-reason-code` | planned | CARC/RARC code contradicts the stated reason | X12 CARC/RARC code lists (public) | Denial notice, EOB |
@@ -99,6 +99,16 @@ kind, counts as a false alarm in `verify_document` and `claimseed-core verify`, 
 | --- | --- | --- | --- | --- | --- |
 | `repeat-service-different-date` | implemented | The same code and charge appear twice on one claim, on two dates in the period | Two services, each billed once: a duplicate repeats the same service on the same date. The repeat is adjudicated as its own service: coinsurance on its approved amount, and only what is left of the year's deductible. Preventive services, new-patient visits and tests with a frequency limit are never repeated, because a repeat of those in the period would be an error | Duplicate payments are those for the same beneficiary, code and service date by the same provider: CMS Recovery Audit topic 0091, https://www.cms.gov/research-statistics-data-and-systems/monitoring-programs/medicare-ffs-compliance-programs/recovery-audit-program/approved-rac-topics-items/0091-exact-duplicate-claims; MUEs count units for the same beneficiary on the same date of service, https://www.cms.gov/medicare/coding-billing/national-correct-coding-initiative-ncci-edits/medicare-ncci-medically-unlikely-edits-mues | `duplicate-charge` |
 | `charge-above-approved` | implemented | The amount the provider charged is several times the Medicare-approved amount | The charge is the provider's own price, not what Medicare pays. On an assigned claim the provider accepts the approved amount as payment in full and may collect only the deductible and coinsurance, so Medicare's payment and the patient's share are figured on the approved amount however high the charge | https://www.medicare.gov/basics/costs/medicare-costs/provider-accept-Medicare; SSA §1842(b)(3)(B)(ii), https://www.ssa.gov/OP_Home/ssact/title18/1842.htm | `fee-schedule-overcharge` (which is about the approved amount, not the charge) or `assignment-violation` (which needs the patient to be billed more than the approved share) |
+| `approved-below-copay` | implemented | The member pays less than the category copay and the plan pays $0 for the line. | Under the plan's stated design (evidence of coverage), the copay never exceeds the plan-approved amount, so the member pays the approved amount and the plan pays nothing. | Plan's stated design (evidence of coverage): when the plan-approved amount is less than the copay, the member pays the approved amount and the plan pays $0 | cost-sharing-error (the member's share does not match the category copay, and the plan pays nothing) |
+| `oop-cap-partial-share` | implemented | One line charges only part of its usual copay or coinsurance, and later lines charge the member nothing. | The member reached the in-network out-of-pocket maximum on that line (42 CFR 422.100(f)(4) and the plan's evidence of coverage), so the member pays only up to the maximum and the plan pays the rest. | In-network out-of-pocket limit, 42 CFR 422.100(f)(4), https://www.law.cornell.edu/cfr/text/42/422.100; plan's evidence of coverage: the member pays only up to the maximum, the plan pays the rest | cost-sharing-error (the line charges less than its usual copay or coinsurance, and later lines charge nothing) |
+| `partial-deductible` | implemented | A PPO coinsurance line charges the member more than 20% of its plan-approved amount. | Under the plan's stated design (evidence of coverage, note C1), the line first takes the rest of the year's in-network deductible and then 20% of the remaining approved amount. | Plan's stated design (evidence of coverage, note C1): the rest of the year's in-network deductible is paid first, then 20% coinsurance on the remaining approved amount | deductible-misapplied (the share is above 20% of the approved amount, so the deductible looks charged again) |
+
+## Layout variants
+
+The itemized bill and the two Medicare Advantage EOBs can be printed in layout variants, which change the column
+order, the header wording, the style and the way a continued table is marked. Every error and decoy kind above is
+recorded the same way on every variant: the variant changes where a value prints on the page, never the paths,
+values, kinds or rules in the answer key. The Medicare Summary Notice has one national format and is not varied.
 
 ## In the 835 remittance
 

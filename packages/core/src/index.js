@@ -10,6 +10,7 @@
 import fs from 'fs'; import path from 'path'; import os from 'os'; import crypto from 'crypto';
 import { generateData, listScenarios, loadScenario } from './generate/index.js';
 import { RENDERERS } from './layouts.js';
+import { scalarText } from './scalar-text.js';
 import { DATA_DIR, hardenHtml, renderHtmlToPdf, finalizePdf, mergePdfs, templateContext, BAND_TEXT, WATERMARK_TEXT, SPECIMEN_SUBJECT } from './render.js';
 import { launchBrowser, findChrome } from './browser.js';
 
@@ -23,6 +24,7 @@ export { renderBatch, planBatch, readManifest } from './batch.js';
 import { buildRemittance, REMITTANCE_TYPES } from './x12/remittance.js';
 export { buildRemittance, remittanceFor, REMITTANCE_TYPES, SPECIMEN_STRINGS as X12_SPECIMEN_STRINGS } from './x12/remittance.js';
 export { check835, checkSpecimen835, parse835 } from './x12/check835.js';
+export { VARIANT_TYPES, VARIANT_STRINGS, variantIds, checkVariantOption, resolveVariant } from './variants.js';
 export const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
 export const SEED = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
@@ -32,18 +34,20 @@ export const SEED = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 // `also: '835'` adds the X12 835 remittance of the same claims (x12/remittance.js): its text in `remittance`, written
 // as <base>.835 byte for byte, and in the answer key as documents[1] with x12Ref on the errors it carries.
 export const ALSO = ['835'];
-export async function render({ type, scenario, seed = 'claimseed', outDir = null, browser = null, also = null }) {
-  if (!SLUG.test(String(type)) || !SLUG.test(String(scenario)) || !SEED.test(String(seed))) throw new Error('render: invalid type, scenario or seed');
+export async function render({ type, scenario, seed = 'claimseed', outDir = null, browser = null, also = null, layoutVariant = null }) {
+  if (!SLUG.test(scalarText(type)) || !SLUG.test(scalarText(scenario)) || !SEED.test(scalarText(seed))) throw new Error('render: invalid type, scenario or seed');
   if (also !== null && !ALSO.includes(also)) throw new Error(`render: also must be one of ${ALSO.join(', ')}`);
   if (also === '835' && !REMITTANCE_TYPES.includes(type)) throw new Error(`render: an 835 is written for ${REMITTANCE_TYPES.join(', ')} only`);
-  const fn = RENDERERS[type];
-  if (!fn) throw new Error(`render: no renderer for type ${type}`);
-  const generated = generateData({ type, scenario, seed }); const { data, groundTruth } = generated;
+  const fn = Object.prototype.hasOwnProperty.call(RENDERERS, type) ? RENDERERS[type] : null;
+  if (!fn) throw new Error('render: no renderer for that type');
+  const generated = generateData({ type, scenario, seed, layoutVariant }); const { data, groundTruth } = generated;
+  const variant = data._variant || null;   // a layout variant names the file, the band and the title (0.5.0)
+  const label = variant ? variant.layout : type;
   const stock = JSON.parse(fs.readFileSync(path.join(DATA_DIR, type, 'stock-content.json'), 'utf-8'));
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'claimseed-'));
   let bytes;
   try {
-    const pdfPath = await fn(data, stock, work, { title: `claimseed specimen - ${type} ${scenario} seed=${seed}`, band: `${type} / ${scenario} / seed ${seed}`, browser });
+    const pdfPath = await fn(data, stock, work, { title: `claimseed specimen - ${label} ${scenario} seed=${seed}`, band: `${label} / ${scenario} / seed ${seed}`, browser });
     bytes = fs.readFileSync(pdfPath);
   } finally { fs.rmSync(work, { recursive: true, force: true }); }
   const doc = groundTruth.documents[0];
@@ -58,7 +62,7 @@ export async function render({ type, scenario, seed = 'claimseed', outDir = null
   let pdf = null;
   if (outDir) {
     fs.mkdirSync(outDir, { recursive: true });
-    const base = path.join(outDir, `${type}_${scenario}_${seed}`);
+    const base = path.join(outDir, `${type}_${scenario}_${seed}${variant ? `.${variant.id}` : ''}`);
     fs.writeFileSync(base + '.pdf', bytes); fs.writeFileSync(base + '.ground-truth.json', JSON.stringify(groundTruth, null, 2));
     if (remittance !== null) fs.writeFileSync(base + '.835', remittance);
     pdf = base + '.pdf';

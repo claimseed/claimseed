@@ -1,6 +1,6 @@
 {
   "name": "@claimseed/core",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Render fully synthetic US medical-billing specimen documents (EOB, MSN, bills, notices) from seeded data, and score extractors against their answer keys",
   "license": "Apache-2.0",
   "author": "claimseed maintainers <maintainers@gildage.co>",
@@ -29,7 +29,7 @@
     "render": "node src/cli.js render",
     "generate": "node src/cli.js generate",
     "list": "node src/cli.js list",
-    "test": "node --test test/*.test.js",
+    "test": "node scripts/test-with-render-log.js core",
     "check": "node scripts/check-synthetic.js && node scripts/verify-synthetic-npi.js --offline && node scripts/verify-stock-sources.js",
     "release-ready": "node scripts/check-release-ready.js",
     "scan-rendered": "node scripts/scan-rendered.js"
@@ -56,6 +56,8 @@
     "data/x12",
     "data/SOURCES.md",
     "data/original-sentences.json",
+    "data/ma-operations.json",
+    "data/layout-variants.json",
     "scenarios",
     "reference-data",
     "fonts",

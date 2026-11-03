@@ -59,14 +59,22 @@ boundary, which is why the flags above take away its network, its capabilities a
 | Tool | What it does |
 | --- | --- |
 | `list_document_types` | The types (`msn`, `itemized-bill`, `ppo-eob`, `hmo-eob`), each with a description and its scenarios. |
-| `describe_document_type` | Every scenario of one type: description, period, claim count, the errors it injects (kind, severity, rule) and its public sources. |
-| `generate_data` | The data and ground truth of one document, without rendering; nothing is written. |
-| `render_document` | Renders one document and returns its pages as images, its ground truth, the PDF's SHA-256 and page count; with a workspace, also writes the PDF and its ground-truth JSON there and returns both paths. With `also: "835"`, also the X12 835 remittance of the same claims (Medicare Summary Notice and Medicare Advantage EOBs). |
-| `degrade_document` | Like `render_document`, but for a scanned-looking copy of the document: a flatbed scan, a fax, a phone photo or a low-resolution copy (`preset`). The copy is an image-only PDF with the specimen band and watermark drawn on top of the degraded pages; its ground truth has the same fields, errors and decoys, plus `degradation` and the seeded settings in `degradationParams`. Its structured result names the preset in `degradation` (null in a `render_document` result). |
-| `verify_document` | Scores what an extractor or bill auditor reported about one document against its answer key: field accuracy with the paths read wrong or missed, error recall and precision, false alarms and the decoys flagged. Nothing is rendered or written. |
+| `describe_document_type` | Every scenario of one type: description, period, claim count, the errors it injects (kind, severity, rule) and its public sources, plus the type's layout variant ids (an empty list for `msn`, which has one layout). |
+| `generate_data` | The data and ground truth of one document, without rendering; nothing is written. Takes `layout_variant`. |
+| `render_document` | Renders one document and returns its pages as images, its ground truth, the PDF's SHA-256 and page count; with a workspace, also writes the PDF and its ground-truth JSON there and returns both paths. With `also: "835"`, also the X12 835 remittance of the same claims (Medicare Summary Notice and Medicare Advantage EOBs). With `layout_variant`, one of the type's layout variants. |
+| `degrade_document` | Like `render_document`, but for a scanned-looking copy of the document: a flatbed scan, a fax, a phone photo or a low-resolution copy (`preset`). The copy is an image-only PDF with the specimen band and watermark drawn on top of the degraded pages; its ground truth has the same fields, errors and decoys, plus `degradation` and the seeded settings in `degradationParams`. Its structured result names the preset in `degradation` (null in a `render_document` result). Takes `layout_variant` like `render_document`. |
+| `verify_document` | Scores what an extractor or bill auditor reported about one document against its answer key: field accuracy with the paths read wrong or missed, error recall and precision, false alarms and the decoys flagged. Nothing is rendered or written. With `layout_variant`, the key of that variant. |
 
 Arguments are a type, a scenario slug and a seed (letters, digits, `.`, `_`, `-`; up to 64 characters). The same
 type, scenario and seed always give the same data, and on Linux with the same Chrome build the same PDF bytes.
+`generate_data`, `render_document`, `degrade_document` and `verify_document` also take `layout_variant` for
+`itemized-bill`, `ppo-eob` and `hmo-eob`: an id from the type's list in `describe_document_type` (`b01`-`b12`,
+`p01`-`p12`, `h01`-`h12`), or `seeded` to pick one from the seed. A variant prints the same data with another
+column order, header wording, style and way of marking a continued table; the ground truth names it
+(`documents[0].layoutVariant`, schema 1.4) and, with a workspace, the file names carry its id after the seed. Left
+out, the document keeps the standard layout, unchanged. `msn` takes no variant; a value for it, an unknown id, an
+id of another type and `all` are refused with an error that repeats nothing sent.
+
 `render_document` also takes:
 
 - `preview`: `none`, `first` or `all` — which pages come back as images (default `all` without a workspace, `first`
@@ -163,6 +171,8 @@ nothing, but stop the tunnel when you are done.
   200-character paths or 1,000-character values, or in any other shape, with a message that gives positions only.
   Its result holds counts, rates, answer-key paths, kinds and decoy ids; nothing the caller sent comes back, and
   nothing in a report is used as a file path.
+- **Arguments are checked.** Every tool refuses an argument it does not declare, with a message that names no
+  argument; a misspelt argument, which earlier versions ignored, is now an error.
 - **Output is marked.** Every page carries the specimen band and watermark and the PDF metadata says it is a
   synthetic specimen; no tool argument turns that off. See `policy://synthetic-data` for acceptable use.
 

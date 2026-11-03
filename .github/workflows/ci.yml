@@ -4,6 +4,7 @@ on:
   pull_request:
   schedule:
     - cron: "17 6 1 * *"
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -46,7 +47,8 @@ jobs:
             docker run -i --rm --network none --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
             --user "$(id -u):$(id -g)" -v "$PWD/out:/work" claimseed-mcp
   nppes-monthly:
-    if: github.event_name == 'schedule'
+    # monthly, and on demand (Actions > ci > Run workflow) after a lexicon change
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0

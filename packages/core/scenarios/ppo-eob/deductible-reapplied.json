@@ -1,0 +1,40 @@
+{
+  "type": "ppo-eob",
+  "slug": "deductible-reapplied",
+  "status": "published",
+  "description": "Before March 2026 the member had paid $400 out of pocket and met the full $150 in-network deductible, and the cover shows the deductible met. Claim 1 is a dermatology visit with a skin biopsy; the biopsy, a 20% coinsurance service, is charged the $150 deductible again plus 20% of the rest. Claim 2 (lab tests) is correct. A careful reviewer should conclude the deductible was already met, so the member owes only 20% of the biopsy's plan-approved amount.",
+  "period": {
+    "start": "2026-03-01",
+    "end": "2026-03-31"
+  },
+  "claimCount": 2,
+  "claimShapes": [
+    "DERM",
+    "LAB"
+  ],
+  "maPriorOop": 400,
+  "maDeductibleMetBefore": 150,
+  "mutations": [
+    {
+      "op": "ma-reapply-deductible",
+      "args": {
+        "claim": 0,
+        "line": 1
+      }
+    }
+  ],
+  "sources": [
+    {
+      "what": "A PPO with a deductible must have a single one; this plan's $150 in-network deductible applies once a year to coinsurance services, then 20% (note C1)",
+      "source": "eCFR, 42 CFR 422.101(d)(1), Requirements relating to basic benefits (single deductible for local PPO plans; other services may be waived from it), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.101; eCFR, 42 CFR 422.111(b)(2), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.111"
+    },
+    {
+      "what": "Medicare Advantage plans set their own deductibles and cost sharing each year, and the evidence of coverage says what you pay",
+      "source": "Medicare.gov, Understanding Medicare Advantage Plans (CMS Product No. 12026), https://www.medicare.gov/publications/12026-understanding-medicare-advantage-plans.pdf"
+    },
+    {
+      "what": "A Medicare Advantage plan mails an EOB each month you visit a provider, summarizing your claims and costs",
+      "source": "Medicare.gov, Checking the status of a claim, https://www.medicare.gov/providers-services/claims-appeals-complaints/claims/check-status"
+    }
+  ]
+}

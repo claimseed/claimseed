@@ -7,7 +7,8 @@ import fs from 'fs'; import path from 'path'; import crypto from 'crypto';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { generateData, listScenarios, loadScenario, render, launchBrowser, verifyFromSeed, degradeRendered, DEGRADE_PRESETS, ALSO, RENDERERS, SLUG, SEED } from '@claimseed/core';
+import { generateData, listScenarios, loadScenario, render, launchBrowser, verifyFromSeed, degradeRendered, DEGRADE_PRESETS, ALSO, RENDERERS, SLUG, SEED, VARIANT_STRINGS, checkVariantOption, variantIds } from '@claimseed/core';
+import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { DOCUMENT_TYPES } from './types.js';
 import { openWorkspace } from './workspace.js';
 import { createGate, withTimeout, createBrowserPool } from './limits.js';
@@ -69,7 +70,7 @@ error. Start with list_document_types; describe_document_type shows the scenario
 the data and ground truth without rendering. verify_document scores what an extractor or bill auditor reported about
 a document against its answer key: fields read, errors found and missed, and false alarms, including decoys (lines that
 look wrong but follow the rules). degrade_document renders a scanned-looking copy (scan, fax, phone photo or low-res) with
-the same answer key, to test reading documents that are not clean PDFs.`;
+the same answer key, to test reading documents that are not clean PDFs. The itemized-bill, ppo-eob and hmo-eob types can also print the same data in other layouts: pass layout_variant, an id from describe_document_type's list or seeded to pick one from the seed. msn has one layout. The answer key names the variant used.`;
 const INSTRUCTIONS_WORKSPACE = `${INSTRUCTIONS_BASE} render_document writes a PDF and its ground-truth JSON into the
 server's workspace folder, returns their paths and shows the first page as an image (preview "all" shows every page).
 Every value is synthetic and every page carries specimen markers.`;
@@ -87,10 +88,21 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
   const gate = createGate({ concurrency, maxQueue });
   const pool = createBrowserPool({ launch: () => launchBrowser(), idleMs });
   const server = new McpServer({ name: 'claimseed', version: VERSION }, { instructions: ws ? INSTRUCTIONS_WORKSPACE : INSTRUCTIONS_INLINE });
+  // Strict inputs: the SDK drops arguments a tool does not declare, so a misspelt one would be ignored. Every call is
+  // checked against the tool's declared arguments first and an undeclared one refused, with a message that names none.
+  const validate = server.validateToolInput.bind(server);
+  server.validateToolInput = async (tool, args, name) => {
+    const declared = tool.inputSchema?.shape ? Object.keys(tool.inputSchema.shape) : [];
+    if (args && typeof args === 'object' && Object.keys(args).some((k) => !declared.includes(k))) throw new McpError(ErrorCode.InvalidParams, VARIANT_STRINGS.messages.unknownArgument);
+    return validate(tool, args, name);
+  };
 
   const Type = z.enum(TYPES).describe(`document type: ${TYPES.join(', ')}`);
   const Scenario = z.string().regex(SLUG).describe('scenario slug, e.g. baseline-clean (see describe_document_type)');
   const Seed = z.string().regex(SEED).default('claimseed').describe('any short string (letters, digits, . _ -); the same seed always gives the same document');
+  const LayoutVariant = z.string().max(64).optional().describe(VARIANT_STRINGS.developer.mcpLayoutVariant);
+  // a layout variant is checked against the type's published ids (seeded allowed, all not); the refusal repeats nothing sent
+  const needVariant = (type, value) => (value === undefined ? null : checkVariantOption(type, value));
   const needScenario = (type, scenario) => {
     if (!listScenarios(type).includes(scenario)) throw new Error(`no scenario "${scenario}" for ${type}; scenarios: ${listScenarios(type).join(', ')}`);
   };
@@ -109,37 +121,37 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
 
   server.registerTool('describe_document_type', {
     title: 'Describe a document type',
-    description: 'Describe one document type: every scenario with its description, period, number of claims, the errors it injects (kind, severity, rule), its decoys (lines that look wrong but follow the rules) and its public sources. A scenario with neither errors nor decoys is a clean control.',
+    description: 'Describe one document type: every scenario with its description, period, number of claims, the errors it injects (kind, severity, rule), its decoys (lines that look wrong but follow the rules) and its public sources. It also lists the type\'s layout variant ids, which layout_variant accepts besides seeded (an empty list for msn, which has one layout). A scenario with neither errors nor decoys is a clean control.',
     inputSchema: { type: Type },
-    outputSchema: { type: z.string(), title: z.string(), description: z.string(), orientation: z.string(), groundTruthSchema: z.string(), scenarios: z.array(z.record(z.string(), z.unknown())) },
+    outputSchema: { type: z.string(), title: z.string(), description: z.string(), orientation: z.string(), groundTruthSchema: z.string(), scenarios: z.array(z.record(z.string(), z.unknown())), layoutVariants: z.array(z.string()) },
     annotations: readOnly,
   }, async ({ type }) => {
-    const out = { type, ...DOCUMENT_TYPES[type], groundTruthSchema: 'schema://ground-truth', scenarios: listScenarios(type).map((s) => scenarioFacts(type, s)) };
+    const out = { type, ...DOCUMENT_TYPES[type], groundTruthSchema: 'schema://ground-truth', scenarios: listScenarios(type).map((s) => scenarioFacts(type, s)), layoutVariants: variantIds(type) };
     return { content: [text(json(out))], structuredContent: out };
   });
 
   server.registerTool('generate_data', {
     title: 'Generate document data',
     description: 'Generate the data and ground truth of one document without rendering it (no file is saved). The same type, scenario and seed always give the same result. Every value is synthetic.',
-    inputSchema: { type: Type, scenario: Scenario, seed: Seed },
+    inputSchema: { type: Type, scenario: Scenario, seed: Seed, layout_variant: LayoutVariant },
     outputSchema: { data: z.record(z.string(), z.unknown()), groundTruth: z.record(z.string(), z.unknown()) },
     annotations: readOnly,
-  }, async ({ type, scenario, seed }) => {
+  }, async ({ type, scenario, seed, layout_variant: lv }) => {
     needScenario(type, scenario);
-    const out = generateData({ type, scenario, seed });
+    const out = generateData({ type, scenario, seed, layoutVariant: needVariant(type, lv) });
     return { content: [text(json(out))], structuredContent: out };
   });
 
   // Render one document (or, with a preset, a degraded copy of it) and deliver it: page images, the PDF on request, the
   // files in the workspace when there is one. Shared by render_document and degrade_document.
-  async function deliver({ type, scenario, seed, preset = null, preview = ws ? 'first' : 'all', from_page: fromPage = 1, include_pdf: includePdf = false, also = null }, extra) {
-    needScenario(type, scenario);
+  async function deliver({ type, scenario, seed, preset = null, preview = ws ? 'first' : 'all', from_page: fromPage = 1, include_pdf: includePdf = false, also = null, layout_variant: lv }, extra) {
+    needScenario(type, scenario); const layoutVariant = needVariant(type, lv);
     const out = await gate.run(async () => {
       const browser = await pool.acquire();
       const gen = pool.generation;
       try {
         return await withTimeout((async () => {
-          const r = await render({ type, scenario, seed, browser, also });
+          const r = await render({ type, scenario, seed, browser, also, layoutVariant });
           if (preset) Object.assign(r, await degradeRendered(browser, { type, scenario, seed, preset, clean: r, pageImages: false }));
           // the PDF, when asked for, counts toward the same limit: it goes in only when it fits, and the pictures then
           // take what room is left (none forced in); a PDF over the limit is left out and the result says so
@@ -148,7 +160,7 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
           const budget = previewKB * 1024 - (r.embedPdf ? r.pdfBase64Bytes : 0);
           // the document stands without its pictures: if they cannot be drawn, the result says so and carries none
           if (preview !== 'none') {
-            try { r.preview = await previewPages(browser, r.bytes, { pages: preview, from: fromPage, budget, forceFirst: !r.embedPdf, label: `${type} / ${scenario} / seed ${seed}${preset ? ` / ${preset}` : ''}` }); }
+            try { r.preview = await previewPages(browser, r.bytes, { pages: preview, from: fromPage, budget, forceFirst: !r.embedPdf, label: `${r.groundTruth.documents[0].layout} / ${scenario} / seed ${seed}${preset ? ` / ${preset}` : ''}` }); }
             catch (e) { r.previewError = String(e.message).split('\n')[0].slice(0, 200); log(`page images failed: ${r.previewError}`); }
           }
           return r;
@@ -160,12 +172,13 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
       } finally { pool.release(); }
     }, extra?.signal);
     if (extra?.signal?.aborted) throw new Error('request cancelled');
+    const vid = out.groundTruth.documents[0].layoutVariant?.id; const stem = `${seed}${vid ? `.${vid}` : ''}`;   // a variant names its files
     let saved = null;
     if (ws) {
       const gtBytes = Buffer.from(JSON.stringify(out.groundTruth, null, 2));
       const files = [{ ext: 'pdf', bytes: out.bytes }, { ext: 'ground-truth.json', bytes: gtBytes }];
       if (out.remittance) files.push({ ext: '835', bytes: Buffer.from(out.remittance) });   // byte for byte, as its SHA-256 in the answer key
-      saved = ws.save(`${type}_${scenario}_${seed}${preset ? `_${preset}` : ''}`, files);
+      saved = ws.save(`${type}_${scenario}_${stem}${preset ? `_${preset}` : ''}`, files);
       if (saved.evicted) log(`quota: removed ${saved.evicted} older output file(s)`);
     }
     const doc = out.groundTruth.documents[0];
@@ -182,7 +195,7 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
     const decoys = (out.groundTruth.decoys || []).length;
     const none = decoys === 1 ? 'no injected errors but 1 decoy (not a clean control)' : decoys ? `no injected errors but ${decoys} decoys (not a clean control)` : 'no injected errors';
     const range = (a) => (a.length > 1 ? `pages ${a[0]}-${a[a.length - 1]}` : `page ${a[0]}`);
-    const lines = [`Rendered ${preset ? `a ${preset} copy of ` : ''}${type} / ${scenario} / seed ${seed}: ${doc.pages} page(s), ${out.bytes.length} bytes, ${errs.length ? `injected errors: ${errs.join(', ')}` : none}.`];
+    const lines = [`Rendered ${preset ? `a ${preset} copy of ` : ''}${doc.layout} / ${scenario} / seed ${seed}: ${doc.pages} page(s), ${out.bytes.length} bytes, ${errs.length ? `injected errors: ${errs.join(', ')}` : none}.`];
     if (out.previewError) lines.push(`Page images could not be drawn (${out.previewError}); the document itself is unaffected.`);
     else if (preview !== 'none') {
       if (shown.length) lines.push(`Shown below as images: ${range(shown)} of ${doc.pages}.${result.preview.next ? ` ${omitted} more: call ${preset ? 'degrade_document' : 'render_document'} again with from_page ${result.preview.next}.` : ''}`);
@@ -196,8 +209,8 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
     lines.push('Ground truth (expected findings and field values) is in the structured result.');
     const content = [text(lines.join('\n'))];
     for (const i of images) content.push({ type: 'image', mimeType: i.mimeType, data: i.data });
-    if (out.embedPdf) content.push({ type: 'resource', resource: { uri: `claimseed://document/${type}/${scenario}/${seed}${preset ? `-${preset}` : ''}.pdf`, mimeType: 'application/pdf', blob: out.bytes.toString('base64') } });
-    if (out.remittance && !saved) content.push({ type: 'resource', resource: { uri: `claimseed://document/${type}/${scenario}/${seed}.835`, mimeType: 'application/edi-x12', text: out.remittance } });
+    if (out.embedPdf) content.push({ type: 'resource', resource: { uri: `claimseed://document/${type}/${scenario}/${stem}${preset ? `-${preset}` : ''}.pdf`, mimeType: 'application/pdf', blob: out.bytes.toString('base64') } });
+    if (out.remittance && !saved) content.push({ type: 'resource', resource: { uri: `claimseed://document/${type}/${scenario}/${stem}.835`, mimeType: 'application/edi-x12', text: out.remittance } });
     if (saved) content.push(
       { type: 'resource_link', uri: pathToFileURL(result.pdf).href, name: path.basename(result.pdf), mimeType: 'application/pdf', description: 'synthetic specimen PDF' },
       { type: 'resource_link', uri: pathToFileURL(result.groundTruthFile).href, name: path.basename(result.groundTruthFile), mimeType: 'application/json', description: 'ground truth for the PDF' });
@@ -219,6 +232,7 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
       from_page: z.number().int().min(1).max(999).default(1).describe('first page to return as an image (default 1)'),
       include_pdf: z.boolean().default(false).describe('also return the PDF itself, embedded in the result; it counts toward the same size limit as the page images and is left out, with a note, when it alone is over it'),
       also: z.enum(ALSO).optional().describe('835: also write the X12 835 remittance of the same claims (msn, ppo-eob and hmo-eob only), as a file in the workspace or as text in the result'),
+      layout_variant: LayoutVariant,
     },
     outputSchema: { type: z.string(), scenario: z.string(), seed: z.string(), degradation: z.string().nullable(), pdf: z.string().nullable(), groundTruthFile: z.string().nullable(), sha256: z.string(), pages: z.number(), bytes: z.number(), pdfEmbedded: z.boolean(), groundTruth: z.record(z.string(), z.unknown()), preview: PreviewOut, remittance: RemittanceOut },
     annotations: ws ? { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false } : { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
@@ -239,6 +253,7 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
       preview: Preview,
       from_page: z.number().int().min(1).max(999).default(1).describe('first page to return as an image (default 1)'),
       include_pdf: z.boolean().default(false).describe('also return the degraded PDF itself; it counts toward the same size limit as the page images and is left out, with a note, when it alone is over it'),
+      layout_variant: LayoutVariant,
     },
     outputSchema: { type: z.string(), scenario: z.string(), seed: z.string(), degradation: z.string().nullable(), pdf: z.string().nullable(), groundTruthFile: z.string().nullable(), sha256: z.string(), pages: z.number(), bytes: z.number(), pdfEmbedded: z.boolean(), groundTruth: z.record(z.string(), z.unknown()), preview: PreviewOut },
     annotations: ws ? { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false } : { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
@@ -254,12 +269,13 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
       // drop an own "__proto__" key, which the check must see and refuse as the command line does (without echoing it).
       // Clients are shown the extractor-output schema.
       output: z.unknown().meta(REPORT_SCHEMA),
+      layout_variant: LayoutVariant,
     },
     outputSchema: { answerKey: z.object({ scenario: z.string(), seed: z.string(), schemaVersion: z.string() }), fields: z.record(z.string(), z.unknown()).nullable(), errors: z.record(z.string(), z.unknown()).nullable() },
     annotations: readOnly,
-  }, async ({ type, scenario, seed, output }) => {
+  }, async ({ type, scenario, seed, output, layout_variant: lv }) => {
     needScenario(type, scenario);
-    const r = verifyFromSeed({ type, scenario, seed, output });
+    const r = verifyFromSeed({ type, scenario, seed, output, layoutVariant: needVariant(type, lv) });
     const f = r.fields ? `fields ${r.fields.correct}/${r.fields.expected} correct (${r.fields.wrong} wrong, ${r.fields.missing} missing)` : 'fields not scored';
     const e = r.errors ? `errors ${r.errors.found}/${r.errors.expected} found, ${r.errors.falseAlarms} false alarm(s)${r.errors.decoysFlagged.length ? ` incl. ${r.errors.decoysFlagged.length} decoy(s)` : ''}` : 'errors not scored';
     return { content: [text(`${type} / ${scenario} / seed ${seed}: ${f}; ${e}.\n${json(r)}`)], structuredContent: r };
@@ -289,7 +305,7 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
     messages: [{ role: 'user', content: text(`Build a test case with the claimseed tools for this goal: ${goal}
 ${type ? `Use the ${type} document type.\n` : ''}
 1. Call ${type ? `describe_document_type for ${type}` : 'list_document_types, then describe_document_type for the types that fit'}, and choose the scenarios whose injected errors match the goal. Scenarios with neither errors nor decoys are clean controls, and scenarios with decoys hold lines that look wrong but follow the rules; include one of each so the test also checks for false alarms.
-2. Render each chosen scenario with render_document using two or three different seeds, so the test does not depend on one set of names and amounts. Pass preview "none" for the renders you do not need to look at.
+2. Render each chosen scenario with render_document using two or three different seeds, so the test does not depend on one set of names and amounts. For itemized-bill, ppo-eob or hmo-eob, also render at least one document with layout_variant set (an id or seeded), so the test does not depend on one layout either; msn takes no layout_variant. Pass preview "none" for the renders you do not need to look at.
 3. Use each document's ground truth as the expected result: errors[] lists what a reviewer should flag (kind, location, expected and actual values), decoys[] what it should not flag, and documents[0].fields the values an extractor should read. verify_document scores a report against it.
 4. Finish with a table of the documents rendered (${ws ? 'the files are in the server\'s workspace folder' : 'type, scenario, seed and SHA-256; the server saves no files, and include_pdf returns a PDF in the result'}) and the expected result for each.
 Every document is synthetic and carries specimen markers on every page; keep them on. Do not add real people's information to the workspace or to the test.`) }],

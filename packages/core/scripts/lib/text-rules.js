@@ -17,8 +17,13 @@ const BARE_RE = /\b(?:call|ph|phone|tel|telephone|fax|tty|tdd|dial|service|servi
 // 1-8XX followed by seven letters/digits in any grouping with at least three letters among them (a vanity number)
 const VANITY_RE = /\b(?:1[ .-]?)?8(?:00|33|44|55|66|77|88)[ .-]?(?:[A-Z0-9][ .-]?){6,10}[A-Z0-9]\b/g;
 const TOLL_FREE = new Set(['800', '833', '844', '855', '866', '877', '888']);
+// An OMB information collection reference (YYYYMM-NNNN-NNN, as reginfo.gov numbers them) right after "ICR" or in a
+// reginfo.gov ref_nbr= link is a citation, not a phone: the reference is blanked before the phone rules run. The number
+// alone, in another format or after any other word is still judged as a phone.
+const ICR_REF = /(\bICR\s+|\bref_nbr=)(?:19|20)\d{4}-\d{4}-\d{3}(?![\d-])/g;
 export function phoneProblems(t, r, out) {
-  t = foldText(t).replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ');   // homePhone, phone_number
+  t = foldText(t).replace(ICR_REF, '$1 ');
+  t = t.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ');   // homePhone, phone_number
   const seen = new Set();
   for (const m of t.matchAll(PHONE_RE)) {
     const digits = m[1] + m[2] + m[3];

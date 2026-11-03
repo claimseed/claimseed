@@ -63,6 +63,16 @@ test('a planted ledger cannot make the server delete a file it did not write', (
   assert.ok(fs.existsSync(victim) && fs.existsSync(victim2));
 });
 
+test('ledger entries whose name or hash are not text are skipped one by one; the rest of the ledger still counts', () => {
+  const dir = tmp(); const planted = path.join(dir, 'msn_baseline-clean_fictional_0123456789ab.pdf'); const bytes = blob(1024, 'F');
+  fs.writeFileSync(planted, bytes);
+  const odd = [{ name: { toString: null }, bytes: 1, sha256: sha(bytes), at: 0 }, { name: path.basename(planted), bytes: 1024, sha256: { toString: null }, at: 0 }];
+  fs.writeFileSync(path.join(dir, LEDGER), JSON.stringify({ files: [...odd, { name: path.basename(planted), bytes: 1024, sha256: sha(bytes), at: 0 }] }));
+  const ws = openWorkspace(dir, { quotaBytes: 1500 });
+  assert.throws(() => ws.save('itemized-bill_baseline-clean_fictional', [{ ext: 'pdf', bytes: blob(600) }]), /never deletes those/, 'the valid entry still counts toward the quota');
+  assert.ok(fs.existsSync(planted));
+});
+
 test('a planted file with a server-style name and a matching ledger entry is never deleted; the save is refused instead', () => {
   const dir = tmp(); const planted = path.join(dir, 'msn_baseline-clean_fictional_0123456789ab.pdf'); const bytes = blob(1024, 'F');
   fs.writeFileSync(planted, bytes);

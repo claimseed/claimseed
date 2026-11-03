@@ -1,0 +1,16 @@
+{
+ "note": "Messages and descriptions of the layout variants (0.5.0). Nothing here is filled in by the code.",
+ "messages": {
+  "variantUnknown": "That layout variant is not published for this document type; use an id from its published list",
+  "variantMsn": "The Medicare Summary Notice has a single layout, so it does not take a layout variant",
+  "variantSeededAll": "The layout variants seeded and all cannot be used in a batch that includes the Medicare Summary Notice",
+  "variantRepeated": "The layout-variant option was given more than once; give it only once",
+  "variantEmpty": "The layout-variant option needs a value",
+  "variantAllHere": "The layout variant all writes several documents, so it works only with render and batch",
+  "unknownArgument": "The call includes an argument that this tool does not take"
+ },
+ "developer": {
+  "cliUsage": "Layout variant: a published id for the type, seeded (picked by seed) or all (one document per id)",
+  "mcpLayoutVariant": "Optional. A layout variant id from this document type's published list, or seeded to pick one from the seed. Applies only to itemized-bill, ppo-eob and hmo-eob. Leave it out for the standard layout, unchanged. The answer key records which variant was used."
+ }
+}

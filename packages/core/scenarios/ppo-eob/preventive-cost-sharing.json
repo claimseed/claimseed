@@ -1,0 +1,38 @@
+{
+  "type": "ppo-eob",
+  "slug": "preventive-cost-sharing",
+  "status": "published",
+  "description": "Claim 1 is an annual wellness visit with a preventive screening, both covered preventive services. The wellness visit line charges the member the $20 office-visit copay, even though its own note P1 says no copayment, coinsurance or deductible applies. Claim 2, an office visit with lab tests, is correct. A careful reviewer should conclude the member owes $0 for the wellness visit, because Medicare Advantage plans may not charge cost sharing for in-network Medicare-covered preventive services.",
+  "period": {
+    "start": "2026-03-01",
+    "end": "2026-03-31"
+  },
+  "claimCount": 2,
+  "claimShapes": [
+    "FP",
+    "IM"
+  ],
+  "mutations": [
+    {
+      "op": "ma-cost-share-on-exempt-line",
+      "args": {
+        "claim": 0,
+        "line": 0
+      }
+    }
+  ],
+  "sources": [
+    {
+      "what": "MA organizations may not charge deductibles, copayments or coinsurance for in-network Medicare-covered preventive services (paragraph (k))",
+      "source": "eCFR, 42 CFR 422.100 General requirements, https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.100"
+    },
+    {
+      "what": "The preventive services this rule covers include the annual wellness visit (paragraph (l))",
+      "source": "Cornell LII, 42 CFR 410.152 Amounts of payment, https://www.law.cornell.edu/cfr/text/42/410.152"
+    },
+    {
+      "what": "You pay nothing for the yearly wellness visit if your provider accepts assignment, and the Part B deductible does not apply",
+      "source": "Medicare.gov, Yearly Wellness visits, https://www.medicare.gov/coverage/yearly-wellness-visits"
+    }
+  ]
+}

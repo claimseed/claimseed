@@ -127,3 +127,28 @@ test('a batch writes PDFs, answer keys and a manifest that matches them, never o
   const edited = spawnSync(process.execPath, [CLI, 'verify', '--manifest', path.join(out, 'manifest.jsonl'), '--outputs', reports], { encoding: 'utf-8' });
   assert.equal(edited.status, 1); assert.match(edited.stderr, /does not match its hash/);
 });
+
+test('a set of Medicare Advantage documents scores errors, misses and flagged decoys like the MSN', { skip, timeout: 180000 }, () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cs-ma-set-')); const out = path.join(dir, 'set');
+  try {
+    const scenarios = ['combined-three-errors', 'decoys-partial-deductible', 'decoys-oop-cap-partial'];
+    execFileSync(process.execPath, [CLI, 'batch', '--types', 'ppo-eob,hmo-eob', '--scenarios', scenarios.join(','), '--seeds', '1', '--out', out], { encoding: 'utf-8' });
+    const entries = readManifest(path.join(out, 'manifest.jsonl'));
+    assert.equal(entries.length, 4, 'combined-three-errors on both layouts, and one decoy scenario each');
+    // every report finds all errors but drops the first, and flags every decoy as an error of the kind it resembles
+    const reports = path.join(dir, 'reports'); fs.mkdirSync(reports);
+    let expected = 0, decoys = 0;
+    for (const e of entries) {
+      const gt = JSON.parse(fs.readFileSync(path.join(out, e.groundTruth), 'utf-8'));
+      assert.ok(gt.errors.length + gt.decoys.length > 0, `${e.pdf}: errors or decoys`);
+      expected += gt.errors.length; decoys += gt.decoys.length;
+      const errors = gt.errors.slice(1).map((x) => ({ kind: x.kind, fieldRef: x.fieldRef })).concat(gt.decoys.map((d) => ({ kind: 'cost-sharing-error', lineRef: d.lineRef })));
+      fs.writeFileSync(path.join(reports, e.pdf.replace(/\.pdf$/, '.json')), JSON.stringify({ errors }));
+    }
+    assert.equal(expected, 6); assert.equal(decoys, 8, 'four decoys in each decoy scenario');
+    const r = JSON.parse(execFileSync(process.execPath, [CLI, 'verify', '--manifest', path.join(out, 'manifest.jsonl'), '--outputs', reports], { encoding: 'utf-8' }));
+    assert.equal(r.scored, 4); assert.equal(r.errors.expected, 6); assert.equal(r.errors.found, 4);
+    assert.equal(r.errors.falseAlarms, decoys); assert.equal(r.errors.decoysFlagged, decoys);
+    assert.equal(r.documentsScored.reduce((n, d) => n + d.errors.missed, 0), 2, 'one missed error per combined document');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});

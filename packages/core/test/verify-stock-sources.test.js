@@ -18,12 +18,40 @@ function scratchCopy() {
   fs.symlinkSync(path.join(core, '../../node_modules'), path.join(dir, 'node_modules'));   // the rendered-text pass drives the real render path (capture mode, no browser)
   return dir;
 }
-const run = (dir) => spawnSync(process.execPath, [path.join(dir, 'scripts/verify-stock-sources.js')], { encoding: 'utf-8', cwd: dir });   // the copy's own script, so the rendered-text pass runs on the copy
+// the copy's own script, so the rendered-text pass runs on the copy; a planted copy is judged without the layout variants
+// (they add run time, not coverage of the plant), the shipped tree with them
+const run = (dir) => spawnSync(process.execPath, [path.join(dir, 'scripts/verify-stock-sources.js'), ...(dir === core ? [] : ['--variants', 'none'])], { encoding: 'utf-8', cwd: dir });
 
-test('verify-stock-sources passes on the shipped tree', () => {
+test('verify-stock-sources passes on the shipped tree, with every layout variant id', () => {
   const r = run(core);
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.match(r.stdout, /verbatim from public sources/);
+  for (const v of ['', 'some']) { const x = spawnSync(process.execPath, [SCRIPT, '--variants', v], { encoding: 'utf-8' }); assert.equal(x.status, 2); assert.equal(x.stderr, '--variants must be all or none\n'); }
+});
+
+test('a lifted sentence in a layout-variant label set fails, as a label and as the line a variant prints', () => {
+  const lifted = 'Members who travel outside the service area should carry this card';
+  const dir = scratchCopy();
+  const lp = path.join(dir, 'data/ppo-eob/labels.json'); const l = JSON.parse(fs.readFileSync(lp, 'utf-8'));
+  l.sets['alt-b']['claims.title'] = lifted; fs.writeFileSync(lp, JSON.stringify(l));
+  let r = spawnSync(process.execPath, [path.join(dir, 'scripts/verify-stock-sources.js'), '--variants', 'none'], { encoding: 'utf-8', cwd: dir });
+  assert.equal(r.status, 1, `label set not checked: ${r.stdout}`); assert.match(r.stderr, /data\/ppo-eob\/labels\.json/);
+  // a short label and a short template text that print as one line only on a variant's page (the bill's continued-group
+  // marker exists in the label sets alone): judged only by the variant renders
+  l.sets['alt-b']['claims.title'] = 'Claim details';
+  fs.writeFileSync(lp, JSON.stringify(l));
+  const bp = path.join(dir, 'data/itemized-bill/labels.json'); const b = JSON.parse(fs.readFileSync(bp, 'utf-8'));
+  for (const set of Object.values(b.sets)) set['labels.groupContinuedFrom'] = 'Members who travel outside';
+  fs.writeFileSync(bp, JSON.stringify(b));
+  const cut = path.join(dir, 'templates/itemized-bill/charges-v.html'); const t = fs.readFileSync(cut, 'utf-8');
+  const anchor = '<td colspan="6">{{ stock.labels.groupContinuedFrom }}</td>'; assert.ok(t.includes(anchor), 'template anchor moved');
+  fs.writeFileSync(cut, t.replace(anchor, '<td colspan="6">{{ stock.labels.groupContinuedFrom }} the service area should carry</td>'));
+  r = spawnSync(process.execPath, [path.join(dir, 'scripts/verify-stock-sources.js'), '--variants', 'none'], { encoding: 'utf-8', cwd: dir });
+  assert.equal(r.status, 0, `the control (no variant printed) failed: ${r.stdout}${r.stderr}`);
+  r = spawnSync(process.execPath, [path.join(dir, 'scripts/verify-stock-sources.js')], { encoding: 'utf-8', cwd: dir });
+  assert.equal(r.status, 1, `a variant's assembled line passed: ${r.stdout}`);
+  assert.match(r.stderr, /members who travel outside the service area should carry/); assert.match(r.stderr, /itemized-bill\.b\d\d \(rendered page text, assembled from short pieces\)/);
+  fs.rmSync(dir, { recursive: true, force: true });
 });
 
 test('verify-stock-sources fails on a lifted sentence, however it is fragmented', () => {
@@ -161,4 +189,37 @@ test('verify-stock-sources judges text that positioned boxes, columns and nested
     ['nested grid cells of reviewed sentences', '<div style="display:grid;grid-template-columns:1fr 1fr"><section><p>{{ stock.cover.intro }}</p></section><section><p>{{ stock.cover.glanceNote }}</p></section></div>']]) {
     const d = coverWith(html, '', null); const r = run(d); assert.equal(r.status, 0, `${what} refused: ${r.stdout}${r.stderr}`); fs.rmSync(d, { recursive: true, force: true });
   }
+});
+
+test('--write-original keeps reviewed lines this render does not print; --prune drops and lists them, except those listed as rendered only', () => {
+  const dir = scratchCopy();
+  try {
+    const file = path.join(dir, 'data/original-sentences.json');
+    const { sentences: before, renderedOnly } = JSON.parse(fs.readFileSync(file, 'utf-8'));
+    const line = 'continued from the page before claim id cs';   // printed only by a variant's capture render (skipped here)
+    assert.ok(before.includes(line) && !renderedOnly.includes(line));
+    const listed = 'continued from the previous page claim number';   // printed only in a real PDF, read by scan-rendered
+    assert.ok(renderedOnly.includes(listed));
+    const write = (...extra) => spawnSync(process.execPath, [path.join(dir, 'scripts/verify-stock-sources.js'), '--no-render', '--write-original', ...extra], { encoding: 'utf-8', cwd: dir });
+    let r = write();
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf-8')).sentences, before, 'nothing is dropped without --prune');
+    assert.match(r.stdout, /kept that this render does not print/);
+    r = write('--prune');
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    const after = JSON.parse(fs.readFileSync(file, 'utf-8')).sentences;
+    assert.ok(!after.includes(line), 'without the render, the rendered-only line is pruned');
+    const dropped = r.stdout.split('\n').filter((l) => l.startsWith('dropped: ')).map((l) => l.slice(9));
+    assert.ok(dropped.includes(line)); assert.equal(dropped.length, before.length - after.length, 'every dropped line is listed');
+    assert.ok(after.includes(listed) && !dropped.includes(listed), 'a rendered-only line stays');
+    assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf-8')).renderedOnly, renderedOnly, 'the list is kept');
+    // a reviewed line nothing prints, not listed as rendered only, fails the check (here: a planted one)
+    const f = JSON.parse(fs.readFileSync(path.join(core, 'data/original-sentences.json'), 'utf-8'));
+    fs.writeFileSync(file, JSON.stringify({ ...f, sentences: [...f.sentences, 'a reviewed line that nothing prints any more'].sort() }));
+    r = spawnSync(process.execPath, [path.join(dir, 'scripts/verify-stock-sources.js'), '--variants', 'all'], { encoding: 'utf-8', cwd: dir });
+    assert.equal(r.status, 1, r.stdout); assert.match(r.stderr, /a reviewed line that nothing prints any more/);
+    fs.writeFileSync(file, JSON.stringify({ ...f, renderedOnly: [...f.renderedOnly, 'not a reviewed line'] }));
+    r = spawnSync(process.execPath, [path.join(dir, 'scripts/verify-stock-sources.js'), '--no-render'], { encoding: 'utf-8', cwd: dir });
+    assert.equal(r.status, 1); assert.match(r.stderr, /renderedOnly lists a line that is not a reviewed original sentence/);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

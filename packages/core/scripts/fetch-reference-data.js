@@ -12,7 +12,8 @@
 // with GPCIs of 1.0 this is the "national" figure. CLFS amounts are national by construction. ASP amounts
 // (vaccines) come from the quarterly ASP file; this script leaves ASP codes for manual entry with a citation.
 import fs from 'fs'; import path from 'path'; import os from 'os'; import { execFileSync } from 'child_process';
-const ROOT = path.resolve(path.join(path.dirname(new URL(import.meta.url).pathname), '..'));
+import { fileURLToPath } from 'url';
+const ROOT = path.resolve(path.join(path.dirname(fileURLToPath(import.meta.url)), '..'));
 const arg = (k, d) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : d; };
 const year = arg('year', '2026'); const rvuUrl = arg('rvu'); const clfsUrl = arg('clfs');
 if (!rvuUrl || !clfsUrl) { console.error('usage: --year Y --rvu <zip url> --clfs <zip url>'); process.exit(2); }

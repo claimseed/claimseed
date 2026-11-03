@@ -1,0 +1,56 @@
+{
+ "note": "Header and title wording of the layout variants (0.5.0). base is today's wording, plus the itemized bill's new continued-group markers; alt-a and alt-b are alternative wordings. Each set replaces only these stock keys.",
+ "sets": {
+  "base": {
+   "claims.title": "Claim details",
+   "columns.date": "Date of service",
+   "columns.service": "Service",
+   "columns.code": "Billing code",
+   "columns.billed": "Provider billed",
+   "columns.approved": "Plan-approved amount",
+   "columns.planShare": "Plan's share",
+   "columns.yourShare": "Your share",
+   "columns.notes": "Notes",
+   "claims.claimLabel": "Claim number",
+   "claims.totalLabel": "Claim total",
+   "claims.continuedFrom": "continued from the previous page",
+   "claims.continuesOn": "This claim continues on the next page",
+   "claims.notesTitle": "Notes for the claims on this page",
+   "claims.pageContinues": "Claim details continue on the next page"
+  },
+  "alt-a": {
+   "claims.title": "Your claims in detail",
+   "columns.date": "Service date",
+   "columns.service": "Service provided",
+   "columns.code": "Service code",
+   "columns.billed": "Amount billed",
+   "columns.approved": "Approved amount",
+   "columns.planShare": "Amount the plan pays",
+   "columns.yourShare": "Amount you may owe",
+   "columns.notes": "See note",
+   "claims.claimLabel": "Claim ID",
+   "claims.totalLabel": "Total for claim",
+   "claims.continuedFrom": "continued from the page before",
+   "claims.continuesOn": "Continued on the next page",
+   "claims.notesTitle": "Explanation of notes on this page",
+   "claims.pageContinues": "More claims are listed on the next page"
+  },
+  "alt-b": {
+   "claims.title": "Claim information",
+   "columns.date": "Date of care",
+   "columns.service": "Description of service",
+   "columns.code": "Procedure code",
+   "columns.billed": "Billed by provider",
+   "columns.approved": "Amount the plan approved",
+   "columns.planShare": "Plan's portion",
+   "columns.yourShare": "Your portion",
+   "columns.notes": "Remarks",
+   "claims.claimLabel": "Claim reference",
+   "claims.totalLabel": "This claim's total",
+   "claims.continuedFrom": "carried over from the previous page",
+   "claims.continuesOn": "More of this claim on the next page",
+   "claims.notesTitle": "Notes about the claims above",
+   "claims.pageContinues": "See the next page for more claim details"
+  }
+ }
+}
