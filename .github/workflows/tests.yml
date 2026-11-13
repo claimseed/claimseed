@@ -1,0 +1,73 @@
+name: tests
+# The test suite and the rendered checks, split into parallel jobs, as both ci.yml and release.yml run them. The plan
+# job reads each test file's recorded seconds (test/render-budget.json) and the rendered checks' document lists, and
+# says how many shards and parts there are; every shard and part refuses to run unless its count is the plan's, and
+# takes its index from GitHub (strategy.job-index), so each test file and each document runs exactly once.
+# No `if:`, `continue-on-error` or `|| true` here: check-release-ready.js refuses them, so a publish cannot run past a
+# shard that did not pass.
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      shards: ${{ steps.plan.outputs.shards }}
+      parts: ${{ steps.plan.outputs.parts }}
+    steps:
+      # Actions pinned to commit SHAs (tag in the comment); bump deliberately, together with ci.yml and release.yml.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - id: plan
+        run: node packages/core/scripts/ci-plan.js
+  test:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with: { node-version: 22, cache: npm }
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
+      - run: npm ci
+      - name: test shard
+        run: node packages/core/scripts/test-with-render-log.js --shard "$((INDEX + 1))/$TOTAL"
+        env:
+          INDEX: ${{ strategy.job-index }}
+          TOTAL: ${{ strategy.job-total }}
+          CI: 'true'
+          CLAIMSEED_CHROME: /usr/bin/google-chrome   # preinstalled on ubuntu-latest runners
+  rendered:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        part: ${{ fromJSON(needs.plan.outputs.parts) }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with: { node-version: 22, cache: npm }
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
+      - run: npm ci
+      - name: rendered text of every scenario, variant and blind document (this part's share)
+        run: node packages/core/scripts/scan-rendered.js --seeds 2 --blind all --part "$((INDEX + 1))/$TOTAL"
+        env:
+          INDEX: ${{ strategy.job-index }}
+          TOTAL: ${{ strategy.job-total }}
+          CLAIMSEED_CHROME: /usr/bin/google-chrome
+      - name: examples against examples/manifest.json (this part's share, and the manifest and README)
+        run: node packages/core/scripts/examples.js --check --part "$((INDEX + 1))/$TOTAL"
+        env:
+          INDEX: ${{ strategy.job-index }}
+          TOTAL: ${{ strategy.job-total }}
+          CLAIMSEED_CHROME: /usr/bin/google-chrome

@@ -1,0 +1,32 @@
+{
+ "note": "The published set 'standard' (0.6.0): every document fixed here, so batch --set standard and the salt in its answer keys make the same set again. Each type's scenarios are taken with seeds set-1 to set-N; on a type with layout variants, seed i takes the base layout or a variant in turn (base, then the type's ids in order); every degradeEvery-th seed is a degraded copy, the presets in turn; the 835 is written beside every document of a type that has one. The same rotation for every scenario, so layout and preset say nothing about the scenario.",
+ "name": "standard",
+ "canaryGuid": "9a5d897f-77b4-496a-b5a4-2bf22a3a4995",
+ "seedPrefix": "set",
+ "types": [
+  {
+   "type": "msn",
+   "seeds": 20
+  },
+  {
+   "type": "itemized-bill",
+   "seeds": 50
+  },
+  {
+   "type": "ppo-eob",
+   "seeds": 32
+  },
+  {
+   "type": "hmo-eob",
+   "seeds": 32
+  }
+ ],
+ "degradeEvery": 5,
+ "presets": [
+  "scan",
+  "fax",
+  "photo",
+  "low-res"
+ ],
+ "remittance": true
+}

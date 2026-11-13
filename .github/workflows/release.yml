@@ -6,7 +6,8 @@ name: release
 # maintainer approves it on npmjs.com with two-factor authentication. Authentication is npm trusted publishing (OIDC:
 # no long-lived token exists), and every version carries a provenance statement that ties it to this workflow and
 # commit. The publish jobs install nothing from the registry but npm itself. The container image job is off unless
-# the repository variable PUBLISH_IMAGE is "true".
+# the repository variable PUBLISH_IMAGE is "true". The test shards and rendered parts are tests.yml, the same jobs CI
+# runs; every job after them needs both gates and tests.
 on:
   push:
     tags: ['v*']
@@ -18,12 +19,13 @@ concurrency:
 jobs:
   gates:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     outputs:
       packages: ${{ steps.versions.outputs.packages }}
     steps:
-      # Actions pinned to commit SHAs (tag in the comment); bump deliberately, together with ci.yml.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      # Actions pinned to commit SHAs (tag in the comment); bump deliberately, together with ci.yml and tests.yml.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with: { node-version: 22, cache: npm }
       - name: the tag names every package's version, and the packages depend on each other at that version
         id: versions
@@ -53,32 +55,25 @@ jobs:
         run: |
           git fetch --tags --force --quiet
           node packages/core/scripts/is-highest-version.js "${GITHUB_REF_NAME#v}" $(git tag -l 'v[0-9]*')
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
       - run: npm ci
       - run: npm run check
-      - run: npm test
-        env:
-          CI: 'true'
-          CLAIMSEED_CHROME: /usr/bin/google-chrome   # preinstalled on ubuntu-latest runners
-      - run: node packages/core/scripts/scan-rendered.js --seeds 2
-        env:
-          CLAIMSEED_CHROME: /usr/bin/google-chrome
-      - run: node packages/core/scripts/examples.js --check
-        env:
-          CLAIMSEED_CHROME: /usr/bin/google-chrome
       - run: node packages/core/scripts/check-release-ready.js
       - run: npm pack --workspaces --dry-run   # the file lists that will be published, in the log
+  tests:
+    # the test shards and the rendered parts, on the tagged commit (tests.yml)
+    uses: ./.github/workflows/tests.yml
   publish-core:
-    needs: gates
+    needs: [gates, tests]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment: npm
     permissions:
       contents: read
       id-token: write   # OIDC: npm trusted publishing and the provenance statement
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24, registry-url: 'https://registry.npmjs.org' }
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with: { node-version: 24, registry-url: 'https://registry.npmjs.org', package-manager-cache: false }   # never a cache in a publishing job
       - run: npm install -g npm@11.21.0   # staged publishing needs npm 11.15.0 or later, trusted publishing 11.5.1
       - name: stage @claimseed/core (a maintainer approves it on npmjs.com)
         working-directory: packages/core
@@ -92,17 +87,18 @@ jobs:
           npm stage publish --provenance --access public --tag "$tag"
   publish-mcp:
     # after core, so a re-run of a failed job never stages core twice; approve core first, then mcp (it pins core)
-    needs: [gates, publish-core]
+    needs: [gates, tests, publish-core]
     if: contains(fromJSON(needs.gates.outputs.packages), '@claimseed/mcp')
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment: npm
     permissions:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24, registry-url: 'https://registry.npmjs.org' }
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with: { node-version: 24, registry-url: 'https://registry.npmjs.org', package-manager-cache: false }   # never a cache in a publishing job
       - run: npm install -g npm@11.21.0
       - name: stage @claimseed/mcp (a maintainer approves it on npmjs.com)
         working-directory: packages/mcp
@@ -116,15 +112,16 @@ jobs:
           npm stage publish --provenance --access public --tag "$tag"
   image:
     # The MCP server image on GitHub Container Registry, built from the tagged commit and smoke-tested before the push.
-    needs: gates
+    needs: [gates, tests]
     if: vars.PUBLISH_IMAGE == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - name: build

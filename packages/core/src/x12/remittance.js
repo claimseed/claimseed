@@ -48,7 +48,7 @@ function personName(name) {
 // Build the 835 for a generated document. `generated` is generateData()'s result; returns { text, document, x12Refs }:
 // the file, its answer-key entry (documents[1]) and, per error index, where the error sits in the file (or null).
 export function buildRemittance({ type, scenario, seed, generated }) {
-  if (!REMITTANCE_TYPES.includes(type)) throw new Error(`remittance: no 835 for ${type}; types: ${REMITTANCE_TYPES.join(', ')}`);
+  if (!REMITTANCE_TYPES.includes(type)) throw new Error(`remittance: an 835 is written for ${REMITTANCE_TYPES.join(', ')} only`);
   const { data, groundTruth: gt } = generated;
   const rng = makeRng(seed, type, scenario, '835');
   const S = SPECIMEN_STRINGS; const sep = DELIMITERS.element; const end = DELIMITERS.segment;

@@ -93,6 +93,7 @@ test('scan-rendered and examples refuse an option without a value, a count of ze
   for (const [a, status, message] of [[['--seeds', ''], 2, /^--seeds needs a value\n$/], [['--seeds'], 2, /^--seeds needs a value\n$/], [['--seeds', '0'], 2, /^--seeds must be a whole number of at least 1\n$/],
     [['--seeds', 'two'], 2, /^--seeds must be a whole number of at least 1\n$/], [['--seeds', '1.5'], 2, /^--seeds must be a whole number of at least 1\n$/], [['--type', ''], 2, /^--type needs a value\n$/],
     [['--variants', ''], 2, /^--variants needs a value\n$/], [['--variants', 'some'], 2, /^--variants must be all or none\n$/],
+    [['--blind', ''], 2, /^--blind needs a value\n$/], [['--blind', 'some'], 2, /^--blind must be all or none\n$/],
     [['--seeds', '1', '--type', 'no-such-type'], 1, /^scan-rendered: the options select no documents, so nothing was scanned\n$/]]) {
     const r = script('scan-rendered.js', ...a);
     assert.equal(r.status, status, `scan-rendered ${JSON.stringify(a)}: exit ${r.status}`); assert.match(r.stderr, message, JSON.stringify(a)); assert.doesNotMatch(r.stdout, /ok/);

@@ -1,0 +1,52 @@
+{
+ "note": "Messages and descriptions of blind documents (0.6.0). Filled in by the code: {who} {id} {pages} {bytes} {first} {last} {next} {pdf} {dir}.",
+ "messages": {
+  "blindOption": "The `blind` option must be true or an object holding only a salt of 32 lowercase hexadecimal digits",
+  "needKeys": "{who}: a blind document written to a folder needs a separate folder for its answer key",
+  "keysOnlyBlind": "{who}: an answer-key folder is only for blind documents written to a folder",
+  "keysApart": "{who}: answer keys must go in a folder apart from the documents, not the same folder or one inside it",
+  "outDirText": "{who}: `outDir` must be a folder path given as text, a non-empty string of at most 4,096 characters with no NUL character",
+  "keysDirText": "{who}: `keysDir`, the folder for answer keys, must be a folder path given as text, a non-empty string of at most 4,096 characters with no NUL character"
+ },
+ "cli": {
+  "saltNeedsKeys": "`--blind-salt` can be used only with `--blind-keys`",
+  "saltFormat": "`--blind-salt` must be the 32 lowercase hexadecimal digits recorded in an answer key of the earlier set",
+  "wroteBlind": "Wrote {pdf} ({bytes} bytes), with its answer key in {dir}"
+ },
+ "mcp": {
+  "tool": {
+   "title": "Render blind document",
+   "descriptionWorkspace": "Renders a blind document: a synthetic medical-billing PDF whose footer, title and file names carry only an opaque id, so nothing in it tells a reader which errors were planted. The PDF, and the 835 remittance when asked for, are written to the workspace folder, named by the id. The result returns the id, the page images and the PDF's SHA-256, but never the answer key, the scenario or the seed. Call `get_answer_key` with the id to get the key.",
+   "descriptionInline": "Renders a blind document: a synthetic medical-billing PDF whose footer, title and file names carry only an opaque id, so nothing in it tells a reader which errors were planted. Nothing is saved: the page images, the 835 remittance when asked for and, with include_pdf, the PDF itself come back in the result. The result also returns the id and the PDF's SHA-256, but never the answer key, the scenario or the seed. Call `get_answer_key` with the id to get the key.",
+   "preset": "Optional preset for a degraded copy (scan, fax, photo or low-res), which has its own id.",
+   "also": "Set to `835` to also produce the X12 835 remittance of the same claims, named by the same id."
+  },
+  "keyTool": {
+   "title": "Get blind document answer key",
+   "description": "Returns the answer key of a blind document this server rendered, found by its id. Keys live only in the running server's memory, which holds the most recent 1,000, so save each key you need.",
+   "id": "The id that `render_blind` returned for the document."
+  },
+  "messages": {
+   "noKey": "This server session rendered no blind document with that id"
+  },
+  "rendered": "Rendered blind document {id}: {pages} page(s), {bytes} bytes",
+  "shown": "Pages {first} to {last} of {pages} are shown below as images",
+  "more": "To see the rest, call render_blind again with the same arguments and from_page {next}",
+  "noImages": "The page images could not be drawn; the document itself is fine",
+  "remittanceInline": "The 835 remittance is embedded in this result as text",
+  "pdfEmbedded": "The PDF is embedded in this result and no file was saved",
+  "nothingSaved": "No file was saved; include_pdf returns the PDF in the result",
+  "keyHint": "The answer key is not in this result; get_answer_key returns it for this id while the server runs"
+ },
+ "schema": {
+  "schema15": "Version 1.5 adds the `blind` object, and claimseed 0.6.0 writes 1.5 for every blind document, with or without a layout variant, and never for any other document.",
+  "blind": "Present only on a blind document, whose footer, PDF title and file names carry only an opaque id: the id, the salt and what the caller asked for.",
+  "blind.id": "The opaque id printed in the document's footer, PDF title and file names: doc- followed by 16 hexadecimal digits.",
+  "blind.salt": "The salt of the set, 32 lowercase hexadecimal digits; passing it again makes the same set.",
+  "blind.seed": "The seed as the caller asked for it, not the seed derived from the salt that the content was generated from.",
+  "blind.layoutVariant": "The layout variant as the caller asked for it, or null when none was asked for.",
+  "blind.copyOf": "On a degraded copy only, the id of the blind document it was copied from.",
+  "blind.set": "The name of the published set this document belongs to; present only on a document of a published set.",
+  "blind.canary": "A fixed string that marks claimseed answer keys, so that people who train models can find and leave them out, and people who test a model can check whether it has seen them; present only on a document of a published set."
+ }
+}

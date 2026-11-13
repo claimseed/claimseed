@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // examples.js — the example set: one document per published scenario, and one per layout variant id (on the type's
 // published scenarios in turn), rendered with the seed "example".
-//   node scripts/examples.js --check          render every example and compare it with examples/manifest.json (CI)
+//   node scripts/examples.js --check          render every example and compare it with examples/manifest.json
+//   node scripts/examples.js --check --part i/m   (CI) the examples whose index is i - 1 modulo m, compared the same
+//                                             way; every part also checks the manifest's entries and the README
 //   node scripts/examples.js --update         rewrite examples/manifest.json and examples/README.md
 //   node scripts/examples.js --out DIR        also write the PDFs and ground truth to DIR (release assets)
 //   node scripts/examples.js --words DIR      also write each example's page words, as hashed, to DIR (to compare runs)
@@ -15,11 +17,14 @@
 import fs from 'fs'; import os from 'os'; import path from 'path'; import crypto from 'crypto'; import { spawnSync } from 'child_process';
 import { repoRoot } from './lib/repo-root.js';
 import { pdfWords } from './lib/provenance.js';
-import { render, listScenarios, loadScenario, launchBrowser, RENDERERS, REMITTANCE_TYPES, variantIds, resolveVariant } from '../src/index.js';
+import { render, loadScenario, launchBrowser, REMITTANCE_TYPES, resolveVariant } from '../src/index.js';
+import { exampleJobs, ciPartCount, EXAMPLE_SEED } from './lib/rendered-plan.js';
+import { parseIndex, partOf, partTooSlow, DOC_SECONDS, DRIFT } from './lib/test-plan.js';
+import { compareExamples } from './lib/examples-check.js';
 
 const ROOT = repoRoot();
 const DIR = path.join(ROOT, 'examples');
-const SEED = 'example';
+const SEED = EXAMPLE_SEED;
 const args = process.argv.slice(2);
 const mode = args.includes('--update') ? 'update' : 'check';
 // a folder option without a value (missing, empty or another option) is refused, not read as the current folder
@@ -29,6 +34,17 @@ const folder = (name) => {
   return path.resolve(v);
 };
 const outDir = folder('--out'); const wordsDir = folder('--words');
+// --part i/m: with --check only; m must be the plan's count (scripts/lib/rendered-plan.js)
+let part = null;
+{
+  const i = args.indexOf('--part');
+  if (i >= 0) {
+    part = parseIndex(args[i + 1]);
+    if (!part) { console.error('--part takes i/m, whole numbers with 1 <= i <= m'); process.exit(2); }
+    if (mode !== 'check' || outDir || wordsDir) { console.error('--part runs with --check only'); process.exit(2); }
+    const m = ciPartCount(); if (part.n !== m) { console.error(`--part: the plan has ${m} part(s), not ${part.n}; the CI matrix must come from ci-plan.js`); process.exit(2); }
+  }
+}
 const sha = (b) => crypto.createHash('sha256').update(b).digest('hex');
 
 export function textHash(pdfPath) {
@@ -42,12 +58,10 @@ export function groundTruthHash(gt) {
   return sha(JSON.stringify(g));
 }
 
-const examples = [];
-const published = (type) => listScenarios(type).filter((s) => loadScenario(type, s).status === 'published');
-for (const type of Object.keys(RENDERERS)) for (const scenario of published(type)) examples.push({ type, scenario, seed: SEED });
-// one example per layout variant id: id i takes the type's published scenarios in turn
-for (const type of Object.keys(RENDERERS)) variantIds(type).forEach((id, i) => examples.push({ type, scenario: published(type)[i % published(type).length], seed: SEED, layoutVariant: id }));
-// (the test in test/ma-errors.test.js holds the counts: 34 scenario examples and 36 variant examples)
+// one per published scenario, then one per layout variant id on the type's published scenarios in turn
+// (scripts/lib/rendered-plan.js; the test in test/ma-errors.test.js holds the counts: 34 scenario examples and 36 variant examples)
+const examples = exampleJobs();
+const mine = part ? partOf(examples, part.i, part.n) : examples;
 const stem = (e) => `${e.type}_${e.scenario}_${e.seed}${e.layoutVariant ? `.${e.layoutVariant}` : ''}`;
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'claimseed-examples-'));
 if (outDir) fs.mkdirSync(outDir, { recursive: true });
@@ -56,8 +70,9 @@ const browser = await launchBrowser();
 const poppler = spawnSync('pdftotext', ['-v'], { encoding: 'utf-8' });
 const environment = { chrome: await browser.version(), poppler: `${poppler.stderr || poppler.stdout || ''}`.split('\n')[0].trim(), platform: `${process.platform}-${process.arch}` };
 const results = [];
+const started = Date.now();
 try {
-  for (const ex of examples) {
+  for (const ex of mine) {
     // MSN and Medicare Advantage examples also carry their 835, compared byte for byte (it is plain text)
     const { bytes, groundTruth, remittance } = await render({ ...ex, browser, also: REMITTANCE_TYPES.includes(ex.type) ? '835' : null });
     const name = stem(ex);
@@ -79,27 +94,20 @@ if (mode === 'update') {
   console.log(`examples: wrote ${results.length} entries to examples/manifest.json and examples/README.md`);
 } else {
   const recorded = fs.existsSync(manifestPath) ? JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) : {};
-  const want = recorded.examples || [];
-  const key = (e) => `${e.type}/${e.scenario}/${e.seed}${e.layoutVariant ? `.${e.layoutVariant}` : ''}`;
-  const byKey = new Map(want.map((e) => [key(e), e]));
-  const bad = [];
-  for (const r of results) {
-    const w = byKey.get(key(r)); byKey.delete(key(r));
-    if (!w) { bad.push(`${key(r)}: not in the manifest`); continue; }
-    for (const f of ['pages', 'textSha256', 'groundTruthSha256', 'remittanceSha256']) if ((w[f] ?? null) !== r[f]) bad.push(`${key(r)}: ${f} ${w[f]} -> ${r[f]}`);
-    if (w.errors.join() !== r.errors.join()) bad.push(`${key(r)}: errors ${w.errors.join(',')} -> ${r.errors.join(',')}`);
-    if ((w.decoys || []).join() !== r.decoys.join()) bad.push(`${key(r)}: decoys ${(w.decoys || []).join(',')} -> ${r.decoys.join(',')}`);
-  }
-  for (const k of byKey.keys()) bad.push(`${k}: in the manifest but no longer published`);
   const readmeNow = fs.existsSync(path.join(DIR, 'README.md')) ? fs.readFileSync(path.join(DIR, 'README.md'), 'utf-8') : '';
-  if (readmeNow !== readme(results)) bad.push('examples/README.md is out of date');
+  const bad = compareExamples({ examples, results, recorded: recorded.examples || [], readmeNow, readme, whole: !part });
+  const took = (Date.now() - started) / 1000;
+  if (part) {
+    console.log(`examples: part ${part.i}/${part.n}: ${mine.length} of ${examples.length} examples in ${took.toFixed(0)} s (${(took / Math.max(1, mine.length)).toFixed(1)} s each; planned ${DOC_SECONDS})`);
+    if (partTooSlow(took, mine.length)) console.log(`examples: note: part ${part.i}/${part.n} took ${took.toFixed(0)} s, over ${(mine.length * DOC_SECONDS * DRIFT.factor).toFixed(0)} s (${mine.length} examples at ${DOC_SECONDS} s, times ${DRIFT.factor})`);
+  }
   if (bad.length) {
     const env = (e) => (e ? `Chrome ${e.chrome}, ${e.poppler}, ${e.platform}` : 'not recorded');
     const other = JSON.stringify(recorded.environment) !== JSON.stringify(environment)
       ? `\n  The hashes were recorded with ${env(recorded.environment)}; this run used ${env(environment)}. pdftotext can read the same page as\n  different words under another Chrome, Poppler or platform: compare word lists (--words DIR) with a run in the recorded\n  environment before treating a text-hash difference as a change.` : '';
     console.error(`examples: ${bad.length} difference(s); if intended, run node packages/core/scripts/examples.js --update\n  ${bad.join('\n  ')}${other}`); process.exit(1);
   }
-  console.log(`examples: ok (${results.length} examples match examples/manifest.json)`);
+  console.log(`examples: ok (${results.length} examples${part ? ` of ${examples.length}, part ${part.i}/${part.n},` : ''} match examples/manifest.json)`);
 }
 
 function readme(rs) {

@@ -25,8 +25,13 @@ Every commit carries a `Signed-off-by:` line (`git commit -s`) certifying the
 - [ ] No real names, identifiers, phone numbers outside `555-01xx` with a geographic area code, NPIs outside the `9` prefix
 - [ ] New scenario has `sources`; new layout has a `LINEAGE.md` saying what public document it follows
 - [ ] `npm test` and `npm run check` pass
-- [ ] A test that adds renders updates its workspace's `test/render-budget.json` (`npm test` counts the stamped PDFs it
-  makes and fails on a mismatch; both workspaces together stay within 300 documents and 50 degraded copies)
+- [ ] If your change adds or removes stamped PDFs, or adds, removes or renames a test file, edit that file's entry in
+  the workspace's `test/render-budget.json` by hand (a new test file gets a new entry), then refresh the recorded
+  seconds with `node packages/core/scripts/test-with-render-log.js --record`, which runs every test file and never
+  changes counts. `npm test` fails when a file's counts differ from its entry, when a test file has no entry, or when
+  an entry names a file that no longer exists. A test file over 600 recorded seconds is refused and one over 300
+  should be split into two files, and across both workspaces the budgets must stay within 600 rendered documents and
+  100 degraded copies.
 - [ ] A change to a standard layout's HTML is recorded on purpose in `packages/core/test/fixtures/html-guard.json` (run
   the core tests with `CLAIMSEED_WRITE_HTML_GUARD=1`); variant wording lives in `data/<type>/labels.json` and, like
   all printed text, must be public or a reviewed original
