@@ -25,11 +25,11 @@ after(async () => { await c.close(); fs.rmSync(workspace, { recursive: true, for
 const call = (name, args) => c.callTool({ name, arguments: args });
 const refused = (r, where) => { assert.equal(r.isError, true, `${where}: accepted`); const t = JSON.stringify(r.content); assert.ok(!t.includes(SEC), `${where}: echoed`); return r.content[0].text; };
 
-test('layout_variant is declared on exactly the four tools that make or score a document, with the published text', async () => {
+test('layout_variant is declared on exactly the five tools that make or score a document, with the published text', async () => {
   const { tools } = await c.listTools();
   for (const t of tools) {
     const has = 'layout_variant' in (t.inputSchema.properties || {});
-    assert.equal(has, ['generate_data', 'render_document', 'degrade_document', 'verify_document'].includes(t.name), t.name);
+    assert.equal(has, ['generate_data', 'render_document', 'degrade_document', 'render_blind', 'verify_document'].includes(t.name), t.name);
     if (!has) continue;
     const p = t.inputSchema.properties.layout_variant;
     assert.equal(p.type, 'string'); assert.equal(p.maxLength, 64); assert.equal(p.description, VARIANT_STRINGS.developer.mcpLayoutVariant);
@@ -63,7 +63,7 @@ test('every refusal of a variant: the published message on every tool, nothing e
     ['ppo-eob', 'all', M.variantAllHere], ['ppo-eob', '', M.variantEmpty], ['msn', 'p01', M.variantMsn], ['msn', 'seeded', M.variantMsn],
     ['ppo-eob', `${SEC}${'x'.repeat(60)}`, null],
   ];
-  for (const tool of ['generate_data', 'render_document', 'degrade_document', 'verify_document']) {
+  for (const tool of ['generate_data', 'render_document', 'degrade_document', 'render_blind', 'verify_document']) {
     for (const [type, lv, msg] of cases) {
       const t = refused(await call(tool, { type, scenario: 'baseline-clean', seed: 'mv-3', layout_variant: lv, ...(extra[tool] || {}) }), `${tool} ${type} ${lv.length}`);
       if (msg) assert.ok(t.endsWith(msg), `${tool}: ${t}`);
@@ -78,6 +78,7 @@ test('strict arguments: every tool refuses an argument it does not declare, nami
     list_document_types: {}, describe_document_type: { type: 'msn' }, generate_data: { type: 'msn', scenario: 'baseline-clean' },
     render_document: { type: 'msn', scenario: 'baseline-clean' }, degrade_document: { type: 'msn', scenario: 'baseline-clean', preset: 'scan' },
     verify_document: { type: 'msn', scenario: 'baseline-clean', output: { fields: {} } },
+    render_blind: { type: 'msn', scenario: 'baseline-clean', seed: 'mv-5' }, get_answer_key: { id: 'doc-0123456789abcdef' },
   };
   const { tools } = await c.listTools();
   assert.deepEqual(Object.keys(valid).sort(), tools.map((t) => t.name).sort());

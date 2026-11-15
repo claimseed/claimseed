@@ -9,11 +9,13 @@ import fs from 'fs'; import os from 'os'; import path from 'path'; import crypto
 import { PDFDocument } from 'pdf-lib';
 import { makeRng } from './generate/rng.js';
 import { scalarText } from './scalar-text.js';
+import { blindCopyId, blindMessage, blindSalt } from './blind.js';
 import { finalizePdf, watermarkCells } from './render.js';
 import { withPdfPage, degradePage, drawPage } from './pdf-raster.js';
 import { markImage } from './image-markers.js';
+import { PRESETS } from './presets.js';
+export { PRESETS };
 
-export const PRESETS = ['scan', 'fax', 'photo', 'low-res'];
 const r2 = (v) => Math.round(v * 100) / 100; const r3 = (v) => Math.round(v * 1000) / 1000;
 const between = (rng, lo, hi) => lo + rng() * (hi - lo);
 
@@ -97,12 +99,17 @@ export async function degradePdf(browser, bytes, { preset, params, label = null,
 // A degraded copy of a document already rendered with render(): { bytes, groundTruth, images }, with the answer key
 // of the copy (degradation, degradationParams and the copy's SHA-256; the fields are unchanged, since the copy shows
 // the same values).
+// A copy of a blind document is blind too: its settings come from the document's own (salted) seed, and its band, title
+// and image markers name the copy's id only (blind.js).
 export async function degradeRendered(browser, { type, scenario, seed, preset, clean, pageImages = true }) {
-  const params = degradationParams(preset, { type, scenario, seed });
+  const blind = clean.groundTruth.blind || null;
+  const params = degradationParams(preset, { type, scenario, seed: blind ? clean.groundTruth.seed : seed });
   const layout = clean.groundTruth.documents[0].layout || type;   // the type, or <type>.<id> for a layout variant
-  const label = `${layout} / ${scenario} / seed ${seed}`;
-  const { pdf, images } = await degradePdf(browser, clean.bytes, { preset, params, label, title: `claimseed specimen - ${layout} ${scenario} seed=${seed} (${preset} copy)`, pageImages });
+  const id = blind ? blindCopyId(blind.salt, blind.id, preset) : null;
+  const label = blind ? id : `${layout} / ${scenario} / seed ${seed}`;
+  const { pdf, images } = await degradePdf(browser, clean.bytes, { preset, params, label, title: blind ? `claimseed specimen - ${id}` : `claimseed specimen - ${layout} ${scenario} seed=${seed} (${preset} copy)`, pageImages });
   const groundTruth = JSON.parse(JSON.stringify(clean.groundTruth)); const doc = groundTruth.documents[0];
+  if (blind) groundTruth.blind = { ...blind, id, copyOf: blind.id };
   doc.degradation = preset; doc.degradationParams = params;
   doc.sha256 = crypto.createHash('sha256').update(pdf).digest('hex');
   return { bytes: pdf, groundTruth, images };
@@ -111,24 +118,32 @@ export async function degradeRendered(browser, { type, scenario, seed, preset, c
 // Render a document and a degraded copy of it. Returns { pdf, groundTruth, bytes, images, files }. With outDir, writes
 // <type>_<scenario>_<seed>_<preset>.pdf, its .ground-truth.json and one image per page (_p<N>.jpg, or .png for a
 // fax), each created exclusively.
-export async function renderDegraded({ type, scenario, seed = 'claimseed', preset, outDir = null, browser = null, pageImages = true, also = null, layoutVariant = null }) {
+export async function renderDegraded({ type, scenario, seed = 'claimseed', preset, outDir = null, browser = null, pageImages = true, also = null, layoutVariant = null, blind = false, keysDir = null }) {
   if (!PRESETS.includes(preset)) throw new Error(`degrade: no such preset; presets: ${PRESETS.join(', ')}`);
-  const { render } = await import('./index.js');
+  const { render, checkRender, keysApart } = await import('./index.js');
   const { launchBrowser } = await import('./browser.js');
+  // everything render would refuse, and the blind option, is refused before any folder is made
+  checkRender({ type, scenario, seed, also, layoutVariant, outDir, keysDir }, 'degrade');
+  if (blind !== false) blindSalt(blind);
+  if (blind !== false && outDir && !keysDir) throw new Error(blindMessage('needKeys', 'degrade'));
+  if (keysDir !== null && (blind === false || !outDir)) throw new Error(blindMessage('keysOnlyBlind', 'degrade'));
+  if (blind !== false && outDir) keysApart(outDir, keysDir, 'degrade');
   const own = !browser; const b = browser || await launchBrowser();
   try {
-    const clean = await render({ type, scenario, seed, browser: b, also, layoutVariant });
+    const clean = await render({ type, scenario, seed, browser: b, also, layoutVariant, blind });
     const id = clean.groundTruth.documents[0].layoutVariant?.id;   // a variant names its files: <stem>.<id>_<preset>
     const { bytes, groundTruth, images } = await degradeRendered(b, { type, scenario, seed, preset, clean, pageImages });
     const files = [];
+    const copyId = groundTruth.blind?.id || null;   // a blind copy is named by its id, its key written to keysDir
     if (outDir) {
       fs.mkdirSync(outDir, { recursive: true });
-      const base = path.join(outDir, `${type}_${scenario}_${seed}${id ? `.${id}` : ''}_${preset}`);
+      const base = path.join(outDir, copyId || `${type}_${scenario}_${seed}${id ? `.${id}` : ''}_${preset}`);
       fs.writeFileSync(base + '.pdf', bytes, { flag: 'wx' }); files.push(base + '.pdf');
-      fs.writeFileSync(base + '.ground-truth.json', JSON.stringify(groundTruth, null, 2), { flag: 'wx' }); files.push(base + '.ground-truth.json');
+      const key = copyId ? path.join(keysDir, `${copyId}.ground-truth.json`) : base + '.ground-truth.json';
+      fs.writeFileSync(key, JSON.stringify(groundTruth, null, 2), { flag: 'wx' }); files.push(key);
       for (const i of images) { const f = `${base}_p${i.page}.${i.mimeType === 'image/png' ? 'png' : 'jpg'}`; fs.writeFileSync(f, i.data, { flag: 'wx' }); files.push(f); }
       if (clean.remittance !== null) { fs.writeFileSync(base + '.835', clean.remittance, { flag: 'wx' }); files.push(base + '.835'); }
     }
-    return { pdf: outDir ? files[0] : null, groundTruth, bytes, images, files, remittance: clean.remittance };
+    return { pdf: outDir ? files[0] : null, groundTruth, bytes, images, files, remittance: clean.remittance, ...(copyId ? { id: copyId } : {}) };
   } finally { if (own) await b.close(); }
 }

@@ -18,13 +18,74 @@
         "1.1",
         "1.2",
         "1.3",
-        "1.4"
+        "1.4",
+        "1.5"
       ],
-      "description": "1.1 adds decoys and, on errors, relatedLineRef and relatedFieldRef (claimseed 0.3.0). 1.2 adds degradationParams on documents (no published claimseed release writes 1.2). 1.3 adds the patient's share in its parts on each claim line (coinsurance, copay, nonCovered, with toDeductible), deductibleMetBefore, the X12 835 remittance as a document (format x12, transactions, payer) and x12Ref on errors (claimseed 0.4.0 and later write 1.3). 1.4 adds documents[0].layoutVariant ({ id, columns, labels, style, breaks }) and a documents[0].layout of the form <type>.<id> (claimseed 0.5.0 and later write 1.4 only for a document rendered with a layout variant and still write 1.3 for every other document)."
+      "description": "1.1 adds decoys and, on errors, relatedLineRef and relatedFieldRef (claimseed 0.3.0). 1.2 adds degradationParams on documents (no published claimseed release writes 1.2). 1.3 adds the patient's share in its parts on each claim line (coinsurance, copay, nonCovered, with toDeductible), deductibleMetBefore, the X12 835 remittance as a document (format x12, transactions, payer) and x12Ref on errors (claimseed 0.4.0 and later write 1.3). 1.4 adds documents[0].layoutVariant ({ id, columns, labels, style, breaks }) and a documents[0].layout of the form <type>.<id> (claimseed 0.5.0 and later write 1.4 only for a document rendered with a layout variant and still write 1.3 for every other document). Version 1.5 adds the `blind` object, and claimseed 0.6.0 writes 1.5 for every blind document, with or without a layout variant, and never for any other document."
     },
     "seed": {
       "type": "string",
       "description": "The seed every value was derived from; same seed + same version = same output."
+    },
+    "blind": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "salt",
+        "seed",
+        "layoutVariant"
+      ],
+      "description": "Present only on a blind document, whose footer, PDF title and file names carry only an opaque id: the id, the salt and what the caller asked for.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^doc-[0-9a-f]{16}$",
+          "description": "The opaque id printed in the document's footer, PDF title and file names: doc- followed by 16 hexadecimal digits."
+        },
+        "salt": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$",
+          "description": "The salt of the set, 32 lowercase hexadecimal digits; passing it again makes the same set."
+        },
+        "seed": {
+          "type": "string",
+          "description": "The seed as the caller asked for it, not the seed derived from the salt that the content was generated from."
+        },
+        "layoutVariant": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The layout variant as the caller asked for it, or null when none was asked for."
+        },
+        "copyOf": {
+          "type": "string",
+          "pattern": "^doc-[0-9a-f]{16}$",
+          "description": "On a degraded copy only, the id of the blind document it was copied from."
+        },
+        "set": {
+          "type": "string",
+          "enum": [
+            "standard"
+          ],
+          "description": "The name of the published set this document belongs to; present only on a document of a published set."
+        },
+        "canary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "A fixed string that marks claimseed answer keys, so that people who train models can find and leave them out, and people who test a model can check whether it has seen them; present only on a document of a published set."
+        }
+      },
+      "dependentRequired": {
+        "set": [
+          "canary"
+        ],
+        "canary": [
+          "set"
+        ]
+      }
     },
     "scenario": {
       "type": "string",
@@ -268,7 +329,43 @@
               "pattern": "^[a-z-]+\\.[a-z0-9-]+$"
             }
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "layout": {
+                  "pattern": "^[a-z0-9-]+\\.[a-z0-9]+$"
+                }
+              },
+              "required": [
+                "layout"
+              ]
+            },
+            "then": {
+              "required": [
+                "layoutVariant"
+              ]
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "layoutVariant"
+              ]
+            },
+            "then": {
+              "required": [
+                "layout"
+              ],
+              "properties": {
+                "layout": {
+                  "pattern": "^[a-z0-9-]+\\.[a-z0-9]+$"
+                }
+              }
+            }
+          }
+        ]
       }
     },
     "errors": {
@@ -660,7 +757,8 @@
           "schemaVersion": {
             "enum": [
               "1.3",
-              "1.4"
+              "1.4",
+              "1.5"
             ]
           }
         },
@@ -742,6 +840,161 @@
                   "layoutVariant"
                 ]
               }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": "1.5"
+          }
+        },
+        "required": [
+          "schemaVersion"
+        ]
+      },
+      "then": {
+        "required": [
+          "blind"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "enum": [
+              "1.0",
+              "1.1",
+              "1.2",
+              "1.3",
+              "1.4"
+            ]
+          }
+        },
+        "required": [
+          "schemaVersion"
+        ]
+      },
+      "then": {
+        "not": {
+          "required": [
+            "blind"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": "1.5"
+          },
+          "blind": {
+            "properties": {
+              "layoutVariant": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "layoutVariant"
+            ]
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "blind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "documents": {
+            "contains": {
+              "required": [
+                "layoutVariant"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": "1.5"
+          },
+          "blind": {
+            "properties": {
+              "layoutVariant": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "layoutVariant"
+            ]
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "blind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "documents": {
+            "items": {
+              "not": {
+                "required": [
+                  "layoutVariant"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "blind"
+        ],
+        "properties": {
+          "documents": {
+            "prefixItems": [
+              {
+                "required": [
+                  "degradation"
+                ],
+                "properties": {
+                  "degradation": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "blind": {
+            "required": [
+              "copyOf"
+            ]
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "blind": {
+            "not": {
+              "required": [
+                "copyOf"
+              ]
             }
           }
         }

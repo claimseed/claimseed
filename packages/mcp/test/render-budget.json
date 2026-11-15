@@ -1,1 +1,14 @@
-{"note": "Stamped PDFs npm test makes in this workspace (scripts/test-with-render-log.js); a change must be recorded here", "render": 31, "degraded": 2, "single": 0}
+{
+ "note": "One entry per test file: the stamped PDFs it makes, its subprocesses included (render, degraded, single: edited by hand with the change that makes them, checked on every run), and its seconds on the reference machine, run alone (the planning weight, rewritten by scripts/test-with-render-log.js --record)",
+ "reference": "2 x Intel(R) Xeon(R) Processor @ 2.10GHz, node 22",
+ "files": {
+  "blind.test.js": { "render": 5, "degraded": 1, "single": 0, "seconds": 21 },
+  "limits.test.js": { "render": 0, "degraded": 0, "single": 0, "seconds": 1 },
+  "preview.test.js": { "render": 6, "degraded": 0, "single": 0, "seconds": 25 },
+  "resources.test.js": { "render": 0, "degraded": 0, "single": 0, "seconds": 1 },
+  "server.test.js": { "render": 21, "degraded": 1, "single": 0, "seconds": 78 },
+  "variants.test.js": { "render": 2, "degraded": 1, "single": 0, "seconds": 9 },
+  "view.test.js": { "render": 2, "degraded": 0, "single": 0, "seconds": 9 },
+  "workspace.test.js": { "render": 0, "degraded": 0, "single": 0, "seconds": 1 }
+ }
+}

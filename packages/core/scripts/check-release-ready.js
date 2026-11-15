@@ -58,6 +58,9 @@ export function releaseWorkflowProblems(text) {
   });
   return out;
 }
+// the CI and release workflows' rules (scripts/lib/workflow-rules.js), re-exported for the tests
+export { workflowProblems, workflowJobs, lexWorkflow, workflowSha256, WORKFLOW_SHA256, folderProblems } from './lib/workflow-rules.js';
+import { workflowProblems, folderProblems } from './lib/workflow-rules.js';
 // the top-level data files (packages/core/data/<name>) whose names appear as string literals in the source
 export function dataFilesNamed(core) {
   const names = fs.readdirSync(path.join(core, 'data'), { withFileTypes: true }).filter((e) => e.isFile()).map((e) => e.name);
@@ -72,6 +75,9 @@ if (!isMain) { /* imported by a test: the checks below run only as a script */ }
   try { ({ RENDERERS } = await import('../src/layouts.js')); } catch (e) { console.error(`the layouts do not load from this checkout: ${String(e.message).split('\n')[0]}`); bad++; }
   const pkg = JSON.parse(fs.readFileSync(path.join(core, 'package.json'), 'utf-8'));
   for (const m of releaseWorkflowProblems(fs.readFileSync(path.join(ROOT, '.github/workflows/release.yml'), 'utf-8'))) { console.error(m); bad++; }
+  { const dir = path.join(ROOT, '.github/workflows'); const names = fs.readdirSync(dir).sort();
+    for (const m of folderProblems(names)) { console.error(m); bad++; }
+    const wf = (f) => fs.readFileSync(path.join(dir, f), 'utf-8'); for (const m of workflowProblems({ ci: wf('ci.yml'), tests: wf('tests.yml'), release: wf('release.yml') })) { console.error(m); bad++; } }
   for (const m of packagingProblems({ files: pkg.files, dockerignore: fs.readFileSync(path.join(ROOT, '.dockerignore'), 'utf-8'), types: Object.keys(RENDERERS), dataFiles: dataFilesNamed(core) })) { console.error(m); bad++; }
 }
 // The package as npm would publish it must load, generate every document type and an 835, and print every template

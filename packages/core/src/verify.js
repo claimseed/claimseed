@@ -4,6 +4,8 @@
 // kinds and decoy ids, never text the caller sent, so it is safe to hand back to an agent.
 import { generateData } from './generate/index.js';
 import { scalarText } from './scalar-text.js';
+import { PRESETS } from './presets.js';
+import { SET_STRINGS } from './set.js';
 
 export const LIMITS = Object.freeze({ fields: 5000, errors: 1000, pathLength: 200, valueLength: 1000, kindLength: 64, listed: 500 });
 // Known only once a PDF exists (the page count), so not scored when the key is rebuilt from a seed.
@@ -144,6 +146,55 @@ export function scoreExtraction(answerKey, output) {
       missedRefs: listed(expected.filter((_, j) => !matched.has(j)).map((e) => `${e.kind}@${ref(e)}`)), byKind };
   }
   return result;
+}
+
+// The scores of a set. rows: one per document of the manifest, { document, type, degradation, key, output } where
+// output is the checked report, or undefined when the report is missing (missing: true) or invalid (problem). The
+// headline counts every document: a missing or invalid report scores as an empty one, and so does a part a report
+// leaves out once any report of the set gives that part (both parts when no report gives either), so skipping a hard
+// document never raises field accuracy or error recall. Precision counts only what was flagged, so it is read beside
+// recall. The figures over the reports that could be scored stay beside it (scoredOnly), with breakdowns by document
+// type, by degraded preset ("clean" for none) and by error kind.
+const sum = (rs, part, k) => rs.reduce((n, r) => n + (r[part]?.[k] || (Array.isArray(r[part]?.[k]) ? r[part][k].length : 0)), 0);
+const fieldTotals = (rs) => ({ expected: sum(rs, 'fields', 'expected'), correct: sum(rs, 'fields', 'correct'), accuracy: rate(sum(rs, 'fields', 'correct'), sum(rs, 'fields', 'expected')) });
+const errorTotals = (rs) => ({ expected: sum(rs, 'errors', 'expected'), found: sum(rs, 'errors', 'found'), falseAlarms: sum(rs, 'errors', 'falseAlarms'),
+  decoysFlagged: rs.reduce((n, r) => n + (r.errors?.decoysFlagged.length || 0), 0),
+  recall: rate(sum(rs, 'errors', 'found'), sum(rs, 'errors', 'expected')),
+  precision: rate(sum(rs, 'errors', 'found'), sum(rs, 'errors', 'flagged') - sum(rs, 'errors', 'repeats')) });
+export function summarizeSet(rows) {
+  // the groups are named by a row's type and degradation: text (a preset or none), never an object that two groups
+  // could share a name through, or whose conversion could run
+  if (rows.some((r) => typeof r.type !== 'string' || !(r.degradation === null || r.degradation === undefined || PRESETS.includes(r.degradation)))) throw new Error(SET_STRINGS.messages.scoreRows);
+  const answered = rows.filter((r) => r.output !== undefined);
+  // a part counts where some report gives it; when none gives either (no report could be scored, or every one was
+  // empty), both count, so that an empty report never takes the expected fields and errors out of the headline
+  const gives = { fields: answered.some((r) => r.output.fields !== undefined), errors: answered.some((r) => r.output.errors !== undefined) };
+  const uses = gives.fields || gives.errors ? gives : { fields: true, errors: true };
+  const results = answered.map((r) => ({ document: r.document, ...scoreExtraction(r.key, r.output) }));
+  const filled = rows.map((r) => {
+    const out = {};
+    if (uses.fields) out.fields = r.output?.fields ?? {};
+    if (uses.errors) out.errors = r.output?.errors ?? [];
+    return { row: r, score: scoreExtraction(r.key, out) };
+  });
+  // counted in Maps and returned as own properties: a type, preset or kind never reaches an object's prototype
+  const by = (keyOf) => {
+    const m = new Map();
+    for (const f of filled) { const k = keyOf(f.row); if (!m.has(k)) m.set(k, []); m.get(k).push(f.score); }
+    return Object.fromEntries([...m].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, rs]) => [k, { documents: rs.length, fields: fieldTotals(rs), errors: errorTotals(rs) }]));
+  };
+  const kinds = new Map();
+  for (const f of filled) for (const [kind, b] of Object.entries(f.score.errors?.byKind || {})) {
+    const t = kinds.get(kind) ?? { expected: 0, found: 0 }; t.expected += b.expected; t.found += b.found; kinds.set(kind, t);
+  }
+  const scores = filled.map((f) => f.score);
+  return { documents: rows.length, scored: results.length, missingOutputs: rows.filter((r) => r.missing).length,
+    invalidOutputs: rows.filter((r) => r.problem !== undefined).map((r) => ({ document: r.document, problem: r.problem })),
+    fields: fieldTotals(scores), errors: errorTotals(scores),
+    scoredOnly: { fields: fieldTotals(results), errors: errorTotals(results) },
+    byType: by((r) => r.type), byDegradation: by((r) => r.degradation ?? 'clean'),
+    byKind: Object.fromEntries([...kinds].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, v]) => [k, { ...v, recall: rate(v.found, v.expected) }])),
+    documentsScored: results };
 }
 
 // Rebuild the answer key from the seed with this version of claimseed, then score. A key rebuilt by a different

@@ -22,7 +22,7 @@ await client.connect(new StdioClientTransport({ command, args, env: process.env,
 try {
   const { tools } = await client.listTools();
   const names = tools.map((t) => t.name).sort().join(',');
-  if (names !== 'degrade_document,describe_document_type,generate_data,list_document_types,render_document,verify_document') throw new Error(`unexpected tools: ${names}`);
+  if (names !== 'degrade_document,describe_document_type,generate_data,get_answer_key,list_document_types,render_blind,render_document,verify_document') throw new Error(`unexpected tools: ${names}`);
   const r = await client.callTool({ name: 'render_document', arguments: { type: 'msn', scenario: 'duplicate-office-visit', seed: 'smoke-1', also: '835' } }, undefined, { timeout: 120000 });
   if (r.isError) throw new Error(`render_document failed: ${r.content?.[0]?.text}`);
   const out = r.structuredContent;
