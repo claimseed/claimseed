@@ -32,14 +32,14 @@ let s;
 before(async () => { s = await connect(); });
 after(async () => { await s.close(); });
 
-test('the server offers exactly the six documented tools, each with an input schema and honest hints', async () => {
+test('the server offers exactly the eight documented tools, each with an input schema and honest hints', async () => {
   const { tools } = await s.client.listTools();
-  assert.deepEqual(tools.map((t) => t.name).sort(), ['degrade_document', 'describe_document_type', 'generate_data', 'list_document_types', 'render_document', 'verify_document']);
+  assert.deepEqual(tools.map((t) => t.name).sort(), ['degrade_document', 'describe_document_type', 'generate_data', 'get_answer_key', 'list_document_types', 'render_blind', 'render_document', 'verify_document']);
   for (const t of tools) {
     assert.equal(t.inputSchema.type, 'object', t.name);
     assert.ok(t.outputSchema, `${t.name}: output schema`);
     assert.equal(t.annotations.openWorldHint, false, `${t.name}: never reaches outside the machine`);
-    assert.equal(t.annotations.readOnlyHint, !['render_document', 'degrade_document'].includes(t.name), t.name);
+    assert.equal(t.annotations.readOnlyHint, !['render_document', 'degrade_document', 'render_blind'].includes(t.name), t.name);
   }
   const verify = tools.find((t) => t.name === 'verify_document');
   assert.equal(verify.inputSchema.properties.output.type, 'object'); assert.equal(verify.inputSchema.properties.output.properties.errors.maxItems, 1000);
@@ -221,12 +221,14 @@ test('stdout carries only protocol messages, even while the renderer reports pro
   const exited = new Promise((r) => child.on('exit', r));
   const parse = (l) => { try { return JSON.parse(l); } catch { return null; } };
   const lines = () => out.split('\n').filter(Boolean);
+  // while the server writes, only the lines it has finished (a long reply arrives in several chunks)
+  const complete = () => out.split('\n').slice(0, -1).filter(Boolean);
   const send = (m) => child.stdin.write(JSON.stringify({ jsonrpc: '2.0', ...m }) + '\n');
   const waitFor = async (id) => {
     for (let i = 0; i < 900; i++) {
-      const bad = lines().find((l) => parse(l)?.jsonrpc !== '2.0');
+      const bad = complete().find((l) => parse(l)?.jsonrpc !== '2.0');
       assert.equal(bad, undefined, `non-protocol line on stdout: ${String(bad).slice(0, 80)}`);
-      if (lines().some((l) => parse(l).id === id)) return;
+      if (complete().some((l) => parse(l).id === id)) return;
       await new Promise((r) => setTimeout(r, 100));
     }
     throw new Error(`no reply ${id}; stderr: ${err}`);

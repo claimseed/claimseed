@@ -3,7 +3,7 @@
 // - The folder is fixed at startup (resolved to its real path) and re-checked before every write, so it cannot be
 //   swapped for a link to somewhere else while the server runs.
 // - The server chooses every file name itself; nothing a client sends becomes part of a path except the validated
-//   type, scenario and seed slugs.
+//   type, scenario and seed slugs (and none of them for a blind document, named by its id).
 // - Files are created exclusively and without following links: an existing file or symbolic link at the chosen
 //   name makes the write fail rather than be overwritten or followed.
 // - Every file the server writes is recorded in a ledger (.claimseed-mcp.json in the folder) with its size and
@@ -17,7 +17,10 @@ import fs from 'fs'; import os from 'os'; import path from 'path'; import crypto
 export const LEDGER = '.claimseed-mcp.json';
 const { O_WRONLY, O_CREAT, O_EXCL } = fs.constants;
 const O_NOFOLLOW = fs.constants.O_NOFOLLOW || 0;   // not defined on Windows, where O_EXCL alone refuses an existing link
-const NAME = /^[a-z0-9][a-z0-9-]{0,63}_[a-z0-9][a-z0-9-]{0,63}_[A-Za-z0-9][A-Za-z0-9._-]{0,63}(_(scan|fax|photo|low-res))?_[0-9a-f]{12}\.(pdf|ground-truth\.json|835)$/;
+const NAME_DOC = /^[a-z0-9][a-z0-9-]{0,63}_[a-z0-9][a-z0-9-]{0,63}_[A-Za-z0-9][A-Za-z0-9._-]{0,63}(_(scan|fax|photo|low-res))?_[0-9a-f]{12}\.(pdf|ground-truth\.json|835)$/;
+// a blind document's files: its id only, and never an answer key
+const NAME_BLIND = /^doc-[0-9a-f]{16}_[0-9a-f]{12}\.(pdf|835)$/;
+const NAME = { test: (n) => NAME_DOC.test(n) || NAME_BLIND.test(n) };
 const sha256 = (b) => crypto.createHash('sha256').update(b).digest('hex');
 
 export function openWorkspace(dir, { quotaBytes = 500 * 2 ** 20, maxFiles = 2000, log = () => {} } = {}) {

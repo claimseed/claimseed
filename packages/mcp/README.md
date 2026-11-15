@@ -30,7 +30,7 @@ To also keep each PDF and its ground truth as files, give it a folder:
 ```
 
 Or from a checkout: `node packages/mcp/src/cli.js` (add `--workspace ./out` for files). With Docker, using the published image
-`ghcr.io/claimseed/claimseed-mcp` (Chromium is inside it; `:latest`, or a version tag such as `:0.1.0`), or one you
+`ghcr.io/claimseed/claimseed-mcp` (Chromium is inside it; `:latest`, or a version tag such as `:0.6.0`), or one you
 build from the `Dockerfile` at the repository root (`docker build -t claimseed-mcp .`, then use `claimseed-mcp` as the
 image name below):
 
@@ -63,6 +63,8 @@ boundary, which is why the flags above take away its network, its capabilities a
 | `generate_data` | The data and ground truth of one document, without rendering; nothing is written. Takes `layout_variant`. |
 | `render_document` | Renders one document and returns its pages as images, its ground truth, the PDF's SHA-256 and page count; with a workspace, also writes the PDF and its ground-truth JSON there and returns both paths. With `also: "835"`, also the X12 835 remittance of the same claims (Medicare Summary Notice and Medicare Advantage EOBs). With `layout_variant`, one of the type's layout variants. |
 | `degrade_document` | Like `render_document`, but for a scanned-looking copy of the document: a flatbed scan, a fax, a phone photo or a low-resolution copy (`preset`). The copy is an image-only PDF with the specimen band and watermark drawn on top of the degraded pages; its ground truth has the same fields, errors and decoys, plus `degradation` and the seeded settings in `degradationParams`. Its structured result names the preset in `degradation` (null in a `render_document` result). Takes `layout_variant` like `render_document`. |
+| `render_blind` | Renders a blind document, for testing a tool that must not see the answers: it is named by an opaque id, and its specimen band, PDF title, file names, page-image markers and 835 never carry the scenario, the planted errors or the seed. Takes the arguments of `render_document`, plus `preset` for a degraded copy and `also: "835"`; returns the id, the page images and the PDF's SHA-256, never the answer key, the scenario or the seed. |
+| `get_answer_key` | The answer key of a blind document, by its id. Keys live only in the running server's memory, which holds the most recent 1,000, so save each key you need. |
 | `verify_document` | Scores what an extractor or bill auditor reported about one document against its answer key: field accuracy with the paths read wrong or missed, error recall and precision, false alarms and the decoys flagged. Nothing is rendered or written. With `layout_variant`, the key of that variant. |
 
 Arguments are a type, a scenario slug and a seed (letters, digits, `.`, `_`, `-`; up to 64 characters). The same
@@ -98,6 +100,13 @@ The settings (rotation, blur, noise, resolution and the rest) come from the type
 same request gives the same settings. The pixels can differ very slightly from one run to the next (antialiasing
 in the browser), and so can the copy's bytes; its ground truth records the SHA-256 of the copy it came with. `verify_document` scores a report on a
 degraded copy against the same answer key as the clean document.
+
+`render_blind` is for testing a tool that must not see the answers. It takes the arguments of `render_document`,
+plus `preset` for a degraded copy (`scan`, `fax`, `photo` or `low-res`, with its own id) and `also: "835"`. Its
+result returns the opaque id, the page images and the PDF's SHA-256, never the answer key, the scenario or the
+seed. With a workspace the PDF (and 835) is written there, named by the id; without one, `include_pdf` returns the
+PDF in the result. `get_answer_key` takes the id and returns the key. Keys live only in the running server's memory,
+which holds the most recent 1,000, so save each key you need. The server draws one salt for its life.
 
 `verify_document` takes the type, scenario and seed of the document and `output`, the report in the shape of
 `schema://extractor-output`: `fields` maps answer-key field paths (the keys of `documents[0].fields`) to the values

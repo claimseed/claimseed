@@ -1,11 +1,12 @@
 // The render log: every stamped PDF appends a line when CLAIMSEED_RENDER_LOG is set, and the test scripts check the
-// counts against test/render-budget.json and the caps (scripts/test-with-render-log.js). No browser needed.
+// counts of each test file against its entry in test/render-budget.json, and the caps (scripts/test-with-render-log.js).
+// No browser needed.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs'; import os from 'os'; import path from 'path';
 import { PDFDocument } from 'pdf-lib';
 import { mergePdfs, finalizePdf } from '../src/render.js';
-import { countLog, checkCounts, checkCaps, CAPS, logDir, runLogFile, countsFile } from '../scripts/test-with-render-log.js';
+import { countLog, checkCounts, checkCaps, CAPS, logDir, runLogFile } from '../scripts/test-with-render-log.js';
 import { repoRoot } from '../scripts/lib/repo-root.js';
 
 test('mergePdfs and finalizePdf each append one line to the render log, and nothing without the variable', async () => {
@@ -28,7 +29,7 @@ test('mergePdfs and finalizePdf each append one line to the render log, and noth
 });
 
 test('a render the budget does not list fails the check, as does a total over the caps or an unknown line', () => {
-  const budget = { render: 3, degraded: 1, single: 0 };
+  const budget = { render: 3, degraded: 1, single: 0, seconds: 12 };   // one file's entry
   assert.deepEqual(checkCounts(countLog('render\nrender\nrender\ndegraded\n'), budget), []);
   assert.equal(checkCounts(countLog('render\nrender\nrender\nrender\ndegraded\n'), budget).length, 1, 'one planted extra render');
   assert.equal(checkCounts(countLog('render\nrender\ndegraded\n'), budget).length, 1, 'one render fewer');
@@ -41,6 +42,5 @@ test('a render the budget does not list fails the check, as does a total over th
 test('the log of a run is its own file in the checkout, outside node_modules (a linked node_modules is shared)', () => {
   const d = logDir(); assert.equal(path.dirname(d), repoRoot()); assert.ok(!d.split(path.sep).includes('node_modules'));
   assert.equal(path.dirname(runLogFile('core')), d); assert.match(path.basename(runLogFile('core')), new RegExp(`^run-core-${process.pid}-\\d+\\.txt$`));
-  assert.equal(countsFile('mcp'), path.join(d, 'counts-mcp.json'));
   assert.ok(fs.readFileSync(path.join(repoRoot(), '.gitignore'), 'utf-8').split('\n').includes('.tmp-*/'), 'the folder is ignored by git');
 });

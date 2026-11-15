@@ -7,7 +7,7 @@ import fs from 'fs'; import path from 'path'; import crypto from 'crypto';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { generateData, listScenarios, loadScenario, render, launchBrowser, verifyFromSeed, degradeRendered, DEGRADE_PRESETS, ALSO, RENDERERS, SLUG, SEED, VARIANT_STRINGS, checkVariantOption, variantIds } from '@claimseed/core';
+import { generateData, listScenarios, loadScenario, render, launchBrowser, verifyFromSeed, degradeRendered, DEGRADE_PRESETS, ALSO, RENDERERS, SLUG, SEED, VARIANT_STRINGS, checkVariantOption, variantIds, BLIND_ID, BLIND_STRINGS } from '@claimseed/core';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { DOCUMENT_TYPES } from './types.js';
 import { openWorkspace } from './workspace.js';
@@ -22,6 +22,7 @@ export const VERSION = PKG.version;
 export const TYPES = Object.keys(RENDERERS).filter((t) => DOCUMENT_TYPES[t] && listScenarios(t).length);
 
 const json = (o) => JSON.stringify(o, null, 2);
+const BLIND_TEXT = BLIND_STRINGS.mcp;
 const text = (t) => ({ type: 'text', text: t });
 
 // Scenario facts for listings. The error kinds come from the scenario's own ground truth (generated, no browser),
@@ -70,7 +71,7 @@ error. Start with list_document_types; describe_document_type shows the scenario
 the data and ground truth without rendering. verify_document scores what an extractor or bill auditor reported about
 a document against its answer key: fields read, errors found and missed, and false alarms, including decoys (lines that
 look wrong but follow the rules). degrade_document renders a scanned-looking copy (scan, fax, phone photo or low-res) with
-the same answer key, to test reading documents that are not clean PDFs. The itemized-bill, ppo-eob and hmo-eob types can also print the same data in other layouts: pass layout_variant, an id from describe_document_type's list or seeded to pick one from the seed. msn has one layout. The answer key names the variant used.`;
+the same answer key, to test reading documents that are not clean PDFs. The itemized-bill, ppo-eob and hmo-eob types can also print the same data in other layouts: pass layout_variant, an id from describe_document_type's list or seeded to pick one from the seed. msn has one layout. The answer key names the variant used. To test a tool that must not see the answers, render with render_blind: it returns the document under an opaque id, without its answer key, scenario or seed. Then fetch each key with get_answer_key and the id; keys live only in the server's memory (the most recent 1,000), so save each one you need.`;
 const INSTRUCTIONS_WORKSPACE = `${INSTRUCTIONS_BASE} render_document writes a PDF and its ground-truth JSON into the
 server's workspace folder, returns their paths and shows the first page as an image (preview "all" shows every page).
 Every value is synthetic and every page carries specimen markers.`;
@@ -88,6 +89,11 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
   const gate = createGate({ concurrency, maxQueue });
   const pool = createBrowserPool({ launch: () => launchBrowser(), idleMs });
   const server = new McpServer({ name: 'claimseed', version: VERSION }, { instructions: ws ? INSTRUCTIONS_WORKSPACE : INSTRUCTIONS_INLINE });
+  // Blind documents (render_blind): one salt for the server's life, and their answer keys held here, never written beside
+  // them and never in the render result; get_answer_key hands one over by id. The oldest go first past MAX_KEYS.
+  const blindSalt = crypto.randomBytes(16).toString('hex');
+  const MAX_KEYS = 1000; const blindKeys = new Map();
+  const keepKey = (id, groundTruth) => { blindKeys.delete(id); blindKeys.set(id, groundTruth); while (blindKeys.size > MAX_KEYS) blindKeys.delete(blindKeys.keys().next().value); };
   // Strict inputs: the SDK drops arguments a tool does not declare, so a misspelt one would be ignored. Every call is
   // checked against the tool's declared arguments first and an undeclared one refused, with a message that names none.
   const validate = server.validateToolInput.bind(server);
@@ -144,14 +150,14 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
 
   // Render one document (or, with a preset, a degraded copy of it) and deliver it: page images, the PDF on request, the
   // files in the workspace when there is one. Shared by render_document and degrade_document.
-  async function deliver({ type, scenario, seed, preset = null, preview = ws ? 'first' : 'all', from_page: fromPage = 1, include_pdf: includePdf = false, also = null, layout_variant: lv }, extra) {
+  async function deliver({ type, scenario, seed, preset = null, preview = ws ? 'first' : 'all', from_page: fromPage = 1, include_pdf: includePdf = false, also = null, layout_variant: lv }, extra, { blind = false } = {}) {
     needScenario(type, scenario); const layoutVariant = needVariant(type, lv);
     const out = await gate.run(async () => {
       const browser = await pool.acquire();
       const gen = pool.generation;
       try {
         return await withTimeout((async () => {
-          const r = await render({ type, scenario, seed, browser, also, layoutVariant });
+          const r = await render({ type, scenario, seed, browser, also, layoutVariant, blind: blind ? { salt: blindSalt } : false });
           if (preset) Object.assign(r, await degradeRendered(browser, { type, scenario, seed, preset, clean: r, pageImages: false }));
           // the PDF, when asked for, counts toward the same limit: it goes in only when it fits, and the pictures then
           // take what room is left (none forced in); a PDF over the limit is left out and the result says so
@@ -160,7 +166,8 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
           const budget = previewKB * 1024 - (r.embedPdf ? r.pdfBase64Bytes : 0);
           // the document stands without its pictures: if they cannot be drawn, the result says so and carries none
           if (preview !== 'none') {
-            try { r.preview = await previewPages(browser, r.bytes, { pages: preview, from: fromPage, budget, forceFirst: !r.embedPdf, label: `${r.groundTruth.documents[0].layout} / ${scenario} / seed ${seed}${preset ? ` / ${preset}` : ''}` }); }
+            const label = blind ? r.groundTruth.blind.id : `${r.groundTruth.documents[0].layout} / ${scenario} / seed ${seed}${preset ? ` / ${preset}` : ''}`;
+            try { r.preview = await previewPages(browser, r.bytes, { pages: preview, from: fromPage, budget, forceFirst: !r.embedPdf, label }); }
             catch (e) { r.previewError = String(e.message).split('\n')[0].slice(0, 200); log(`page images failed: ${r.previewError}`); }
           }
           return r;
@@ -172,6 +179,7 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
       } finally { pool.release(); }
     }, extra?.signal);
     if (extra?.signal?.aborted) throw new Error('request cancelled');
+    if (blind) return deliverBlind(out, { preset, preview, fromPage, includePdf });
     const vid = out.groundTruth.documents[0].layoutVariant?.id; const stem = `${seed}${vid ? `.${vid}` : ''}`;   // a variant names its files
     let saved = null;
     if (ws) {
@@ -204,7 +212,7 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
     }
     if (saved) lines.push(`PDF: ${result.pdf}`, `Ground truth: ${result.groundTruthFile}`);
     if (out.remittance) lines.push(saved ? `835 remittance: ${result.remittance.file}` : 'The 835 remittance of the same claims is embedded in this result as text.');
-    if (includePdf && !out.embedPdf) lines.push(`The PDF (${Math.ceil(out.pdfBase64Bytes / 1024)} KB as base64) is larger than this server's limit for one result (${previewKB} KB, CLAIMSEED_MCP_PREVIEW_KB) and was left out; raise the limit or run the server with a workspace.`);
+    if (includePdf && !out.embedPdf) lines.push(pdfLeftOut(out));
     if (!saved) lines.push(out.embedPdf ? 'The PDF is embedded in this result. No file was saved.' : `No file was saved${includePdf ? '' : '; set include_pdf to get the PDF in the result'}.`);
     lines.push('Ground truth (expected findings and field values) is in the structured result.');
     const content = [text(lines.join('\n'))];
@@ -214,6 +222,47 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
     if (saved) content.push(
       { type: 'resource_link', uri: pathToFileURL(result.pdf).href, name: path.basename(result.pdf), mimeType: 'application/pdf', description: 'synthetic specimen PDF' },
       { type: 'resource_link', uri: pathToFileURL(result.groundTruthFile).href, name: path.basename(result.groundTruthFile), mimeType: 'application/json', description: 'ground truth for the PDF' });
+    if (out.remittance && saved) content.push({ type: 'resource_link', uri: pathToFileURL(result.remittance.file).href, name: path.basename(result.remittance.file), mimeType: 'application/edi-x12', description: 'synthetic specimen X12 835 remittance' });
+    return { content, structuredContent: result };
+  }
+
+  // the note when include_pdf was asked for and the PDF alone is over the limit for one result
+  const pdfLeftOut = (out) => `The PDF (${Math.ceil(out.pdfBase64Bytes / 1024)} KB as base64) is larger than this server's limit for one result (${previewKB} KB, CLAIMSEED_MCP_PREVIEW_KB) and was left out; raise the limit or run the server with a workspace.`;
+
+  // A blind document's result names its id and nothing of its type's scenario, its seed or its answer key: the files
+  // in the workspace, the embedded PDF and 835, and the page images carry the id only, and the key is kept for
+  // get_answer_key.
+  function deliverBlind(out, { preset, preview, fromPage, includePdf }) {
+    const id = out.groundTruth.blind.id; keepKey(id, out.groundTruth);
+    let saved = null;
+    if (ws) {
+      const files = [{ ext: 'pdf', bytes: out.bytes }];
+      if (out.remittance) files.push({ ext: '835', bytes: Buffer.from(out.remittance) });
+      saved = ws.save(id, files);
+      if (saved.evicted) log(`quota: removed ${saved.evicted} older output file(s)`);
+    }
+    const doc = out.groundTruth.documents[0];
+    const images = out.preview?.images || [];
+    const shown = images.map((i) => i.page);
+    const last = shown.length ? shown[shown.length - 1] : (preview === 'none' ? doc.pages : Math.min(fromPage - 1, doc.pages));
+    const omitted = Math.max(0, doc.pages - last);
+    const result = { id, degradation: preset, pdf: saved ? saved.paths.pdf : null, sha256: crypto.createHash('sha256').update(out.bytes).digest('hex'), pages: doc.pages, bytes: out.bytes.length, pdfEmbedded: !!out.embedPdf,
+      preview: { pages: shown, omitted: preview === 'none' || out.previewError ? 0 : omitted, next: preview !== 'none' && !out.previewError && omitted ? last + 1 : null },
+      remittance: out.remittance ? { file: saved ? saved.paths['835'] : null, sha256: out.groundTruth.documents[1].sha256, embedded: !saved } : null };
+    const M = BLIND_TEXT;
+    const lines = [M.rendered.replace('{id}', id).replace('{pages}', doc.pages).replace('{bytes}', out.bytes.length)];
+    if (out.previewError) lines.push(M.noImages);
+    else if (preview !== 'none' && shown.length) { lines.push(M.shown.replace('{first}', shown[0]).replace('{last}', shown.at(-1)).replace('{pages}', doc.pages)); if (result.preview.next) lines.push(M.more.replace('{next}', result.preview.next)); }
+    if (saved) lines.push(`PDF: ${result.pdf}`);
+    if (out.remittance) lines.push(saved ? `835: ${result.remittance.file}` : M.remittanceInline);
+    if (includePdf && !out.embedPdf) lines.push(pdfLeftOut(out));   // the same line as render_document's: sizes only
+    if (!saved) lines.push(out.embedPdf ? M.pdfEmbedded : includePdf ? 'No file was saved.' : M.nothingSaved);
+    lines.push(M.keyHint);
+    const content = [text(lines.join('\n'))];
+    for (const i of images) content.push({ type: 'image', mimeType: i.mimeType, data: i.data });
+    if (out.embedPdf) content.push({ type: 'resource', resource: { uri: `claimseed://blind/${id}.pdf`, mimeType: 'application/pdf', blob: out.bytes.toString('base64') } });
+    if (out.remittance && !saved) content.push({ type: 'resource', resource: { uri: `claimseed://blind/${id}.835`, mimeType: 'application/edi-x12', text: out.remittance } });
+    if (saved) content.push({ type: 'resource_link', uri: pathToFileURL(result.pdf).href, name: path.basename(result.pdf), mimeType: 'application/pdf', description: 'synthetic specimen PDF' });
     if (out.remittance && saved) content.push({ type: 'resource_link', uri: pathToFileURL(result.remittance.file).href, name: path.basename(result.remittance.file), mimeType: 'application/edi-x12', description: 'synthetic specimen X12 835 remittance' });
     return { content, structuredContent: result };
   }
@@ -260,6 +309,34 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
     _meta: { ui: { resourceUri: VIEW_URI }, 'ui/resourceUri': VIEW_URI },
   }, (args, extra) => deliver(args, extra));
 
+  server.registerTool('render_blind', {
+    title: BLIND_TEXT.tool.title,
+    description: ws ? BLIND_TEXT.tool.descriptionWorkspace : BLIND_TEXT.tool.descriptionInline,
+    inputSchema: {
+      type: Type, scenario: Scenario, seed: Seed,
+      preset: z.enum(DEGRADE_PRESETS).optional().describe(BLIND_TEXT.tool.preset),
+      preview: Preview,
+      from_page: z.number().int().min(1).max(999).default(1).describe('first page to return as an image (default 1)'),
+      include_pdf: z.boolean().default(false).describe('also return the PDF itself, embedded in the result; it counts toward the same size limit as the page images and is left out, with a note, when it alone is over it'),
+      also: z.enum(ALSO).optional().describe(BLIND_TEXT.tool.also),
+      layout_variant: LayoutVariant,
+    },
+    outputSchema: { id: z.string(), degradation: z.string().nullable(), pdf: z.string().nullable(), sha256: z.string(), pages: z.number(), bytes: z.number(), pdfEmbedded: z.boolean(), preview: PreviewOut, remittance: RemittanceOut },
+    annotations: ws ? { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false } : { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  }, (args, extra) => deliver(args, extra, { blind: true }));
+
+  server.registerTool('get_answer_key', {
+    title: BLIND_TEXT.keyTool.title,
+    description: BLIND_TEXT.keyTool.description,
+    inputSchema: { id: z.string().regex(BLIND_ID).describe(BLIND_TEXT.keyTool.id) },
+    outputSchema: { id: z.string(), groundTruth: z.record(z.string(), z.unknown()) },
+    annotations: readOnly,
+  }, async ({ id }) => {
+    if (!blindKeys.has(id)) throw new Error(BLIND_TEXT.messages.noKey);
+    const out = { id, groundTruth: blindKeys.get(id) };
+    return { content: [text(json(out))], structuredContent: out };
+  });
+
   server.registerTool('verify_document', {
     title: 'Score an extractor against a document',
     description: 'Score what an extractor or bill auditor reported about one document against its answer key, rebuilt from the type, scenario and seed with this version of claimseed. The report uses the answer key\'s vocabulary (schema://extractor-output): `fields` maps field paths of documents[0].fields to the values read; `errors` lists flagged errors as { kind, fieldRef or lineRef }. Returns field accuracy with the paths read wrong or missed, error recall and precision, false alarms, and which decoys were flagged. The result names only answer-key paths, kinds and decoy ids, never the text sent. Nothing is rendered or written.',
@@ -305,7 +382,7 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
     messages: [{ role: 'user', content: text(`Build a test case with the claimseed tools for this goal: ${goal}
 ${type ? `Use the ${type} document type.\n` : ''}
 1. Call ${type ? `describe_document_type for ${type}` : 'list_document_types, then describe_document_type for the types that fit'}, and choose the scenarios whose injected errors match the goal. Scenarios with neither errors nor decoys are clean controls, and scenarios with decoys hold lines that look wrong but follow the rules; include one of each so the test also checks for false alarms.
-2. Render each chosen scenario with render_document using two or three different seeds, so the test does not depend on one set of names and amounts. For itemized-bill, ppo-eob or hmo-eob, also render at least one document with layout_variant set (an id or seeded), so the test does not depend on one layout either; msn takes no layout_variant. Pass preview "none" for the renders you do not need to look at.
+2. Render each chosen scenario with render_document using two or three different seeds, so the test does not depend on one set of names and amounts. For itemized-bill, ppo-eob or hmo-eob, also render at least one document with layout_variant set (an id or seeded), so the test does not depend on one layout either; msn takes no layout_variant. Pass preview "none" for the renders you do not need to look at. When the tool under test reads the documents itself, render them with render_blind and fetch each answer key with get_answer_key by the document's id, so the documents carry no answers.
 3. Use each document's ground truth as the expected result: errors[] lists what a reviewer should flag (kind, location, expected and actual values), decoys[] what it should not flag, and documents[0].fields the values an extractor should read. verify_document scores a report against it.
 4. Finish with a table of the documents rendered (${ws ? 'the files are in the server\'s workspace folder' : 'type, scenario, seed and SHA-256; the server saves no files, and include_pdf returns a PDF in the result'}) and the expected result for each.
 Every document is synthetic and carries specimen markers on every page; keep them on. Do not add real people's information to the workspace or to the test.`) }],

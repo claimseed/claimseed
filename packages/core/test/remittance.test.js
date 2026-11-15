@@ -117,7 +117,7 @@ test('the specimen checks refuse real-format identifiers and free text off the a
 
 test('no 835 for the itemized bill', () => {
   const generated = generateData({ type: 'itemized-bill', scenario: 'baseline-clean', seed: 'x' });
-  assert.throws(() => buildRemittance({ type: 'itemized-bill', scenario: 'baseline-clean', seed: 'x', generated }), /no 835 for itemized-bill/);
+  assert.throws(() => buildRemittance({ type: 'itemized-bill', scenario: 'baseline-clean', seed: 'x', generated }), (e) => e.message === 'remittance: an 835 is written for msn, ppo-eob, hmo-eob only');
 });
 
 test('parse835 reads only claimseed delimiters', () => {

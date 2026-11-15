@@ -12,6 +12,33 @@ without ever touching a real person's paperwork.
   no CLI flag, library call or data object switches them off.
 - Same seed, same document: all content is derived from the seed, fonts are bundled and PDF metadata is fixed, so two renders on the same Chrome build (Linux, as in CI) are byte-identical; other platforms produce the same content, with bytes that may differ by Chrome version.
 
+## A ready-made test set
+
+The standard set is 1,022 blind documents over all 34 published scenarios: 260 Medicare Summary Notices (13
+scenarios x 20 seeds), 250 itemized bills (5 x 50), 256 PPO EOBs (8 x 32) and 256 HMO EOBs (8 x 32). Bills and EOBs
+turn through the standard layout and its 12 variants; one document in five is a degraded copy (scan, fax, photo,
+low resolution in turn); every notice and EOB has its 835. Layout, preset and 835 turn alike for every scenario, so
+none tells the scenario.
+
+claimseed 0.6.0's copy is attached to the GitHub release v0.6.0: `claimseed-0.6.0-standard-documents.zip` unzips to
+`claimseed-0.6.0-standard/documents/` (PDFs, 835s, `README.md`, `SHA256SUMS`) and `claimseed-0.6.0-standard-keys.zip`
+to `claimseed-0.6.0-standard/keys/` (answer keys, `manifest.jsonl`, `README.md`, `SHA256SUMS` and `set.json`: the
+claimseed and Chrome versions, the release's git tree, document count, salt and canary). Give the tool under test only
+the documents folder. The 835s sit beside the PDFs there; to score a tool on reading the PDFs alone, give it only the
+`.pdf` files:
+
+    # run the tool on every PDF in documents/; write one report per document to reports/<id>.json,
+    # in the shape of schemas/extractor-output.schema.json
+    npx @claimseed/core verify --manifest claimseed-0.6.0-standard/keys/manifest.jsonl --outputs reports
+    # the same content again with claimseed 0.6.0 and the salt in set.json (or any of its keys); PDF bytes can
+    # differ by machine and Chrome install, so the SHA-256s in the manifest and SHA256SUMS name the published files
+    npx @claimseed/core@0.6.0 batch --set standard --out documents --blind-keys keys --blind-salt SALT
+
+It is a public development set with public keys; every answer key and manifest line carries a canary string with a
+fixed GUID (`blind.canary`) so that people who train models can find and leave out claimseed answer keys, and people
+who test a model can check whether it has seen them. Please keep the keys out of training data. For a held-out test,
+make your own blind set with `batch --blind-keys` (a fresh salt) and keep its keys to yourself.
+
 ## Quick start
 
 From npm (Node.js 22.13 or later):
@@ -74,6 +101,31 @@ follow the rules (the same service on two dates, a charge far above the approved
 the member reaches the out-of-pocket maximum), and flagging one counts as a false alarm.
 Agents can score one document at a time with the MCP tool `verify_document`.
 
+The headline figures of `verify --manifest` (`fields`, `errors`) now count every document: a missing or invalid
+report scores as an empty one, and so does a part a report leaves out (fields or errors) once any report gives that
+part. Skipping a document never raises field accuracy or error recall; precision counts only what was flagged, so
+read it beside recall. `scoredOnly` holds the earlier figures, over the scored reports; `byType`, `byDegradation`
+(`clean` or the preset) and `byKind` (expected, found and recall per error kind) break them down.
+
+## Blind documents
+
+For tools that must not see the answers, `render` and `batch` take `--blind-keys KEYDIR`. A blind document is named
+by an opaque id (`doc-` and 16 hexadecimal digits): its specimen band, PDF title, file names, page-image markers and
+835 carry that id, never the scenario, planted errors or seed. Its answer key (ground truth 1.5) and a batch's
+manifest go to KEYDIR, never the documents' folder or one inside it:
+
+    npx @claimseed/core batch --types msn,itemized-bill --seeds 20 --out ./set --blind-keys ./keys
+
+Content comes from a seed derived from a salt, 128 random bits drawn for each set and recorded in every key, so
+nobody can rebuild a document from a guessed scenario and seed and match a printed claim number. `--blind-salt SALT`
+(from an earlier set's key) makes the same set again; documents are written in an order drawn from the salt. A
+degraded copy is blind too, with its own id and `copyOf` in its key. The band, watermark and metadata still mark
+every page as a specimen; only the scenario words are gone. `verify --manifest` scores a blind set exactly as an
+open set.
+
+Over MCP, `render_blind` returns the id and page images, never the key, scenario or seed, and `get_answer_key` the key
+(see `packages/mcp/README.md`).
+
 ## Scanned-looking copies
 
 Extractors meet scans, faxes and phone photos, not only clean PDFs. A degraded copy keeps the document's answer key:
@@ -134,15 +186,18 @@ ids and what each fixes are listed in `packages/core/data/<type>/variants.json`.
 
 ## Status
 
-0.5.0 adds planted errors and decoys on the Medicare Advantage EOBs (14 new scenarios), layout variants of the
-itemized bill and both EOBs (`--layout-variant`, `layout_variant`: 12 ids per type, with the variant recorded in the
-answer key), and strict MCP arguments (every tool refuses an argument it does not declare). 0.4.0 added 835
-remittances and scanned-looking copies; 0.3.0 scoring, batch output with a manifest, and decoys; 0.2.0 page images
-in the MCP server's results, an MCP Apps view and a mode that writes no files. Versions before 1.0 may still change
-their interfaces. The layouts shipped are `msn`, `itemized-bill`, `ppo-eob` and `hmo-eob`; next is a commercial
-(non-Medicare) health plan EOB, then more (ABN, Part D EOB, collections notice, pharmacy receipt); see
-`docs/roadmap.md`. `examples/` lists one rendered document per scenario and one per layout variant id. Licensed
-under Apache-2.0 (see `LICENSE` and `NOTICE`).
+0.6.0 adds blind documents and sets (`--blind-keys` and `--blind-salt`, and the MCP tools `render_blind` and
+`get_answer_key`), the published standard set of 1,022 blind documents with its answer keys (attached to the GitHub
+release v0.6.0), and set scores that count every document. 0.5.0 added planted errors and decoys on the Medicare
+Advantage EOBs (14 new scenarios), layout variants of the itemized bill and both EOBs (`--layout-variant`,
+`layout_variant`: 12 ids per type, with the variant recorded in the answer key), and strict MCP arguments (every tool
+refuses an argument it does not declare). 0.4.0 added 835 remittances and scanned-looking copies. 0.3.0 added
+scoring, batch output with a manifest, and decoys. 0.2.0 added page images in the MCP server's results, an MCP Apps
+view and a mode that writes no files. Versions before 1.0 may still change their interfaces. The layouts shipped are
+`msn`, `itemized-bill`, `ppo-eob` and `hmo-eob`. Next is a bill and the EOB of the same visit (a fictional commercial
+employer-plan EOB beside the provider's itemized bill, with errors that show only across the two); `docs/roadmap.md`
+gives the order of the work after it. `examples/` lists one rendered document per scenario and one per layout
+variant id. Licensed under Apache-2.0 (see `LICENSE` and `NOTICE`).
 
 ## Acceptable use
 

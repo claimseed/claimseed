@@ -6,8 +6,12 @@
 //        [--degrade scan|fax|photo|low-res]                    -> a degraded copy instead: image-only PDF, answer key, page images
 //        [--also 835]                                          -> also the X12 835 remittance of the same claims (<name>.835)
 //        [--layout-variant ID|seeded|all]                      -> a layout variant (itemized-bill, ppo-eob, hmo-eob): <name>.<id>.pdf
+//        [--blind-keys KEYDIR [--blind-salt SALT]]            -> a blind document: <id>.pdf in DIR, its answer key in KEYDIR
 //   claimseed-core batch --types T1,T2 [--scenarios all|S1,S2] [--seeds N] [--seed-prefix P] [--degrade PRESET] [--also 835] --out DIR
 //                                                              -> PDFs, answer keys and manifest.jsonl in DIR
+//        [--blind-keys KEYDIR [--blind-salt SALT]]            -> a blind set: <id>.pdf in DIR, answer keys and manifest in KEYDIR
+//   claimseed-core batch --set NAME --out DIR --blind-keys KEYDIR [--blind-salt SALT]
+//                                                              -> a published set (set.js): every document fixed by the set file
 //   claimseed-core verify --answer-key FILE --output FILE      -> score one extractor output (JSON on stdout)
 //   claimseed-core verify <type> <scenario> --seed S --output FILE   (answer key rebuilt from the seed)
 //   claimseed-core verify --manifest DIR/manifest.jsonl --outputs DIR2
@@ -33,8 +37,8 @@ const SEED = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const COMMANDS = {
   list: { positional: 1, options: [] },
   generate: { positional: 2, options: ['seed', 'layout-variant'] },
-  render: { positional: 2, options: ['seed', 'out', 'degrade', 'also', 'layout-variant'] },
-  batch: { positional: 0, options: ['types', 'scenarios', 'seeds', 'seed-prefix', 'degrade', 'also', 'out', 'layout-variant'] },
+  render: { positional: 2, options: ['seed', 'out', 'degrade', 'also', 'layout-variant', 'blind-keys', 'blind-salt'] },
+  batch: { positional: 0, options: ['types', 'scenarios', 'seeds', 'seed-prefix', 'degrade', 'also', 'out', 'layout-variant', 'blind-keys', 'blind-salt', 'set'] },
   verify: { positional: 2, options: ['answer-key', 'output', 'seed', 'manifest', 'outputs', 'layout-variant'] },
 };
 function refuse(message) { console.error(message); process.exit(2); }
@@ -78,8 +82,6 @@ function readReport(file) {
   try { bytes = readRegularFile(file, MAX_JSON); } catch (e) { if (e.code === 'ENOENT') return MISSING; throw Object.assign(new Error(`extractor output: ${why(e)}`), { code: 'EXTRACTOR_OUTPUT' }); }
   try { return JSON.parse(bytes.toString('utf-8')); } catch { throw Object.assign(new Error('extractor output: not valid JSON'), { code: 'EXTRACTOR_OUTPUT' }); }
 }
-const total = (rs, part, key) => rs.reduce((n, r) => n + (r[part]?.[key] || 0), 0);
-const ratio = (n, d) => (d ? Math.round((n / d) * 10000) / 10000 : null);
 const [type, scenario] = parsed.positional;
 // --layout-variant: checked against the type's published ids before anything is made; refusals repeat nothing typed
 function variantFlag(types, { allowAll = false } = {}) {
@@ -87,6 +89,14 @@ function variantFlag(types, { allowAll = false } = {}) {
   if (types.includes('msn') && types.length > 1 && (v === 'seeded' || v === 'all')) refuse(VARIANT_MESSAGES.variantSeededAll);
   try { for (const t of types) checkVariantOption(t, v, { allowAll }); } catch (e) { if (e.code === 'LAYOUT_VARIANT') refuse(e.message); throw e; }
   return v;
+}
+// --blind-keys DIR (and --blind-salt to make a set again): checked before anything is made; the salt is never echoed
+async function blindFlags() {
+  const keys = flag('blind-keys', null); const salt = flag('blind-salt', null);
+  const { BLIND_SALT, BLIND_STRINGS } = await import('./index.js');
+  if (keys === null) { if (salt !== null) refuse(BLIND_STRINGS.cli.saltNeedsKeys); return { blind: false, keysDir: null }; }
+  if (salt !== null && !BLIND_SALT.test(salt)) refuse(BLIND_STRINGS.cli.saltFormat);
+  return { blind: salt === null ? true : { salt }, keysDir: path.resolve(keys) };
 }
 // --also: a closed list, checked before anything is generated; an 835 only for the document types that have one
 async function alsoFlag(types) {
@@ -98,6 +108,7 @@ async function alsoFlag(types) {
 }
 
 async function main() {
+  const SET_USAGE = (await import('./set.js')).SET_STRINGS.usageSet;
   if (cmd === 'list') {
     if (type) mustMatch(type, SLUG, 'type');
     const types = type ? [type] : fs.readdirSync(path.resolve(__dirname, '../scenarios')).filter((t) => SLUG.test(t));
@@ -115,18 +126,39 @@ async function main() {
     if (degrade !== null) { const { PRESETS } = await import('./degrade.js'); if (!PRESETS.includes(degrade)) { console.error(`--degrade must be one of ${PRESETS.join(', ')}`); process.exit(2); } }
     const also = await alsoFlag([type]);
     const lv = variantFlag([type], { allowAll: true });
+    const { blind, keysDir } = await blindFlags();
+    // one salt for every document of this command, so --layout-variant all makes one blind set
+    const set = blind === true ? { salt: (await import('crypto')).randomBytes(16).toString('hex') } : blind;
+    const { BLIND_STRINGS } = await import('./index.js');
+    const wroteBlind = (pdf, bytes) => BLIND_STRINGS.cli.wroteBlind.replace('{pdf}', pdf).replace('{bytes}', bytes).replace('{dir}', keysDir);
     const variants = lv === 'all' ? variantIds(type) : [lv];   // all: one document per published id, the same data
     for (const layoutVariant of variants) {
       if (degrade !== null) {
         const { renderDegraded } = await import('./degrade.js');
-        const r = await renderDegraded({ type, scenario, seed, preset: degrade, outDir, also, layoutVariant });
-        console.log(`wrote ${r.pdf} (${r.bytes.length} bytes), its ground truth${also ? ', its 835' : ''} and ${r.images.length} page image(s)`);
+        const r = await renderDegraded({ type, scenario, seed, preset: degrade, outDir, also, layoutVariant, blind: set, keysDir });
+        console.log(blind ? wroteBlind(r.pdf, r.bytes.length) : `wrote ${r.pdf} (${r.bytes.length} bytes), its ground truth${also ? ', its 835' : ''} and ${r.images.length} page image(s)`);
         continue;
       }
       const { render } = await import('./index.js');
-      const { pdf, bytes } = await render({ type, scenario, seed, outDir, also, layoutVariant });
-      console.log(`wrote ${pdf} (${bytes.length} bytes) and ground truth${also ? ' and its 835' : ''}`);
+      const { pdf, bytes } = await render({ type, scenario, seed, outDir, also, layoutVariant, blind: set, keysDir });
+      console.log(blind ? wroteBlind(pdf, bytes.length) : `wrote ${pdf} (${bytes.length} bytes) and ground truth${also ? ' and its 835' : ''}`);
     }
+    return;
+  }
+  if (cmd === 'batch' && parsed.values.has('set')) {
+    // a published set fixes every document: the other batch options are refused, a set is always blind, and an
+    // unknown name is refused before anything is made; no message repeats what was typed
+    const { SET_NAMES, SET_STRINGS } = await import('./set.js');
+    const M = SET_STRINGS.messages;
+    if (['types', 'scenarios', 'seeds', 'seed-prefix', 'degrade', 'also', 'layout-variant'].some((o) => parsed.values.has(o))) refuse(M.setFixed);
+    if (!SET_NAMES.includes(flag('set', null))) refuse(M.setUnknown.replace('{names}', SET_NAMES.join(', ')));
+    const out = flag('out', null); if (!out) { console.error('batch needs --out DIR'); process.exit(2); }
+    if (!parsed.values.has('blind-keys')) refuse(M.setNeedsKeys);
+    const { blind, keysDir } = await blindFlags();
+    const { renderBatch } = await import('./batch.js');
+    const r = await renderBatch({ set: flag('set', null), outDir: path.resolve(out), blind, keysDir,
+      onProgress: (n, of) => { if (n === of || n % 10 === 0) console.log(`batch: ${n} of ${of}`); } });
+    console.log(`wrote ${r.count} documents and ${r.manifest}`);
     return;
   }
   if (cmd === 'batch') {
@@ -138,7 +170,8 @@ async function main() {
     if (degrade !== null) { const { PRESETS } = await import('./degrade.js'); if (!PRESETS.includes(degrade)) { console.error(`--degrade must be one of ${PRESETS.join(', ')}`); process.exit(2); } }
     const also = await alsoFlag(types);
     const layoutVariant = variantFlag(types, { allowAll: true });
-    const r = await renderBatch({ types, scenarios: sc === 'all' ? 'all' : sc.split(',').filter(Boolean), seeds, seedPrefix: flag('seed-prefix', 'batch'), outDir: path.resolve(out), degrade, also, layoutVariant,
+    const { blind, keysDir } = await blindFlags();
+    const r = await renderBatch({ types, scenarios: sc === 'all' ? 'all' : sc.split(',').filter(Boolean), seeds, seedPrefix: flag('seed-prefix', 'batch'), outDir: path.resolve(out), degrade, also, layoutVariant, blind, keysDir,
       onProgress: (n, of) => { if (n === of || n % 10 === 0) console.log(`batch: ${n} of ${of}`); } });
     console.log(`wrote ${r.count} documents and ${r.manifest}`);
     return;
@@ -154,7 +187,8 @@ async function main() {
     if (manifest) {
       const { readManifest } = await import('./batch.js');
       const outputs = flag('outputs', null); if (!outputs) { console.error('verify --manifest needs --outputs DIR'); process.exit(2); }
-      const dir = path.dirname(path.resolve(manifest)); const results = []; const invalid = []; let missing = 0;
+      const { summarizeSet, checkOutput } = await import('./verify.js');
+      const dir = path.dirname(path.resolve(manifest)); const rows = [];
       for (const e of readManifest(manifest)) {
         // score against the answer key saved with the set, as written: a key edited since, one from another set, or a
         // link or special file in its place is refused. The bytes hashed are the bytes parsed.
@@ -165,20 +199,15 @@ async function main() {
           console.error(`${e.groundTruth} does not match its hash in the manifest; render the set again`); process.exit(1);
         }
         let key; try { key = JSON.parse(keyBytes.toString('utf-8')); } catch { console.error(`${e.groundTruth} is not valid JSON`); process.exit(1); }
+        const row = { document: e.pdf, type: e.type, degradation: e.degradation ?? null, key };
         let report;
         try { report = readReport(path.join(path.resolve(outputs), e.pdf.replace(/\.pdf$/, '.json'))); }
-        catch (err) { invalid.push({ document: e.pdf, problem: err.message }); continue; }
-        if (report === MISSING) { missing++; continue; }
-        try { results.push({ document: e.pdf, ...scoreExtraction(key, report) }); }
-        catch (err) { if (err.code !== 'EXTRACTOR_OUTPUT') throw err; invalid.push({ document: e.pdf, problem: err.message }); }
+        catch (err) { rows.push({ ...row, problem: err.message }); continue; }
+        if (report === MISSING) { rows.push({ ...row, missing: true }); continue; }
+        try { checkOutput(report); rows.push({ ...row, output: report }); }
+        catch (err) { if (err.code !== 'EXTRACTOR_OUTPUT') throw err; rows.push({ ...row, problem: err.message }); }
       }
-      const summary = { documents: results.length + invalid.length + missing, scored: results.length, missingOutputs: missing, invalidOutputs: invalid,
-        fields: { expected: total(results, 'fields', 'expected'), correct: total(results, 'fields', 'correct'), accuracy: ratio(total(results, 'fields', 'correct'), total(results, 'fields', 'expected')) },
-        errors: { expected: total(results, 'errors', 'expected'), found: total(results, 'errors', 'found'), falseAlarms: total(results, 'errors', 'falseAlarms'),
-          decoysFlagged: results.reduce((n, r) => n + (r.errors?.decoysFlagged.length || 0), 0),
-          recall: ratio(total(results, 'errors', 'found'), total(results, 'errors', 'expected')),
-          precision: ratio(total(results, 'errors', 'found'), total(results, 'errors', 'flagged') - total(results, 'errors', 'repeats')) },
-        documentsScored: results };
+      const summary = summarizeSet(rows);
       process.stdout.write(JSON.stringify(summary, null, 2) + '\n'); return;
     }
     const outFile = flag('output', null); if (!outFile) { console.error('verify needs --output FILE'); process.exit(2); }
@@ -189,8 +218,9 @@ async function main() {
     else { mustMatch(type, SLUG, 'type'); mustMatch(scenario, SLUG, 'scenario'); mustMatch(flag('seed', 'claimseed'), SEED, 'seed'); r = verifyFromSeed({ type, scenario, seed: flag('seed', 'claimseed'), output, layoutVariant: variantFlag([type]) }); }
     process.stdout.write(JSON.stringify(r, null, 2) + '\n'); return;
   }
-  console.error('usage: claimseed-core list [type] | generate <type> <scenario> --seed S | render <type> <scenario> --seed S --out DIR [--degrade PRESET] [--also 835]\n'
-    + '       | batch --types T1,T2 [--scenarios all|S1,S2] [--seeds N] [--seed-prefix P] [--degrade PRESET] [--also 835] [--layout-variant ID|seeded|all] --out DIR\n'
+  console.error('usage: claimseed-core list [type] | generate <type> <scenario> --seed S | render <type> <scenario> --seed S --out DIR [--degrade PRESET] [--also 835] [--blind-keys KEYDIR [--blind-salt SALT]]\n'
+    + '       | batch --types T1,T2 [--scenarios all|S1,S2] [--seeds N] [--seed-prefix P] [--degrade PRESET] [--also 835] [--layout-variant ID|seeded|all] [--blind-keys KEYDIR [--blind-salt SALT]] --out DIR\n'
+    + `       ${SET_USAGE}\n`
     + `         --layout-variant ID|seeded|all (render, generate, batch, verify): ${VARIANT_STRINGS.developer.cliUsage}\n`
     + '       | verify (--answer-key FILE | <type> <scenario> --seed S) --output FILE | verify --manifest FILE --outputs DIR');
   process.exit(2);

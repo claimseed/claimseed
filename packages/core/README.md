@@ -31,6 +31,12 @@ node src/cli.js render ppo-eob baseline-clean --seed demo --out ./output --layou
 # with --also 835 (types msn, ppo-eob and hmo-eob only), each document also gets its .835, listed in the manifest with its SHA-256
 node src/cli.js batch --types msn,itemized-bill --seeds 50 --out ./set          # --scenarios all|S1,S2  --seed-prefix P  --degrade PRESET
 node src/cli.js batch --types ppo-eob,hmo-eob --seeds 20 --layout-variant seeded --out ./set   # or an id, or all; never with msn
+# blind: documents named by an opaque id, never the scenario, errors or seed; answer keys (and a batch's manifest) in a folder apart
+node src/cli.js render msn baseline-clean --seed demo --out ./output --blind-keys ./keys   # not ./output or a folder inside it
+node src/cli.js batch --types msn,itemized-bill --seeds 50 --out ./set --blind-keys ./keys
+node src/cli.js batch --types msn,itemized-bill --seeds 50 --out ./set --blind-keys ./keys --blind-salt SALT   # a key's salt: the same set
+# the published set "standard": 1,022 blind documents fixed by the set file (no type, scenario, seed, degrade, 835 or layout options)
+node src/cli.js batch --set standard --out ./documents --blind-keys ./keys   # --blind-salt SALT (from set.json): the same content again
 
 # score an extractor's report (see "Scoring an extractor" below)
 node src/cli.js verify --manifest ./set/manifest.jsonl --outputs ./reports     # one <pdf name>.json per document
@@ -242,6 +248,31 @@ the period, and, on the PPO, `maDeductibleMetBefore`, the part of it that went t
 `docs/error-taxonomy.md` gives the kind each op reports and its rule; the MCP resource `catalog://mutations` lists
 the ops the published scenarios use, with the kinds they produce and the scenarios that use them.
 
+## Blind documents and published sets
+
+For tools that must not see answers, `--blind-keys KEYDIR` (on `render` and `batch`) and `blind: true` with
+`keysDir` (on `render` and `renderBatch`) name each document by an opaque id (`doc-` and 16 hexadecimal digits). Its
+specimen band, PDF title, file names, page-image markers and 835 carry that id, never the scenario, planted errors
+or seed. The specimen markers stay; only the scenario words are gone. Answer keys and a batch's manifest go to
+KEYDIR, never the documents' folder or one inside it. A degraded copy is blind too, with its own id.
+
+Content comes from a seed derived from a salt, 128 random bits drawn per set, recorded in every key, so nobody can
+rebuild a document from a guessed scenario and seed and match a printed claim number. `--blind-salt SALT` or
+`blind: { salt }` (32 lowercase hexadecimal digits from an earlier set's key) makes the same set again; documents
+are written in an order drawn from the salt. Keys (ground truth 1.5) hold a `blind` object: `id`, `salt`, `seed`
+and `layoutVariant` as asked, `copyOf` on a degraded copy, `set` and `canary` in a published set (every manifest
+line carries the canary too). `verify --manifest` scores a blind set exactly as an open set.
+
+`--set standard` (`set: 'standard'`) makes the published set "standard" of 1,022 blind documents (see the repository
+README). A set is always blind and its file fixes every document, so `--set` takes no `--types`, `--scenarios`,
+`--seeds`, `--seed-prefix`, `--degrade`, `--also` or `--layout-variant`. Its salt, from `set.json` or any key, makes
+the same content again; PDF bytes can differ by machine and Chrome install, so the manifest's SHA-256s name the
+published files.
+
+```js
+await renderBatch({ set: 'standard', outDir: './documents', blind: true, keysDir: './keys' });  // or blind: { salt }
+```
+
 ## Scoring an extractor
 
 `verify` compares an extractor's or bill auditor's report with the answer key. The report is JSON in the shape of
@@ -264,6 +295,12 @@ flagged. Either part may be left out.
   followed, and a folder, FIFO or device is listed as an invalid report (or, in place of an answer key, refused).
   Only a report that is not there counts as missing; one that holds JSON `null`, a list or malformed JSON is
   listed as invalid.
+- Headline figures (`fields`, `errors`) count every document of the set: a missing or invalid report scores as an
+  empty one, and so does a part (fields or errors) a report leaves out once any report gives it. Skipping a document
+  never raises field accuracy or recall; precision counts only what was flagged, so read it beside recall.
+  `scoredOnly` holds the old figures, over scored reports. New breakdowns: `byType`, `byDegradation` (`clean` or the
+  preset) and `byKind` (expected, found, recall per kind). `documents`, `scored`, `missingOutputs`, `invalidOutputs`
+  and `documentsScored` are unchanged.
 - An answer key is checked before scoring: field values must be strings, numbers, booleans or null, error kinds
   and decoy ids lower-case letters, digits and hyphens, and references strings; any other key is refused.
 - Dates match in any of the supported forms on either side: a key that prints "March 5, 2026" accepts

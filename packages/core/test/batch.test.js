@@ -71,7 +71,9 @@ test('scoring a set reads only regular files the manifest names: links, folders 
   const r = f.verify();
   assert.equal(r.status, 0, r.stderr); const out = JSON.parse(r.stdout);
   assert.deepEqual(out.invalidOutputs.map((x) => [x.document, x.problem]), ['a', 'b', 'c'].map((n) => [`${n}.pdf`, 'extractor output: not a regular file (a link, a folder or a special file)']));
-  assert.equal(out.scored, 1); assert.equal(out.fields.accuracy, 1);
+  assert.equal(out.scored, 1); assert.equal(out.scoredOnly.fields.accuracy, 1);
+  // the headline counts the three unreadable reports as empty ones
+  assert.equal(out.fields.correct, out.scoredOnly.fields.correct); assert.ok(out.fields.expected > out.scoredOnly.fields.expected);
   // an answer key replaced by a link to a file with the same bytes elsewhere is refused, hash or no hash
   const k = path.join(f.set, 'd.ground-truth.json'); fs.renameSync(k, path.join(f.outside, 'd.ground-truth.json')); fs.symlinkSync(path.join(f.outside, 'd.ground-truth.json'), k);
   const linked = f.verify();
@@ -113,7 +115,8 @@ test('a batch writes PDFs, answer keys and a manifest that matches them, never o
   assert.equal(r.documents, entries.length); assert.equal(r.missingOutputs, 1); assert.equal(r.scored, entries.length - 2);
   assert.deepEqual(r.invalidOutputs, [{ document: entries[3].pdf, problem: 'extractor output: not valid JSON' }]);
   assert.equal(r.errors.falseAlarms, 1);
-  assert.ok(r.fields.accuracy > 0.5 && r.fields.accuracy < 1);
+  assert.ok(r.scoredOnly.fields.accuracy > 0.5 && r.scoredOnly.fields.accuracy < 1);
+  assert.ok(r.fields.accuracy < r.scoredOnly.fields.accuracy, 'the missing and invalid reports count as empty in the headline');
   // only a report that is not there is missing: one holding JSON null or a list is of the wrong shape, and {} scores nothing
   const shapes = path.join(dir, 'reports-shapes'); fs.mkdirSync(shapes);
   const body = { 0: '{}', 2: 'null', 3: '{}', 4: '[]', 5: '{}' };
