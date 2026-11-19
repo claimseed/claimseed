@@ -7,6 +7,7 @@
   "capLeavesNothing": "{op}: the out-of-pocket maximum leaves nothing more to charge the member this month",
   "capBelowDeductible": "{op}: this month is too close to the out-of-pocket maximum to charge the deductible again; use a month further below it",
   "needsState": "{op}: the scenario must set the prior out-of-pocket amount and, on the PPO, the deductible met",
+  "deductibleNotMet": "ma-reapply-deductible: the line took part of the deductible when the plan processed it, so the deductible was not yet met and cannot be applied again; put the line after enough other coinsurance lines to meet the deductible, or set the deductible met before the period",
   "noDeductible": "{op}: the {type} plan has no deductible",
   "notExemptLine": "ma-cost-share-on-exempt-line: the line is not a $0 preventive or lab line",
   "notCoinsuranceLine": "ma-reapply-deductible: the line is not a coinsurance line",

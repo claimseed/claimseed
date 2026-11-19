@@ -63,11 +63,13 @@ export async function launchBrowser(opts = {}) {
   // would otherwise write under the user's home or the temp folder (settings, caches, crash-report settings, temporary
   // files), redirected there through HOME, the XDG folders and TMPDIR. The folder is removed when the browser process exits, or failing that when this
   // process exits.
-  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'claimseed-chrome-'));
+  // The names are short on purpose: Chrome puts its singleton socket under TMPDIR, and a Unix socket path is at most
+  // 107 bytes on Linux, so a long system temp folder plus long names here would stop Chrome from starting.
+  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'cs-'));
   workDirs.add(work);
   if (!exitHook) { exitHook = true; process.on('exit', () => { for (const d of [...workDirs]) removeWorkDir(d); }); }
-  for (const d of ['profile', 'home', 'config', 'cache', 'tmp']) fs.mkdirSync(path.join(work, d));
-  const tmp = path.join(work, 'tmp');
+  for (const d of ['profile', 'home', 'config', 'cache', 't']) fs.mkdirSync(path.join(work, d));
+  const tmp = path.join(work, 't');
   Object.assign(env, { HOME: path.join(work, 'home'), XDG_CONFIG_HOME: path.join(work, 'config'), XDG_CACHE_HOME: path.join(work, 'cache'), TMPDIR: tmp, TMP: tmp, TEMP: tmp, GSETTINGS_BACKEND: 'memory' });
   let browser;
   try { browser = await puppeteer.launch({ headless: true, executablePath, args, env, userDataDir: path.join(work, 'profile'), ...opts }); }

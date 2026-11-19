@@ -82,7 +82,8 @@ is present.
 
 | kind | status | What is wrong | Rule / reference | Typical documents |
 | --- | --- | --- | --- | --- |
-| `bill-vs-eob-mismatch` | planned | Provider bill asks for more than the EOB says the patient owes | Plan EOC; assignment rules above | Itemized bill + EOB |
+| `bill-vs-eob-mismatch` | implemented | The provider's statement asks for more than the paired Medicare Advantage EOB says the member owes for that claim: the contractual adjustment is too small, or a line the plan denied is left in the balance instead of being taken off. | [42 CFR 422.504(g)(1)(i)](https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-K/section-422.504): an MA organization's contracts must bar its providers from holding an enrollee liable for fees that are the organization's legal obligation. [42 CFR 422.111(k)(1) and (k)(3)(iii)](https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.111): the EOB states the enrollee's share of each claim and identifies denied claims. | Provider statement vs. Medicare Advantage EOB |
+| `bill-payment-mismatch` | implemented | The plan payment the provider's statement credits differs from the plan payment on the paired EOB for that claim. The balance due is still right. | [42 CFR 422.111(k)(1)](https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.111): the EOB states, for each claim, the provider's billed amount, the total the plan approved, the plan's share and the enrollee's share. | Provider statement vs. Medicare Advantage EOB |
 | `phantom-charge-vs-record` | planned | Bill line with no corresponding entry in the clinical record | OIG typology | Itemized bill + lab report |
 | `receipt-vs-eob-copay` | planned | Pharmacy receipt copay differs from the Part D EOB | Plan formulary tier; 42 CFR 423.104 | Pharmacy receipt + Part D EOB |
 | `identity-conflict` | planned | Two documents in a bundle belong to different members | Internal consistency | Any pair |
@@ -93,7 +94,10 @@ A scenario may plant decoys beside its errors, or on a notice with none: lines t
 Each one is listed in the ground truth's `decoys[]` with its kind, its place on the page and the public rule that makes
 it correct (the scenario must cite one); it is never in `errors[]`. A report that flags a decoy line, under any error
 kind, counts as a false alarm in `verify_document` and `claimseed-core verify`, which also list its id under
-`decoysFlagged`.
+`decoysFlagged`. A decoy that repeats a service on another date also names the line it repeats (`relatedLineRef` and
+`relatedFieldRef`), and a flag on either line counts as flagging the decoy; two flags of the same kind on the two lines
+count as one false alarm and a repeat, and a flag that matches a planted error by kind and line still finds that error
+first.
 
 | kind | status | What it looks like | Why it is correct | Rule / reference | Wrongly reported as |
 | --- | --- | --- | --- | --- | --- |
@@ -102,6 +106,7 @@ kind, counts as a false alarm in `verify_document` and `claimseed-core verify`, 
 | `approved-below-copay` | implemented | The member pays less than the category copay and the plan pays $0 for the line. | Under the plan's stated design (evidence of coverage), the copay never exceeds the plan-approved amount, so the member pays the approved amount and the plan pays nothing. | Plan's stated design (evidence of coverage): when the plan-approved amount is less than the copay, the member pays the approved amount and the plan pays $0 | cost-sharing-error (the member's share does not match the category copay, and the plan pays nothing) |
 | `oop-cap-partial-share` | implemented | One line charges only part of its usual copay or coinsurance, and later lines charge the member nothing. | The member reached the in-network out-of-pocket maximum on that line (42 CFR 422.100(f)(4) and the plan's evidence of coverage), so the member pays only up to the maximum and the plan pays the rest. | In-network out-of-pocket limit, 42 CFR 422.100(f)(4), https://www.law.cornell.edu/cfr/text/42/422.100; plan's evidence of coverage: the member pays only up to the maximum, the plan pays the rest | cost-sharing-error (the line charges less than its usual copay or coinsurance, and later lines charge nothing) |
 | `partial-deductible` | implemented | A PPO coinsurance line charges the member more than 20% of its plan-approved amount. | Under the plan's stated design (evidence of coverage, note C1), the line first takes the rest of the year's in-network deductible and then 20% of the remaining approved amount. | Plan's stated design (evidence of coverage, note C1): the rest of the year's in-network deductible is paid first, then 20% coinsurance on the remaining approved amount | deductible-misapplied (the share is above 20% of the approved amount, so the deductible looks charged again) |
+| `paid-at-visit` | implemented | The provider's statement asks for less than the member share on the paired EOB, and it credits a payment the patient made at the visit, such as a copay. | A payment the patient made at the visit is credited against what the patient owes, so the balance due is the EOB's member share less that payment. | Internal consistency of the statement. | `bill-vs-eob-mismatch` |
 
 ## Layout variants
 

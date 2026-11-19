@@ -2,7 +2,8 @@
 // The report uses the answer key's own vocabulary (schemas/extractor-output.schema.json): field paths from
 // documents[0].fields, and errors as { kind, fieldRef or lineRef }. The result names only the answer key's paths,
 // kinds and decoy ids, never text the caller sent, so it is safe to hand back to an agent.
-import { generateData } from './generate/index.js';
+import { generateData, generatePair } from './generate/index.js';
+import { pairMessage } from './generate/provider-statement.js';
 import { scalarText } from './scalar-text.js';
 import { PRESETS } from './presets.js';
 import { SET_STRINGS } from './set.js';
@@ -124,16 +125,21 @@ export function scoreExtraction(answerKey, output) {
   }
   if (output.errors !== undefined) {
     const expected = answerKey.errors || []; const decoys = answerKey.decoys || [];
-    const matched = new Set(); const decoysHit = new Set(); let falseAlarms = 0; let repeats = 0;
+    const matched = new Set(); const decoysHit = new Set(); const decoyKinds = new Map(); let falseAlarms = 0; let repeats = 0;
     for (const r of output.errors) {
       const kind = r.kind.trim().toLowerCase();
       const i = expected.findIndex((e, j) => !matched.has(j) && e.kind === kind && sameLocation(e, r));
       if (i >= 0) { matched.add(i); continue; }
       // the same error reported again (both lines of a duplicate pair, say): neither found twice nor a false alarm
       if (expected.some((e, j) => matched.has(j) && e.kind === kind && sameLocation(e, r))) { repeats++; continue; }
+      // a decoy at its own line before one that only names this line as its pair's other half
+      const own = (x) => sameLocation({ fieldRef: x.fieldRef, lineRef: x.lineRef }, r) && (x.fieldRef || x.lineRef);
+      const d = decoys.find(own) || decoys.find((x) => sameLocation(x, r) && locs(x).length);
+      // the same decoy flagged again under the same kind (both lines of a repeat pair, say) is one false alarm, as
+      // both lines of a duplicate pair are one error found
+      if (d && decoyKinds.get(d.id)?.has(kind)) { repeats++; continue; }
       falseAlarms++;
-      const d = decoys.find((x) => sameLocation(x, r) && locs(x).length);
-      if (d) decoysHit.add(d.id);
+      if (d) { decoysHit.add(d.id); decoyKinds.set(d.id, (decoyKinds.get(d.id) || new Set()).add(kind)); }
     }
     // counted in a Map and returned as own properties: a kind never reaches an object's prototype
     const kinds = new Map();
@@ -201,9 +207,12 @@ export function summarizeSet(rows) {
 // version may differ: score against the saved answer-key file when the documents came from another version.
 const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const SEED = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
-export function verifyFromSeed({ type, scenario, seed = 'claimseed', output, layoutVariant = null }) {
+// `document: 'bill'` scores the report against the provider's statement rendered beside the EOB (render with also bill),
+// rebuilt with the statement variant `bill`, instead of against the EOB.
+export function verifyFromSeed({ type, scenario, seed = 'claimseed', output, layoutVariant = null, document = 'eob', bill = 'clean' }) {
   if (!SLUG.test(scalarText(type)) || !SLUG.test(scalarText(scenario)) || !SEED.test(scalarText(seed))) throw new Error('verify: invalid type, scenario or seed');
+  if (document !== 'eob' && document !== 'bill') throw new Error(pairMessage('verifyDocument', 'verify'));
   checkOutput(output);
-  const { groundTruth } = generateData({ type, scenario, seed, layoutVariant });
+  const { groundTruth } = document === 'bill' ? generatePair({ type, scenario, seed, layoutVariant, bill, who: 'verify' }).statement : generateData({ type, scenario, seed, layoutVariant });
   return scoreExtraction(groundTruth, output);
 }

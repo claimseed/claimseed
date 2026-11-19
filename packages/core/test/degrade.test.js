@@ -166,8 +166,8 @@ test('the command line refuses an empty, missing, blank or unknown preset or fol
   const more = [
     [['--degrade=fax'], () => /^--degrade takes its value in the next argument, not after an equals sign\n$/],
     [['--degrade=canary'], () => /^--degrade takes its value in the next argument, not after an equals sign\n$/],
-    [['--degrad', 'fax'], (c) => (c === 'render' ? /^render: unknown option; the options are --seed, --out, --degrade, --also, --layout-variant, --blind-keys, --blind-salt\n$/
-      : /^batch: unknown option; the options are --types, --scenarios, --seeds, --seed-prefix, --degrade, --also, --out, --layout-variant, --blind-keys, --blind-salt, --set\n$/)],
+    [['--degrad', 'fax'], (c) => (c === 'render' ? /^render: unknown option; the options are --seed, --out, --degrade, --also, --bill, --layout-variant, --blind-keys, --blind-salt\n$/
+      : /^batch: unknown option; the options are --types, --scenarios, --seeds, --seed-prefix, --degrade, --also, --bill, --out, --layout-variant, --blind-keys, --blind-salt, --set\n$/)],
     [['--canary=1'], (c) => new RegExp(`^${c}: unknown option; the options are --`)],
     [['--degrade', 'fax', '--degrade', 'scan'], () => /^--degrade may be given only once\n$/],
     [['canary-extra'], (c) => new RegExp(`^${c}: too many arguments\n$`)],

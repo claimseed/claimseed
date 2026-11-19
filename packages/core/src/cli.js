@@ -5,9 +5,10 @@
 //   claimseed-core render <type> <scenario> --seed S --out DIR  -> PDF + <name>.ground-truth.json
 //        [--degrade scan|fax|photo|low-res]                    -> a degraded copy instead: image-only PDF, answer key, page images
 //        [--also 835]                                          -> also the X12 835 remittance of the same claims (<name>.835)
+//        [--also bill [--bill VARIANT]]                        -> also the provider's statement of one claim of a ppo-eob or hmo-eob (<name>.bill.pdf)
 //        [--layout-variant ID|seeded|all]                      -> a layout variant (itemized-bill, ppo-eob, hmo-eob): <name>.<id>.pdf
 //        [--blind-keys KEYDIR [--blind-salt SALT]]            -> a blind document: <id>.pdf in DIR, its answer key in KEYDIR
-//   claimseed-core batch --types T1,T2 [--scenarios all|S1,S2] [--seeds N] [--seed-prefix P] [--degrade PRESET] [--also 835] --out DIR
+//   claimseed-core batch --types T1,T2 [--scenarios all|S1,S2] [--seeds N] [--seed-prefix P] [--degrade PRESET] [--also 835|bill|835,bill [--bill VARIANT]] --out DIR
 //                                                              -> PDFs, answer keys and manifest.jsonl in DIR
 //        [--blind-keys KEYDIR [--blind-salt SALT]]            -> a blind set: <id>.pdf in DIR, answer keys and manifest in KEYDIR
 //   claimseed-core batch --set NAME --out DIR --blind-keys KEYDIR [--blind-salt SALT]
@@ -37,8 +38,8 @@ const SEED = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const COMMANDS = {
   list: { positional: 1, options: [] },
   generate: { positional: 2, options: ['seed', 'layout-variant'] },
-  render: { positional: 2, options: ['seed', 'out', 'degrade', 'also', 'layout-variant', 'blind-keys', 'blind-salt'] },
-  batch: { positional: 0, options: ['types', 'scenarios', 'seeds', 'seed-prefix', 'degrade', 'also', 'out', 'layout-variant', 'blind-keys', 'blind-salt', 'set'] },
+  render: { positional: 2, options: ['seed', 'out', 'degrade', 'also', 'bill', 'layout-variant', 'blind-keys', 'blind-salt'] },
+  batch: { positional: 0, options: ['types', 'scenarios', 'seeds', 'seed-prefix', 'degrade', 'also', 'bill', 'out', 'layout-variant', 'blind-keys', 'blind-salt', 'set'] },
   verify: { positional: 2, options: ['answer-key', 'output', 'seed', 'manifest', 'outputs', 'layout-variant'] },
 };
 function refuse(message) { console.error(message); process.exit(2); }
@@ -98,13 +99,16 @@ async function blindFlags() {
   if (salt !== null && !BLIND_SALT.test(salt)) refuse(BLIND_STRINGS.cli.saltFormat);
   return { blind: salt === null ? true : { salt }, keysDir: path.resolve(keys) };
 }
-// --also: a closed list, checked before anything is generated; an 835 only for the document types that have one
+// --also: a closed list (835, bill, or 835,bill), checked before anything is generated; an 835 only for the document
+// types that have one
 async function alsoFlag(types) {
   const also = flag('also', null); if (also === null) return null;
   const { ALSO, REMITTANCE_TYPES } = await import('./index.js');
-  if (!ALSO.includes(also)) { console.error(`--also must be one of ${ALSO.join(', ')}`); process.exit(2); }
-  if (types.some((t) => !REMITTANCE_TYPES.includes(t))) { console.error(`--also 835 is for ${REMITTANCE_TYPES.join(', ')} only`); process.exit(2); }
-  return also;
+  const list = also.split(',');
+  if (list.length === 1 && !ALSO.includes(also)) { console.error(`--also must be one of ${ALSO.join(', ')}`); process.exit(2); }
+  if (list.length > ALSO.length || !list.every((a) => ALSO.includes(a)) || new Set(list).size !== list.length) { const { pairMessage } = await import('./generate/provider-statement.js'); refuse(pairMessage('alsoList', '--also')); }
+  if (list.includes('835') && types.some((t) => !REMITTANCE_TYPES.includes(t))) { console.error(`--also 835 is for ${REMITTANCE_TYPES.join(', ')} only`); process.exit(2); }
+  return list.length === 1 ? list[0] : list;
 }
 
 async function main() {
@@ -135,13 +139,15 @@ async function main() {
     for (const layoutVariant of variants) {
       if (degrade !== null) {
         const { renderDegraded } = await import('./degrade.js');
-        const r = await renderDegraded({ type, scenario, seed, preset: degrade, outDir, also, layoutVariant, blind: set, keysDir });
+        const r = await renderDegraded({ type, scenario, seed, preset: degrade, outDir, also, bill: flag('bill', null), layoutVariant, blind: set, keysDir });
         console.log(blind ? wroteBlind(r.pdf, r.bytes.length) : `wrote ${r.pdf} (${r.bytes.length} bytes), its ground truth${also ? ', its 835' : ''} and ${r.images.length} page image(s)`);
         continue;
       }
       const { render } = await import('./index.js');
-      const { pdf, bytes } = await render({ type, scenario, seed, outDir, also, layoutVariant, blind: set, keysDir });
-      console.log(blind ? wroteBlind(pdf, bytes.length) : `wrote ${pdf} (${bytes.length} bytes) and ground truth${also ? ' and its 835' : ''}`);
+      const { pdf, bytes, bill } = await render({ type, scenario, seed, outDir, also, bill: flag('bill', null), layoutVariant, blind: set, keysDir });
+      const with835 = also === '835' || (Array.isArray(also) && also.includes('835'));
+      console.log(blind ? wroteBlind(pdf, bytes.length) : `wrote ${pdf} (${bytes.length} bytes) and ground truth${with835 ? ' and its 835' : ''}`);
+      if (bill) console.log(blind ? wroteBlind(bill.pdf, bill.bytes.length) : `wrote ${bill.pdf} (${bill.bytes.length} bytes) and ground truth`);
     }
     return;
   }
@@ -150,7 +156,7 @@ async function main() {
     // unknown name is refused before anything is made; no message repeats what was typed
     const { SET_NAMES, SET_STRINGS } = await import('./set.js');
     const M = SET_STRINGS.messages;
-    if (['types', 'scenarios', 'seeds', 'seed-prefix', 'degrade', 'also', 'layout-variant'].some((o) => parsed.values.has(o))) refuse(M.setFixed);
+    if (['types', 'scenarios', 'seeds', 'seed-prefix', 'degrade', 'also', 'bill', 'layout-variant'].some((o) => parsed.values.has(o))) refuse(M.setFixed);
     if (!SET_NAMES.includes(flag('set', null))) refuse(M.setUnknown.replace('{names}', SET_NAMES.join(', ')));
     const out = flag('out', null); if (!out) { console.error('batch needs --out DIR'); process.exit(2); }
     if (!parsed.values.has('blind-keys')) refuse(M.setNeedsKeys);
@@ -171,7 +177,7 @@ async function main() {
     const also = await alsoFlag(types);
     const layoutVariant = variantFlag(types, { allowAll: true });
     const { blind, keysDir } = await blindFlags();
-    const r = await renderBatch({ types, scenarios: sc === 'all' ? 'all' : sc.split(',').filter(Boolean), seeds, seedPrefix: flag('seed-prefix', 'batch'), outDir: path.resolve(out), degrade, also, layoutVariant, blind, keysDir,
+    const r = await renderBatch({ types, scenarios: sc === 'all' ? 'all' : sc.split(',').filter(Boolean), seeds, seedPrefix: flag('seed-prefix', 'batch'), outDir: path.resolve(out), degrade, also, bill: flag('bill', null), layoutVariant, blind, keysDir,
       onProgress: (n, of) => { if (n === of || n % 10 === 0) console.log(`batch: ${n} of ${of}`); } });
     console.log(`wrote ${r.count} documents and ${r.manifest}`);
     return;
@@ -218,8 +224,8 @@ async function main() {
     else { mustMatch(type, SLUG, 'type'); mustMatch(scenario, SLUG, 'scenario'); mustMatch(flag('seed', 'claimseed'), SEED, 'seed'); r = verifyFromSeed({ type, scenario, seed: flag('seed', 'claimseed'), output, layoutVariant: variantFlag([type]) }); }
     process.stdout.write(JSON.stringify(r, null, 2) + '\n'); return;
   }
-  console.error('usage: claimseed-core list [type] | generate <type> <scenario> --seed S | render <type> <scenario> --seed S --out DIR [--degrade PRESET] [--also 835] [--blind-keys KEYDIR [--blind-salt SALT]]\n'
-    + '       | batch --types T1,T2 [--scenarios all|S1,S2] [--seeds N] [--seed-prefix P] [--degrade PRESET] [--also 835] [--layout-variant ID|seeded|all] [--blind-keys KEYDIR [--blind-salt SALT]] --out DIR\n'
+  console.error('usage: claimseed-core list [type] | generate <type> <scenario> --seed S | render <type> <scenario> --seed S --out DIR [--degrade PRESET] [--also 835|bill|835,bill [--bill VARIANT]] [--blind-keys KEYDIR [--blind-salt SALT]]\n'
+    + '       | batch --types T1,T2 [--scenarios all|S1,S2] [--seeds N] [--seed-prefix P] [--degrade PRESET] [--also 835|bill|835,bill [--bill VARIANT]] [--layout-variant ID|seeded|all] [--blind-keys KEYDIR [--blind-salt SALT]] --out DIR\n'
     + `       ${SET_USAGE}\n`
     + `         --layout-variant ID|seeded|all (render, generate, batch, verify): ${VARIANT_STRINGS.developer.cliUsage}\n`
     + '       | verify (--answer-key FILE | <type> <scenario> --seed S) --output FILE | verify --manifest FILE --outputs DIR');

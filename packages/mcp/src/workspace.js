@@ -17,7 +17,7 @@ import fs from 'fs'; import os from 'os'; import path from 'path'; import crypto
 export const LEDGER = '.claimseed-mcp.json';
 const { O_WRONLY, O_CREAT, O_EXCL } = fs.constants;
 const O_NOFOLLOW = fs.constants.O_NOFOLLOW || 0;   // not defined on Windows, where O_EXCL alone refuses an existing link
-const NAME_DOC = /^[a-z0-9][a-z0-9-]{0,63}_[a-z0-9][a-z0-9-]{0,63}_[A-Za-z0-9][A-Za-z0-9._-]{0,63}(_(scan|fax|photo|low-res))?_[0-9a-f]{12}\.(pdf|ground-truth\.json|835)$/;
+const NAME_DOC = /^[a-z0-9][a-z0-9-]{0,63}_[a-z0-9][a-z0-9-]{0,63}_[A-Za-z0-9][A-Za-z0-9._-]{0,63}(_(scan|fax|photo|low-res))?_[0-9a-f]{12}\.(pdf|ground-truth\.json|835|bill\.pdf|bill\.ground-truth\.json)$/;
 // a blind document's files: its id only, and never an answer key
 const NAME_BLIND = /^doc-[0-9a-f]{16}_[0-9a-f]{12}\.(pdf|835)$/;
 const NAME = { test: (n) => NAME_DOC.test(n) || NAME_BLIND.test(n) };
@@ -85,11 +85,14 @@ export function openWorkspace(dir, { quotaBytes = 500 * 2 ** 20, maxFiles = 2000
     root,
     quotaBytes, maxFiles,
     // Write one output set (e.g. a PDF and its ground truth) under a fresh server-chosen base name.
-    // files: [{ ext: 'pdf' | 'ground-truth.json' | '835', bytes: Buffer }]; returns { base, paths: { [ext]: absolutePath }, evicted }.
-    save(stem, files) {
+    // files: [{ ext: 'pdf' | 'ground-truth.json' | '835' | 'bill.pdf' | 'bill.ground-truth.json', bytes: Buffer }], or a
+    // function of the base name returning them (a pair's keys name each other's files); returns { base, paths: { [ext]:
+    // absolutePath }, evicted }.
+    save(stem, filesOrMake) {
+      const base = `${stem}_${crypto.randomBytes(6).toString('hex')}`;
+      const files = typeof filesOrMake === 'function' ? filesOrMake(base) : filesOrMake;
       const total = files.reduce((n, f) => n + f.bytes.length, 0);
       if (total > quotaBytes) throw new Error(`output of ${total} bytes is larger than the workspace quota of ${quotaBytes} bytes`);
-      const base = `${stem}_${crypto.randomBytes(6).toString('hex')}`;
       const names = files.map((f) => `${base}.${f.ext}`);
       if (!names.every((n) => NAME.test(n))) throw new Error('internal: unexpected output name');
       checkRoot();

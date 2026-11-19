@@ -173,6 +173,11 @@ test('smuggling forms: escaped JSON strings, concatenation, comments, spaced bas
     'enums.js': Array.from({ length: 40 }, (_, i) => `ENUM_VALUE_${i} = 'SampleTokenAlphaBravoCharlieDeltaEcho${i}X',`).join('\n') + '\n',   // CamelCase identifiers are not base64
   };
   const r = run(ok); assert.equal(r.code, 0, `legitimate text flagged: ${r.out}`);
+  // a digest that happens to inflate as raw deflate: left alone in the examples manifest's sha256 fields, caught anywhere else
+  const digest = Buffer.from('f42cfcfd6cdb75ae9e734a5e85b93b813f437934fe2a15c2169e1d27da0a4950', 'hex').map((b) => b ^ 0xff).toString('hex');   // stored inverted, so this file holds no such stream
+  assert.equal(run({ 'examples/manifest.json': JSON.stringify({ examples: [{ groundTruthSha256: digest }] }, null, 2) }).code, 0, 'a digest in the manifest flagged');
+  assert.equal(run({ 'examples/manifest.json': JSON.stringify({ examples: [{ note: digest }] }, null, 2) }).code, 1, 'the same bytes under another key passed');
+  assert.equal(run({ 'data/other.json': JSON.stringify({ groundTruthSha256: digest }, null, 2) }).code, 1, 'the same bytes in another file passed');
 });
 
 test('short compressed records are caught: gzip, zlib, raw deflate, bzip2, xz, zstd and lz4 of one line, as base64 or hex', () => {

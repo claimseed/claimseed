@@ -217,7 +217,8 @@ test('every refusal stops the operation, with a message that carries no caller v
   refuses('ppo-eob', { maDeductibleMetBefore: 50 }, M('deductibleNeedsPrior', { type: 'ppo-eob' }));
   refuses('ppo-eob', { maPriorOop: 40, maDeductibleMetBefore: 50 }, M('deductibleAbovePrior', { type: 'ppo-eob' }));
   refuses('ppo-eob', { maPriorOop: 400, maDeductibleMetBefore: 151 }, M('deductibleRange', { type: 'ppo-eob' }));
-  refuses('ppo-eob', { claimCount: 1, claimShapes: ['DERM'], maPriorOop: 400, maDeductibleMetBefore: 100, mutations: [{ op: 'ma-reapply-deductible', args: { claim: 0, line: 1 } }] }, M('needsState', { op: 'ma-reapply-deductible' }));
+  refuses('ppo-eob', { claimCount: 1, claimShapes: ['DERM'], maPriorOop: 400, maDeductibleMetBefore: 100, mutations: [{ op: 'ma-reapply-deductible', args: { claim: 0, line: 1 } }] }, M('deductibleNotMet'));
+  refuses('ppo-eob', { claimCount: 1, claimShapes: ['DERM'], mutations: [{ op: 'ma-reapply-deductible', args: { claim: 0, line: 1 } }] }, M('needsState', { op: 'ma-reapply-deductible' }));
   refuses('ppo-eob', { claimCount: 1, claimShapes: ['DERM'], maPriorOop: 400, maDeductibleMetBefore: 150, mutations: [{ op: 'ma-reapply-deductible', args: { claim: 0, line: 0 } }] }, M('notCoinsuranceLine'));
   refuses('ppo-eob', { claimCount: 1, claimShapes: ['DERM'], maPriorOop: 400, maDeductibleMetBefore: 150, decoys: [{ op: 'ma-partial-deductible', args: { claim: 0, line: 1 }, rule: 'r' }] }, M('notPartialDeductible'));
   refuses('hmo-eob', { claimCount: 1, claimShapes: ['DERM'], maPriorOop: 10, decoys: [{ op: 'ma-partial-deductible', args: { claim: 0, line: 1 }, rule: 'r' }] }, M('noDeductible', { op: 'ma-partial-deductible', type: 'hmo-eob' }));

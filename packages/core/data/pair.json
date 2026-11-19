@@ -1,0 +1,69 @@
+{
+ "note": "Printed labels of the provider statement paired with a Medicare Advantage EOB, the rules of its errors and decoys, and its refusal messages (0.7.0). Filled in by the code: {who} {variants} {billingPhone}.",
+ "labels": {
+  "title": "Patient Statement",
+  "statementDate": "Statement Date",
+  "accountNumber": "Account Number",
+  "patient": "Patient",
+  "memberId": "Member ID",
+  "plan": "Health Plan",
+  "claimNumber": "Claim Number",
+  "dateOfService": "Date of Service",
+  "providerNpi": "Provider NPI",
+  "taxId": "Tax ID",
+  "columnDate": "Date",
+  "columnCode": "Code",
+  "columnDescription": "Description",
+  "columnUnits": "Units",
+  "columnCharge": "Charge",
+  "summaryTitle": "Account Summary",
+  "totalCharges": "Total Charges",
+  "contractualAdjustment": "Contractual Adjustment",
+  "denied": "Denied by Your Plan, Not Billed to You",
+  "paidByPlan": "Paid by Your Plan",
+  "paymentsReceived": "Payments Received",
+  "balanceDue": "Balance Due",
+  "howToPay": "How to Pay",
+  "payOnline": "Pay Online",
+  "payByPhone": "Pay by Phone",
+  "payByMail": "Pay by Mail",
+  "payableTo": "Make Checks Payable To",
+  "intro": "This statement lists the charges for your visit and what your plan paid. Please compare it with the Explanation of Benefits your plan sent you; you owe only the balance due.",
+  "questions": "If you have questions about this bill, call our billing office at {billingPhone}.",
+  "financialHelp": "If you cannot pay the balance in full, call us to ask about a payment plan or financial help."
+ },
+ "rules": {
+  "overOwed": "The statement's balance due is more than the EOB says the member owes for this claim, because the contractual adjustment is too small. A Medicare Advantage organization's contracts must bar its providers from holding an enrollee liable for fees that are the organization's legal obligation (42 CFR 422.504(g)(1)(i), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-K/section-422.504), and the plan's EOB states the enrollee's share of each claim (42 CFR 422.111(k)(1), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.111).",
+  "deniedLineBilled": "A line the plan denied is left in the statement's balance due instead of being taken off, though the EOB says the member owes nothing for it. A Medicare Advantage organization's contracts must bar its providers from holding an enrollee liable for fees that are the organization's legal obligation (42 CFR 422.504(g)(1)(i), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-K/section-422.504), and the plan's EOB states the enrollee's share of each claim and identifies denied claims (42 CFR 422.111(k)(1) and (k)(3)(iii), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.111).",
+  "paymentMisposted": "The plan payment the statement credits differs from the plan payment on the EOB for this claim, though the balance due is still right. The plan's EOB states, for each claim, the provider's billed amount, the total the plan approved, the plan's share and the enrollee's share (42 CFR 422.111(k)(1), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.111), so the statement must credit the plan's share as the EOB states it.",
+  "paidAtVisit": "The balance due is less than the EOB's member share for this claim because a payment the patient made at the visit, such as a copay, is credited. This is correct: a payment the patient made at the visit is credited against what the patient owes (internal consistency of the statement).",
+  "statementDate": "A line on this statement is dated after the date of the EOB that processed its claim. A plan cannot process a service before it is given, so the line's date cannot be right (internal consistency of the statement and its EOB).",
+  "overOwedWithPayment": "The contractual adjustment is too small, so the statement's balance due plus the payment credited from the visit is more than the EOB says the member owes for this claim. A Medicare Advantage organization's contracts must bar its providers from holding an enrollee liable for fees that are the organization's legal obligation (42 CFR 422.504(g)(1)(i), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-K/section-422.504), and the plan's EOB states the enrollee's share of each claim (42 CFR 422.111(k)(1), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.111).",
+  "paidAtVisitWithError": "A payment the patient made at the visit, such as a copay, is credited against what the patient owes. That credit is correct (internal consistency of the statement)."
+ },
+ "messages": {
+  "pairTypes": "{who}: a provider's statement is made only for a ppo-eob or hmo-eob.",
+  "alsoList": "{who}: `also` must be `835`, `bill` or both, each given once.",
+  "billNeedsAlso": "{who}: a statement variant can be given only when `also` includes `bill`.",
+  "billVariant": "{who}: no statement variant has that name; the variants are {variants}",
+  "billNotHere": "{who}: that statement variant does not apply to the claim this statement bills.",
+  "billAmount": "{who}: a statement amount must be a whole number of cents in the range the variant allows for this claim.",
+  "billDegraded": "{who}: a provider's statement is not made as a degraded copy yet.",
+  "billLayout": "{who}: a provider's statement has no layout variants of its own; the EOB's layout variant still applies.",
+  "verifyDocument": "{who}: document must be eob or bill."
+ },
+ "schema": {
+  "schema16": "Version 1.6 adds the `pair` object and, on the errors and decoys of a provider's statement, `relatedDocumentFieldRef`, and claimseed 0.7.0 writes 1.6 for both documents of a pair, blind or not, with or without a layout variant on the EOB, and never for any other document.",
+  "schemaDecoyRefs": "In every version it writes (1.3 to 1.6), claimseed 0.7.0 also writes relatedLineRef and relatedFieldRef on a decoy that repeats another line; keys written by 0.6.0 and earlier never have them."
+ },
+ "mcp": {
+  "alsoRender": "Other documents to render with this one: 835 for the X12 835 of the same claims (msn, ppo-eob and hmo-eob), bill for the provider's statement for one claim of the EOB (ppo-eob and hmo-eob only), or a list of both.",
+  "alsoBlind": "Other documents to render with this one, with files named by ids: 835 for the X12 835 of the same claims (msn, ppo-eob and hmo-eob), bill for the provider's statement for one claim of the EOB (ppo-eob and hmo-eob only), or a list of both.",
+  "bill": "Provider's statement variant when also includes bill, default clean: clean (no error of its own), over-owed (the contractual adjustment is too small, so the balance due is more than the EOB's member share), denied-line-billed (a line the plan denied is billed to the patient), payment-misposted (Paid by Your Plan differs from what the EOB says the plan paid, but the balance due is still right), paid-at-visit (a decoy: the copay paid at the visit shows as received, so the balance due is correctly less than the member share) or over-owed-with-payment (that decoy and the over-owed error together). A variant applies only where the billed claim allows it.",
+  "statementSaved": "Provider's statement: {pdf}; ground truth: {key}",
+  "statementEmbedded": "Provider's statement: PDF embedded in this result; ground truth in the structured result's bill",
+  "statementBlind": "Provider's statement: {id} ({bytes} bytes); get_answer_key returns its key by this id",
+  "verifyDocument": "Which document the report is on: eob (the default) for the EOB, or bill for the provider's statement rendered with it.",
+  "verifyBill": "When document is bill, the variant the provider's statement was rendered with (default clean)."
+ }
+}

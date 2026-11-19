@@ -326,6 +326,26 @@ export function stampMeta(opts = {}) {
   return { band: typeof opts.band === 'string' ? winAnsi(opts.band).slice(0, 120) : undefined, title: typeof opts.title === 'string' ? opts.title.slice(0, 200) : undefined };
 }
 
+// The provider's statement of one claim of a Medicare Advantage EOB (generate/provider-statement.js): one portrait page,
+// drawn in the itemized bill's colours and fonts with the statement's own labels (data/pair.json), stamped like every
+// other document. `stock` is the itemized bill's stock content; `labels` the statement's.
+export async function renderStatement(data, stock, labels, outputDir, opts = {}) {
+  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'claimseed-pages-'));   // see renderMsn
+  try {
+    const ownBrowser = !opts.browser;   // a caller-supplied browser (opts.browser) is shared and left open
+    const browser = opts.browser || await launchBrowser();
+    const page = path.join(work, '.p1.pdf');
+    try {
+      const html = nunjucks.render('provider-statement/statement.html', templateContext(data, stock, {
+        labels, questions: labels.questions.replace('{billingPhone}', data.metadata.billingPhone) }));
+      await printPage(browser, hardenHtml(html), page, { landscape: false });
+    } finally { if (ownBrowser) await browser.close(); }
+    const finalPdf = path.join(outputDir, 'provider-statement.pdf');
+    await mergePdfs([page], finalPdf, { ...stampMeta(opts), expectedPages: 1 });
+    return finalPdf;
+  } finally { fs.rmSync(work, { recursive: true, force: true }); }
+}
+
 // ============================================================
 // MSN claim pagination engine
 // ============================================================

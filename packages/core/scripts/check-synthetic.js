@@ -67,7 +67,11 @@ walk(ROOT, (p) => {
   const decoded = foldText(decodeText(decodeEscapes(t)));
   // payloads: the rules run over the raw text (and, inside, over its decoded form); decoded blobs that are text come back
   // and are held to every text rule below, as if they had been written in the clear (a base64 note, a JWT, a data:text URI)
-  const recovered = [...new Set([...payloadProblems(t, r, problems), ...payloadProblems(decodeText(t), r, problems)])].map((x) => foldText(x));   // as written (octal escapes read as octal) and entity/CSS-decoded (data:&#105;mage)
+  // examples/manifest.json records SHA-256 digests that CI recomputes; a random digest can read as a short deflate
+  // stream by chance, so those values alone (64 hex characters under a key ending in Sha256 or sha256), in that file
+  // alone, are left out of the payload rules
+  const pt = r === 'examples/manifest.json' ? t.replace(/("[A-Za-z]*[Ss]ha256":\s*")[0-9a-f]{64}(")/g, '$1$2') : t;
+  const recovered = [...new Set([...payloadProblems(pt, r, problems), ...payloadProblems(decodeText(pt), r, problems)])].map((x) => foldText(x));   // as written (octal escapes read as octal) and entity/CSS-decoded (data:&#105;mage)
   if (/data:\s*image\//i.test(decoded)) problems.push(`embedded data:image in ${r}`);
   if (/<svg[^>]*>[\s\S]{2000,}<\/svg>/i.test(decoded)) problems.push(`large inline svg in ${r}`);
   if (ext === '.svg' && buf.length > 16384) problems.push(`svg over 16 KB (an image, not an icon): ${r}`);

@@ -88,3 +88,50 @@ test('every ground truth is schema 1.3 with a decoys list, empty unless the scen
   assert.equal(g.schemaVersion, '1.3'); assert.deepEqual(g.decoys, []); assert.equal(g.documents[0].degradationParams, null);
   assert.ok(validate(g), JSON.stringify(validate.errors));
 });
+
+test('a repeat on another date names the line it repeats, and verify counts a flag at either line as that decoy', async () => {
+  const { scoreExtraction } = await import('../src/verify.js');
+  const decoyScenario = { msn: 'decoys-repeat-visit-high-charge', 'itemized-bill': 'decoys-repeat-therapy-high-charge', 'ppo-eob': 'decoys-partial-deductible', 'hmo-eob': 'decoys-oop-cap-partial' };
+  for (const [type, scenario] of Object.entries(decoyScenario)) {
+    const { groundTruth: g } = generateData({ type, scenario, seed: 'pair-ref-1' });
+    const d = g.decoys.find((x) => x.kind === 'repeat-service-different-date');
+    assert.ok(d, `${type}: the scenario plants a repeat on another date`);
+    assert.ok(d.relatedLineRef && d.relatedLineRef !== d.lineRef, `${type}: the decoy names the first visit`);
+    const first = at(g.claims, d.relatedLineRef); const again = at(g.claims, d.lineRef);
+    assert.equal(first.code, again.code); assert.notEqual(first.dateOfService, again.dateOfService);
+    assert.ok(d.relatedFieldRef && Object.keys(g.documents[0].fields).some((k) => k.startsWith(`${d.relatedFieldRef}.`)), `${type}: the first visit is printed where relatedFieldRef says`);
+    assert.ok(validate(g), JSON.stringify(validate.errors));
+    for (const ref of [d.lineRef, d.relatedLineRef]) {
+      const r = scoreExtraction(g, { errors: [{ kind: 'duplicate-charge', lineRef: ref }] });
+      assert.deepEqual(r.errors.decoysFlagged, [d.id], `${type}: a duplicate reported at ${ref} is the decoy flagged`);
+      assert.equal(r.errors.falseAlarms, 1);
+    }
+  }
+});
+
+test('two repeats of one EOB line each name that line as their first visit', () => {
+  for (const type of ['hmo-eob', 'ppo-eob']) {
+    const scenario = type === 'hmo-eob' ? 'decoys-oop-cap-partial' : 'decoys-partial-deductible';
+    const decoys = [1, 3].map((days) => ({ op: 'ma-repeat-service-other-date', kind: 'repeat-service-different-date', args: { claim: 0, line: 0, days }, rule: 'r' }));
+    const { groundTruth: g } = generateData({ type, scenario, seed: 'pair-ref-2', overrides: { decoys } });
+    assert.equal(g.decoys.length, 2);
+    for (const d of g.decoys) assert.equal(d.relatedLineRef, 'claims[0].lines[0]', `${type} ${d.id}`);
+    assert.notEqual(g.decoys[0].lineRef, g.decoys[1].lineRef);
+  }
+});
+
+test('a flag at a line is scored against the decoy planted on that line before a repeat that names it, and one repeat pair flagged at both lines is one false alarm', async () => {
+  const { scoreExtraction } = await import('../src/verify.js');
+  const [c, j] = repeatable(gen('msn', 'baseline-clean', null, 'dc-4').groundTruth);
+  const decoys = [{ op: 'repeat-service-other-date', args: { claim: c, line: j, days: 7 }, rule: 'r' }, { op: 'charge-far-above-approved', args: { claim: c, line: j, factor: 5 }, rule: 'r' }];
+  const { groundTruth: g } = gen('msn', 'baseline-clean', decoys, 'dc-4');
+  const [repeat, high] = g.decoys;
+  assert.equal(repeat.relatedLineRef, high.lineRef, 'both decoys involve the first line');
+  const one = scoreExtraction(g, { errors: [{ kind: 'fee-schedule-overcharge', lineRef: high.lineRef }] });
+  assert.deepEqual(one.errors.decoysFlagged, [high.id], 'the decoy on that line, not the repeat that names it');
+  // with the repeat alone on that line: both lines of the pair flagged as a duplicate are one false alarm and a repeat
+  const { groundTruth: g2 } = gen('msn', 'baseline-clean', [decoys[0]], 'dc-4');
+  const pair = g2.decoys[0];
+  const both = scoreExtraction(g2, { errors: [{ kind: 'duplicate-charge', lineRef: pair.lineRef }, { kind: 'duplicate-charge', lineRef: pair.relatedLineRef }] });
+  assert.equal(both.errors.falseAlarms, 1); assert.equal(both.errors.repeats, 1); assert.deepEqual(both.errors.decoysFlagged, [pair.id]);
+});

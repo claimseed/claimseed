@@ -1,6 +1,6 @@
 {
   "name": "@claimseed/core",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Render fully synthetic US medical-billing specimen documents (EOB, MSN, bills, notices) from seeded data, and score extractors against their answer keys",
   "license": "Apache-2.0",
   "author": "claimseed maintainers <maintainers@gildage.co>",
@@ -60,6 +60,7 @@
     "data/layout-variants.json",
     "data/blind.json",
     "data/set.json",
+    "data/pair.json",
     "data/sets",
     "scenarios",
     "reference-data",

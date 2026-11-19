@@ -36,19 +36,27 @@ available under that licence; a licence granted with a release cannot be withdra
   content from a salt drawn for each set (`--blind-salt` makes a set again). Over MCP, `render_blind` renders a
   blind document and `get_answer_key` returns its key.
 - The published set "standard": 1,022 blind documents over all 34 published scenarios, with layout variants,
-  degraded copies and 835s, made by `batch --set standard`; claimseed 0.6.0's copy and its public answer keys are
-  attached to the GitHub release v0.6.0. `verify --manifest` counts every document of a set in its headline figures,
+  degraded copies and 835s, made by `batch --set standard`; claimseed 0.7.0's copy and its public answer keys are
+  attached to the GitHub release v0.7.0. `verify --manifest` counts every document of a set in its headline figures,
   with `scoredOnly` and breakdowns by type, degradation and error kind.
+- Provider statements: for one claim of a `ppo-eob` or `hmo-eob`, `render --also bill` and `batch --also bill` write
+  the provider's statement (`provider-statement`) in one of six variants (`--bill`), with its own answer key; the two
+  keys name each other (`pair`), and on a correct statement the balance due is the member share the EOB shows for that
+  claim. Two error kinds show only when the statement is read beside the EOB (`bill-vs-eob-mismatch`,
+  `bill-payment-mismatch`), and `paid-at-visit` is a decoy. A batch writes each statement as its own document and
+  lists the pairs in `pairs.jsonl`; over MCP, `render_document` and `render_blind` take `also` and `bill`, and
+  `verify_document` takes `document` (`eob` or `bill`). Statements have no degraded copies yet and are not in the
+  published set.
 
 ## Next
 
 The order below follows what users ask for, and can change with it.
 
-- **A bill and the EOB of the same visit.** A fictional commercial employer-plan EOB (deductible, out-of-pocket
-  maximum, copays and coinsurance, No Surprises Act protections, preventive care without cost sharing); the
-  provider's itemized bill of the same claim beside it and beside both Medicare Advantage EOBs; and errors that show
-  only across the two: the bill asks more than the EOB says is owed, charges a line the EOB denied, or credits a
-  payment that differs from the EOB's.
+- **A commercial EOB and the provider's statement beside it.** A fictional commercial employer-plan EOB (deductible,
+  out-of-pocket maximum, copays and coinsurance, No Surprises Act protections, preventive care without cost sharing),
+  the provider's statement of the same claim beside it, and errors that show only across the two: the statement asks
+  more than the EOB says is owed, charges a line the EOB denied, or credits a payment that differs from the EOB's. The
+  Medicare Advantage EOBs have had their statements since 0.7.0.
 - **More formats.** Fictional insurers with their own names and marks, EOB layouts that differ in structure (not
   only in style), and bills from more kinds of provider (hospital, physician group, urgent care, lab, ambulance).
 - **Claim forms and claim files.** CMS-1500 and UB-04 forms and 837P and 837I files, with one claim generated as

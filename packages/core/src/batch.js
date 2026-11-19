@@ -9,6 +9,12 @@
 // apart from outDir; each manifest line adds the document's id.
 // With `set` (a published set's name, set.js) the set file fixes every document, its layout, degraded copy and 835
 // included; a set is always blind, and its keys and manifest lines also name the set and carry its canary.
+// With `also` holding `bill` (ppo-eob and hmo-eob only; `bill` names the statement variant, and a claim it does not
+// apply to gets a clean statement, as its key says) each EOB comes with the provider's statement for one of its claims
+// (index.js render). The statement is a job of its own, written at its own place in the order (drawn from the salt
+// when blind), and pairs.jsonl publishes which two belong together; it has its own manifest line (type
+// provider-statement, the EOB's scenario and seed, pairOf the EOB's file name without .pdf), and pairs.jsonl in outDir
+// lists each pair as { eob, bill } file names without .pdf (blind: the two ids), sorted, and nothing else.
 import fs from 'fs'; import path from 'path'; import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { listScenarios } from './generate/index.js';
@@ -68,15 +74,22 @@ export function planBatch({ types, scenarios = 'all', seeds = 10, seedPrefix = '
 
 export async function renderBatch(options) {
   if (options.set !== undefined && options.set !== null) return renderSet(options);
-  const { types, scenarios = 'all', seeds = 10, seedPrefix = 'batch', outDir, browser = null, degrade = null, also = null, layoutVariant = null, blind = false, keysDir = null, onProgress = () => {} } = options;
-  const { ALSO, REMITTANCE_TYPES } = await import('./index.js');
+  const { types, scenarios = 'all', seeds = 10, seedPrefix = 'batch', outDir, browser = null, degrade = null, also = null, bill = null, layoutVariant = null, blind = false, keysDir = null, onProgress = () => {} } = options;
+  const { REMITTANCE_TYPES, alsoList } = await import('./index.js');
+  const { pairMessage, PAIRED_TYPES, BILL_VARIANTS } = await import('./generate/provider-statement.js');
   if (degrade !== null && !PRESETS.includes(degrade)) throw new Error(`batch: no such preset; presets: ${PRESETS.join(', ')}`);
   checkFolders({ outDir, keysDir }, 'batch');
-  if (also !== null && !ALSO.includes(also)) throw new Error(`batch: also must be one of ${ALSO.join(', ')}`);
+  const list = alsoList(also, 'batch'); const withBill = list.includes('bill');
+  if (bill !== null && bill !== undefined && !withBill) throw new Error(pairMessage('billNeedsAlso', 'batch'));
+  if (withBill && !(typeof (bill ?? 'clean') === 'string' && BILL_VARIANTS.includes(bill ?? 'clean'))) throw new Error(pairMessage('billVariant', 'batch'));
+  if (withBill && degrade !== null) throw new Error(pairMessage('billDegraded', 'batch'));
   const salt = blind === false ? null : blindSalt(blind);
   const planned = planBatch({ types, scenarios, seeds, seedPrefix, layoutVariant });
-  const jobs = (salt ? blindOrder(salt, planned) : planned).map((j) => ({ ...j, degrade, also }));
-  if (also === '835' && jobs.some((j) => !REMITTANCE_TYPES.includes(j.type))) throw new Error(`batch: an 835 is written for ${REMITTANCE_TYPES.join(', ')} only`);
+  if (list.includes('835') && planned.some((j) => !REMITTANCE_TYPES.includes(j.type))) throw new Error(`batch: an 835 is written for ${REMITTANCE_TYPES.join(', ')} only`);
+  if (withBill && planned.some((j) => !PAIRED_TYPES.includes(j.type))) throw new Error(pairMessage('pairTypes', 'batch'));
+  // with statements, each EOB job is two: the EOB and its statement, ordered (and, blind, shuffled) as any two jobs
+  const parts = withBill ? planned.flatMap((j) => [{ ...j, part: 'eob' }, { ...j, part: 'bill' }]) : planned;
+  const jobs = (salt ? blindOrder(salt, parts) : parts).map((j) => ({ ...j, degrade, also: list.length ? list : null, ...(withBill ? { bill: bill ?? 'clean' } : {}) }));
   return writeJobs({ jobs, salt, outDir, keysDir, browser, onProgress, set: null });
 }
 
@@ -85,7 +98,7 @@ export async function renderBatch(options) {
 async function renderSet({ set, outDir, browser = null, blind = false, keysDir = null, onProgress = () => {}, ...rest }) {
   const { SetError, setMessage, loadSet, planSet, canaryOf } = await import('./set.js');
   const spec = loadSet(set);
-  for (const k of ['types', 'scenarios', 'seeds', 'seedPrefix', 'degrade', 'also', 'layoutVariant']) if (rest[k] !== undefined && rest[k] !== null) throw new SetError(setMessage('setOptions'));
+  for (const k of ['types', 'scenarios', 'seeds', 'seedPrefix', 'degrade', 'also', 'bill', 'layoutVariant']) if (rest[k] !== undefined && rest[k] !== null) throw new SetError(setMessage('setOptions'));
   if (blind === false || keysDir === null || keysDir === undefined) throw new SetError(setMessage('setNotBlind'));
   const { REMITTANCE_TYPES } = await import('./index.js');
   const salt = blindSalt(blind);
@@ -106,13 +119,39 @@ export async function writeJobs({ jobs, salt, outDir, keysDir = null, browser = 
   else fs.mkdirSync(outDir, { recursive: true });
   const keys = salt ? keysDir : outDir;
   const manifestPath = path.join(keys, 'manifest.jsonl');
-  const manifest = fs.openSync(manifestPath, 'wx');   // refuses a folder that already holds a batch
+  // pairs.jsonl (a batch with statements) is claimed first and the manifest second, each refusing a folder that already
+  // holds one; when the manifest is refused, the empty pairs.jsonl just made goes again, so a refusal leaves nothing
+  const pairsPath = path.join(outDir, 'pairs.jsonl');
+  let pairsFd = jobs.some((j) => j.part) ? fs.openSync(pairsPath, 'wx') : null;
+  let manifest;
+  try { manifest = fs.openSync(manifestPath, 'wx'); }   // refuses a folder that already holds a batch
+  catch (e) { if (pairsFd !== null) { fs.closeSync(pairsFd); fs.unlinkSync(pairsPath); } throw e; }
   const { render } = await import('./index.js');
   const own = !browser; const b = browser || await launchBrowser();
   try {
     const chrome = typeof b.version === 'function' ? await b.version() : null;
+    const held = new Map(); const pairs = [];   // a pair rendered for one part waits here for its other part's turn
     for (const [n, planned] of jobs.entries()) {
-      const { degrade, also, ...job } = planned;
+      const { degrade, also, bill, part, ...job } = planned;
+      if (part) {
+        const k = JSON.stringify([job.type, job.scenario, job.seed, job.layoutVariant ?? null]);
+        const r = held.get(k) || await render({ ...job, browser: b, also, bill, billOrClean: true, ...(salt ? { blind: { salt } } : {}) });
+        if (held.has(k)) held.delete(k); else held.set(k, r);
+        const vid = r.groundTruth.documents[0].layoutVariant?.id; const { layoutVariant: _lv, ...fields } = job;
+        const eobBase = salt ? r.id : `${job.type}_${job.scenario}_${job.seed}${vid ? `.${vid}` : ''}`;
+        const doc = part === 'eob' ? { bytes: r.bytes, groundTruth: r.groundTruth, remittance: r.remittance } : { bytes: r.bill.bytes, groundTruth: r.bill.groundTruth, remittance: null };
+        const base = part === 'eob' ? eobBase : (salt ? r.bill.id : `${eobBase}.bill`);
+        const gt = Buffer.from(JSON.stringify(doc.groundTruth, null, 2));
+        fs.writeFileSync(path.join(outDir, `${base}.pdf`), doc.bytes, { flag: 'wx' });
+        fs.writeFileSync(path.join(keys, `${base}.ground-truth.json`), gt, { flag: 'wx' });
+        const line = { pdf: `${base}.pdf`, groundTruth: `${base}.ground-truth.json`, ...(salt ? { id: base } : {}), ...fields, ...(part === 'bill' ? { type: doc.groundTruth.documents[0].type, pairOf: eobBase } : {}),
+          ...(vid && part === 'eob' ? { layoutVariant: vid } : {}), degradation: null, pages: doc.groundTruth.documents[0].pages, sha256: sha(doc.bytes), groundTruthSha256: sha(gt), claimseedVersion: VERSION, chrome };
+        if (doc.remittance !== null) { const x = Buffer.from(doc.remittance); fs.writeFileSync(path.join(outDir, `${base}.835`), x, { flag: 'wx' }); line.remittance = `${base}.835`; line.remittanceSha256 = sha(x); }
+        fs.writeSync(manifest, JSON.stringify(line) + '\n');
+        if (part === 'eob') pairs.push({ eob: eobBase, bill: salt ? r.bill.id : `${eobBase}.bill` });
+        onProgress(n + 1, jobs.length, base);
+        continue;
+      }
       let { bytes, groundTruth, remittance } = await render({ ...job, browser: b, also, ...(salt ? { blind: { salt } } : {}) });
       // a layout variant (seeded resolves here) names the files and its manifest line: <stem>.<id>
       const id = groundTruth.documents[0].layoutVariant?.id; const { layoutVariant: _asked, ...jobFields } = job;
@@ -129,8 +168,9 @@ export async function writeJobs({ jobs, salt, outDir, keysDir = null, browser = 
       fs.writeSync(manifest, JSON.stringify(line) + '\n');
       onProgress(n + 1, jobs.length, base);
     }
+    if (pairsFd !== null) fs.writeSync(pairsFd, pairs.sort((x, y) => (x.eob < y.eob ? -1 : 1)).map((p) => JSON.stringify(p) + '\n').join(''));
   } finally {
-    fs.closeSync(manifest);
+    fs.closeSync(manifest); if (pairsFd !== null) fs.closeSync(pairsFd);
     if (own) await b.close();
   }
   return { count: jobs.length, outDir, manifest: manifestPath, ...(salt ? { keysDir, salt } : {}) };

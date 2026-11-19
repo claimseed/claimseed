@@ -17,6 +17,7 @@ import { applyMutations, applyDecoys, settleTotals } from './mutations.js';
 import { resolveVariant, variantRecord } from '../variants.js';
 import { assembleMsn } from './msn.js';
 import { assembleItemizedBill } from './itemized-bill.js';
+import { assembleStatement, STATEMENT_TYPE, PAIRED_TYPES, BILL_VARIANTS, pairMessage } from './provider-statement.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const SCENARIOS_DIR = path.resolve(__dirname, '../../scenarios');
@@ -67,7 +68,35 @@ function checkScenario(type, sc) {
   if (sc.deductibleMetBefore !== undefined && !(inCents(sc.deductibleMetBefore) && sc.deductibleMetBefore >= 0 && sc.deductibleMetBefore <= ded)) throw fail('deductibleRange', { type });
 }
 
-export function generateData({ type, scenario, seed = 'claimseed', overrides = {}, layoutVariant = null }) {
+// A Medicare Advantage EOB and the provider's statement for one of its claims (provider-statement.js): the EOB is
+// generateData's EOB, unchanged; the statement is drawn from a stream of its own (the seed, the type, the scenario and
+// "pair-bill"). Returns { eob: { data, groundTruth }, statement: { data, groundTruth } }; the two keys are linked when
+// they are written (render), by the documents' ids or file names.
+export function generatePair({ type, scenario, seed = 'claimseed', overrides = {}, layoutVariant = null, bill = 'clean', billParams = null, orClean = false, who = 'pair' }) {
+  if (!PAIRED_TYPES.includes(type)) throw Object.assign(new Error(pairMessage('pairTypes', who)), { code: 'PAIR' });
+  if (typeof bill !== 'string' || !BILL_VARIANTS.includes(bill)) throw Object.assign(new Error(pairMessage('billVariant', who)), { code: 'PAIR' });
+  const eob = generateDocument({ type, scenario, seed, overrides, layoutVariant });
+  const st = assembleStatement({ rng: makeRng(seed, type, scenario, 'pair-bill'), eob, type, variant: bill, params: billParams, orClean, who });
+  const k = eob.groundTruth;
+  const groundTruth = {
+    schemaVersion: '1.6', seed: k.seed, scenario: k.scenario,
+    documents: [{ id: `${STATEMENT_TYPE}-1`, type: STATEMENT_TYPE, layout: STATEMENT_TYPE, pages: null, format: 'pdf', degradation: null, degradationParams: null, sha256: null,
+      fields: flattenFields(st.data), entities: st.entities }],
+    claims: [st.claim], deductibleMetBefore: k.deductibleMetBefore,
+    errors: st.errors, decoys: st.decoys, documentGaps: [], adversarial: false,
+    sources: k.sources, pricing: k.pricing,
+    pair: { role: 'bill', with: null, claim: st.claimIndex, variant: st.variant, params: st.params },
+  };
+  return { eob: { data: eob.data, groundTruth: eob.groundTruth }, statement: { data: st.data, groundTruth } };
+}
+
+export function generateData(options) {
+  const { data, groundTruth } = generateDocument(options);
+  return { data, groundTruth };
+}
+// generateData's work, with what a document paired with it (a provider's statement) is built from: the beneficiary,
+// the Part B claims the plan re-adjudicated (their providers) and the notice date. Nothing here draws more.
+function generateDocument({ type, scenario, seed = 'claimseed', overrides = {}, layoutVariant = null }) {
   // the type and scenario are slugs and the seed is text or a number (written out); any other value is refused before
   // it is converted or used to look anything up
   if (!SLUG.test(scalarText(type)) || !SLUG.test(scalarText(scenario))) throw new Error('invalid type or scenario slug');
@@ -111,7 +140,7 @@ export function generateData({ type, scenario, seed = 'claimseed', overrides = {
   // shape for every document type) and `fieldRef`, the corresponding path into documents[0].fields for this layout.
   const fieldPaths = data._fieldPaths || DEFAULT_FIELD_PATHS;
   for (const e of errors) { e.fieldRef = fieldRefFor(e.lineRef, fieldPaths); if (e.relatedLineRef) e.relatedFieldRef = fieldRefFor(e.relatedLineRef, fieldPaths); }
-  for (const d of decoys) d.fieldRef = fieldRefFor(d.lineRef, fieldPaths);
+  for (const d of decoys) { d.fieldRef = fieldRefFor(d.lineRef, fieldPaths); if (d.relatedLineRef) d.relatedFieldRef = fieldRefFor(d.relatedLineRef, fieldPaths); }
   const groundTruth = {
     schemaVersion: '1.3', seed: String(seed), scenario: `${type}.${scenario}`,
     // pages and sha256 are null from `generate`; the CLI's render step fills them from the finished PDF.
@@ -135,7 +164,7 @@ export function generateData({ type, scenario, seed = 'claimseed', overrides = {
   };
   // a varied document: schema 1.4, the variant's layout name and its record; nothing else in the key changes
   if (variant) { groundTruth.schemaVersion = '1.4'; Object.assign(groundTruth.documents[0], { layout: variant.layout, layoutVariant: variantRecord(variant) }); }
-  return { data, groundTruth };
+  return { data, groundTruth, context: { beneficiary, adjudicated, dateOfNotice } };
 }
 // Internal keys that are not printed and so never appear in fields.
 const INTERNAL_TOP_LEVEL = new Set(['carrier', 'scenario', 'hasDenial']);
@@ -146,7 +175,7 @@ function fieldRefFor(lineRef, fp) {
   m = /^claims\[(\d+)\]\.totals\.(\w+)$/.exec(lineRef); if (m) return fp.totals(Number(m[1]), m[2]);
   return null;
 }
-function flattenFields(data, prefix = '', out = {}) {
+export function flattenFields(data, prefix = '', out = {}) {
   for (const [k, v] of Object.entries(data)) {
     if (k.startsWith('_') || (!prefix && INTERNAL_TOP_LEVEL.has(k))) continue;
     const key = prefix ? `${prefix}.${k}` : k;

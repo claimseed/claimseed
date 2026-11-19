@@ -21,7 +21,7 @@ const T = BLIND_STRINGS.mcp;
 const schema = JSON.parse(fs.readFileSync(path.resolve(here, '../resources/ground-truth.schema.json'), 'utf-8'));
 const ajv = new Ajv2020({ allErrors: true, strict: false }); addFormats(ajv); const validate = ajv.compile(schema);
 const SEED = 'leakprobe-7x';   // distinctive, so a leaked seed cannot hide among ordinary words
-const RESULT_KEYS = ['bytes', 'degradation', 'id', 'pages', 'pdf', 'pdfEmbedded', 'preview', 'remittance', 'sha256'];
+const RESULT_KEYS = ['bill', 'bytes', 'degradation', 'id', 'pages', 'pdf', 'pdfEmbedded', 'preview', 'remittance', 'sha256'];
 const sha = (b) => crypto.createHash('sha256').update(b).digest('hex');
 
 async function connect(env = {}) {
@@ -62,7 +62,7 @@ test('the blind tools are listed with their own descriptions, no app view, and s
       assert.equal(rb.description, env.CLAIMSEED_WORKSPACE === '' ? T.tool.descriptionInline : T.tool.descriptionWorkspace);
       assert.equal(rb.title, T.tool.title); assert.equal(gk.title, T.keyTool.title); assert.equal(gk.description, T.keyTool.description);
       assert.equal(rb._meta, undefined, 'no app view, whose name would be shown');
-      assert.deepEqual(Object.keys(rb.inputSchema.properties).sort(), ['also', 'from_page', 'include_pdf', 'layout_variant', 'preset', 'preview', 'scenario', 'seed', 'type']);
+      assert.deepEqual(Object.keys(rb.inputSchema.properties).sort(), ['also', 'bill', 'from_page', 'include_pdf', 'layout_variant', 'preset', 'preview', 'scenario', 'seed', 'type']);
       assert.deepEqual(rb.inputSchema.properties.preset.enum, ['scan', 'fax', 'photo', 'low-res']);
       assert.deepEqual(Object.keys(gk.inputSchema.properties), ['id']); assert.equal(gk.inputSchema.properties.id.pattern, BLIND_ID.source);
       assert.deepEqual(Object.keys(rb.outputSchema.properties).sort(), RESULT_KEYS);
