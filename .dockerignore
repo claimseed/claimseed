@@ -16,6 +16,7 @@
 !packages/core/data/layout-variants.json
 !packages/core/data/blind.json
 !packages/core/data/set.json
+!packages/core/data/pair.json
 !packages/core/data/sets
 !packages/core/scenarios
 !packages/core/reference-data

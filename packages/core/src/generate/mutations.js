@@ -194,7 +194,7 @@ export const DECOY_OPS = {
     }
     delete copy.providerBilledPatient;
     c.lines.push(copy); c.totals = sum(c.lines);
-    return { kind: 'repeat-service-different-date', lineRef: `claims[${claim}].lines[${c.lines.length - 1}]` };
+    return { kind: 'repeat-service-different-date', lineRef: `claims[${claim}].lines[${c.lines.length - 1}]`, relatedLineRef: `claims[${claim}].lines[${line}]` };
   },
   // A charge far above the approved amount (charge-above-approved): what a provider charges is not what Medicare
   // approves, and on an assigned claim the patient owes only the cost sharing on the approved amount.
@@ -216,7 +216,7 @@ export function applyDecoys(ctx, decoys = [], errors = []) {
     const op = Object.prototype.hasOwnProperty.call(DECOY_OPS, m.op) ? DECOY_OPS[m.op] : null; if (!op) throw fail('unknownDecoy');
     if (typeof m.rule !== 'string' || !m.rule.trim()) throw fail('decoyNeedsRule');
     const d = op(ctx, m.args || {});
-    out.push({ id: `decoy-${i + 1}`, kind: m.kind || d.kind, lineRef: d.lineRef, rule: m.rule, ...(m.note ? { note: m.note } : {}) });
+    out.push({ id: `decoy-${i + 1}`, kind: m.kind || d.kind, lineRef: d.lineRef, ...(d.relatedLineRef ? { relatedLineRef: d.relatedLineRef } : {}), rule: m.rule, ...(m.note ? { note: m.note } : {}) });
   }
   delete ctx.errors; delete ctx.decoys;
   return out;

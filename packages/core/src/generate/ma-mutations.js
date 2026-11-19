@@ -61,7 +61,7 @@ const PRE_OPS = {
   'ma-duplicate-line'(ctx, { claim, line }, t) {
     const { c, l } = lineAt(ctx.claims, claim, line, 'ma-duplicate-line'); free(l, 'ma-duplicate-line');
     if (zeroUnderPlan(l, ctx.plan)) throw fail('chargesNothing', { op: 'ma-duplicate-line' });
-    const copy = { ...l, _tags: [t] }; tag(l, `${t}:rel`);
+    const { _relTags: _r, ...rest } = l; const copy = { ...rest, _tags: [t] }; tag(l, `${t}:rel`);   // the copy never inherits another operation's names for l
     c.lines.splice(line + 1, 0, copy);
     return { kind: 'duplicate-charge', ref: t, relatedRef: `${t}:rel`, expected: null, actual: l.code, severity: 'high', after: (x) => {
       if (x.line.yourShare <= 0) throw fail('chargesNothing', { op: 'ma-duplicate-line' });
@@ -96,8 +96,10 @@ const PRE_DECOY_OPS = {
     const date = inPeriod(addDays(l.dateOfService, days)) ? addDays(l.dateOfService, days) : addDays(l.dateOfService, -days);
     if (!inPeriod(date)) throw fail('outsidePeriod', { op: 'ma-repeat-service-other-date' });
     if (c.lines.some((x) => x.code === l.code && x.dateOfService === date)) throw fail('sameDate', { op: 'ma-repeat-service-other-date' });
-    c.lines.push({ ...l, dateOfService: date, _tags: [t] });
-    return { kind: 'repeat-service-different-date', ref: t };
+    // the first visit is named (relatedRef) but not taken: another operation may still use that line
+    const { _relTags: _r, ...rest } = l;   // a second repeat of the same line must not carry the first one's name for it
+    c.lines.push({ ...rest, dateOfService: date, _tags: [t] }); l._relTags = [...(l._relTags || []), `${t}:rel`];
+    return { kind: 'repeat-service-different-date', ref: t, relatedRef: `${t}:rel` };
   },
   'ma-approved-below-copay'(ctx, { claim, line }, t) {
     const { l } = lineAt(ctx.claims, claim, line, 'ma-approved-below-copay'); free(l, 'ma-approved-below-copay');
@@ -133,9 +135,10 @@ const POST_OPS = {
   },
   'ma-reapply-deductible'(ctx, { claim, line }, t) {
     if (!(ctx.plan.deductible > 0)) throw fail('noDeductible', { op: 'ma-reapply-deductible', type: ctx.type });
-    if (!ctx.state.forced || ctx.state.deductibleMetBefore < ctx.plan.deductible) throw fail('needsState', { op: 'ma-reapply-deductible' });
+    if (!ctx.state.forced) throw fail('needsState', { op: 'ma-reapply-deductible' });
     const { l } = lineAt(ctx.claims, claim, line, 'ma-reapply-deductible'); free(l, 'ma-reapply-deductible');
     if (!isCoinsuranceLine(l, ctx.plan)) throw fail('notCoinsuranceLine');
+    if (l.deductibleApplied > 0) throw fail('deductibleNotMet');
     const expected = l.yourShare; const ded = r2(Math.min(ctx.plan.deductible, l.approved));
     let next = { deductibleApplied: ded, coinsurance: r2((l.approved - ded) * ctx.plan.coinsurance[l.category]) };
     const room = r2(ctx.plan.oopMax - ctx.state.oopUsed + expected); let share = r2(next.deductibleApplied + next.coinsurance);
@@ -206,7 +209,7 @@ export function entryOf(m, what) {
 // Resolve every tag to its claims[i].lines[j] reference in the adjudicated claims.
 function resolver(claims) {
   const where = new Map();
-  claims.forEach((c, i) => c.lines.forEach((l, j) => (l._tags || []).forEach((t) => where.set(t, `claims[${i}].lines[${j}]`))));
+  claims.forEach((c, i) => c.lines.forEach((l, j) => [...(l._tags || []), ...(l._relTags || [])].forEach((t) => where.set(t, `claims[${i}].lines[${j}]`))));
   return (t) => where.get(t) || null;
 }
 function findTagged(claims, t) { for (const c of claims) for (const l of c.lines) if ((l._tags || []).includes(t)) return l; return null; }
@@ -251,6 +254,8 @@ export function runMaOperations(ctx, adjudicate, mutations = [], decoys = []) {
     const m = errSlots[i]; if (m.kind) out.kind = m.kind; if (m.severity) out.severity = m.severity; if (m.rule) out.rule = m.rule; if (m.note) out.note = m.note;
     return out;
   });
-  const decoysOut = decs.map((d, i) => ({ id: `decoy-${i + 1}`, kind: decSlots[i].kind || d.kind, lineRef: refOf(d.ref), rule: decSlots[i].rule, ...(decSlots[i].note ? { note: decSlots[i].note } : {}) }));
+  // a decoy that pairs with another line (the first visit of a repeat on another date) names it too, so a report at
+  // either line of the pair counts as that decoy flagged
+  const decoysOut = decs.map((d, i) => ({ id: `decoy-${i + 1}`, kind: decSlots[i].kind || d.kind, lineRef: refOf(d.ref), ...(d.relatedRef ? { relatedLineRef: refOf(d.relatedRef) } : {}), rule: decSlots[i].rule, ...(decSlots[i].note ? { note: decSlots[i].note } : {}) }));
   return { ma, errors, decoys: decoysOut, flags: post.flags };
 }

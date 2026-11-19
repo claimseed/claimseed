@@ -73,7 +73,7 @@
         "charge-above-approved"
       ],
       "textSha256": "a5d732496561ac4c28ee1a401314006c9ac5f9dee2321d4400ab7a0a267fb9d1",
-      "groundTruthSha256": "0259954626d83773ad05395dc8aa9ba93bf69bc96223b94491eeea1cff9bf419",
+      "groundTruthSha256": "a2eb87c8c328a78ecc9ee49fdd282267927dd17bce3d963da46dd5146d402898",
       "remittanceSha256": "99e31397bb15b0644581aee66419038a85bb4686bc55ffab51b0db6382ce7ea5"
     },
     {
@@ -86,9 +86,9 @@
         "deductible-misapplied"
       ],
       "decoys": [],
-      "textSha256": "85f4d22c1a2847bd98e0b2a7a5521300460e4e36679deac581464abec83ed2a1",
-      "groundTruthSha256": "a8fd90f5f607fe6ba4c6c994aebb507314c7a1d147482fc9c47704a775bb2b11",
-      "remittanceSha256": "d18fd38f25f7181bcce41caac4e057bad158e8191aa9157d744b02b19ea1bc38"
+      "textSha256": "7e11536beda2ac38184e45a02403f9e80959d5f38d30669d1dec2246850d513a",
+      "groundTruthSha256": "a192e4fcd7fd6530679d5adb94f08824c05a2f0ba68b72e84d4b832ea744642c",
+      "remittanceSha256": "7bf0c05a393f2322ea7fea65fc866be0d94bc5fd9b487283e77596ee51dda9fd"
     },
     {
       "type": "msn",
@@ -117,7 +117,7 @@
         "repeat-service-different-date"
       ],
       "textSha256": "f94945f4203b312608c9b1c4bd88e7cc2e7cb5c28288147c8f227a43d297db8f",
-      "groundTruthSha256": "112be5d0c2a3b584d08797e533aa4ee9ebdea049da5c7ae5274e95db634ea678",
+      "groundTruthSha256": "28cb444f65461212ae7ec2814352cf06d73aed5c0933e87876eae86e7012269d",
       "remittanceSha256": "48b2d50b33af433963dd165155bd6af41ecb272d857bcc7e363eb43823881480"
     },
     {
@@ -228,7 +228,7 @@
         "charge-above-approved"
       ],
       "textSha256": "a468dbace6c22f3f422f818fcc1fe451faf1529c6f59ee79b5d7ccee5a0f3ca8",
-      "groundTruthSha256": "fe32c61c128f9e717752be515beba54781d1c397432a4609750e517d48695d8a",
+      "groundTruthSha256": "4604c191a197459b8f23be8a99d3c31d6dd3197741fac7f14aa5392072290804",
       "remittanceSha256": null
     },
     {
@@ -315,7 +315,7 @@
         "charge-above-approved"
       ],
       "textSha256": "fc23693ab02167b16e82c536ddb6f0b26e6bb4d3399d2dca6d51391ab050675c",
-      "groundTruthSha256": "79346d468854ac5ceb713f2cb63b1c8921a06915cc9a10854fff81a0f3d0bb58",
+      "groundTruthSha256": "06d90f53ca80bdb4aa0d927ede032e29708d0caba04675a8b1c10f03f7405b70",
       "remittanceSha256": "aaed075c8e98092571c7070b17cc8e7771005ae2cef5dc6578fa8bae2f5011cd"
     },
     {
@@ -328,9 +328,9 @@
         "deductible-misapplied"
       ],
       "decoys": [],
-      "textSha256": "c1a3400e9d75b2faa2f9e90851aa3a4ba6d479269023ca28490953d4dba5655a",
-      "groundTruthSha256": "ff30ccfec66de1368b9f6c2307c0d21c2c05917d051b6fbc6c01908ef411158b",
-      "remittanceSha256": "aea1632a7600a02853151e70f601beb4e0462a22abbdc4aaae0a9d12ccf16228"
+      "textSha256": "90dc8138b3138d0094d62359c97ea89a5998f610f570ebf3fd06eaa468b2010f",
+      "groundTruthSha256": "2a2c05559016632f81f5b195757cf2c3d354cd655b10a13a6ed23b8dc367fc9b",
+      "remittanceSha256": "77cac629b89a91c32b50db702091f4f1e58ae387856e2f52155e88f0e90da7b1"
     },
     {
       "type": "ppo-eob",
@@ -430,7 +430,7 @@
         "charge-above-approved"
       ],
       "textSha256": "ff0872d7c46d57af48875abc478ae3926d2ebfc291697ea0a005cad4e246031a",
-      "groundTruthSha256": "15cd6aa41f4fb79ea056468851faeb40fe1154320f570a18a6081b02231fe68a",
+      "groundTruthSha256": "2fd880eb9afbdd3a320795ad5d0fb8d16d58fd9b737139a8374ceb87d2fbfbee",
       "remittanceSha256": "0466d3b57e257df2e9ac306f0b21496005e008f2d9df9d8ba5e68ace49f8ad11"
     },
     {
@@ -530,7 +530,7 @@
         "charge-above-approved"
       ],
       "textSha256": "9463bbc2649083f3dfe26cbb23e4165658a0f97101a8e8006c64052e74306aac",
-      "groundTruthSha256": "8826f0d3b3f25355144139d52ec0f967e40c3ecdaedf7da9ba4e087c283990b2",
+      "groundTruthSha256": "0bd3030293248a51618cb5a17a46c47ec0bc86cb01d5ea3de961e2d825f5b6af",
       "remittanceSha256": null
     },
     {
@@ -604,7 +604,7 @@
         "charge-above-approved"
       ],
       "textSha256": "0f7b71aea7b14c1867dd0f511846ff1c5cc9def2303557dc1703e34318125b8f",
-      "groundTruthSha256": "6dfce14efa995c0205e4de378dafb9134b0c5c09af25411bf60cec3607824e66",
+      "groundTruthSha256": "806cc0ca9263f4e863a623aa7913eaa6a11cd30197aebc43e8b9405a868b85e3",
       "remittanceSha256": null
     },
     {
@@ -725,7 +725,7 @@
         "charge-above-approved"
       ],
       "textSha256": "8508afddf3692e9f58ac086966314bb822ca167e01ff6272051729d172732c42",
-      "groundTruthSha256": "d857b83071d42f46e697507004e18de321932c0c67218f9f0bdad274880979bf",
+      "groundTruthSha256": "0336cc91f354a1a51098a917d3b1844cfd87ae28f3a10c38a8050992b1969b3a",
       "remittanceSha256": "aaed075c8e98092571c7070b17cc8e7771005ae2cef5dc6578fa8bae2f5011cd"
     },
     {
@@ -739,9 +739,9 @@
         "deductible-misapplied"
       ],
       "decoys": [],
-      "textSha256": "9f383742bbf8b4764b2878a124a59b6a4914619ac8eee83c685b1bcab3d27d2b",
-      "groundTruthSha256": "3cfce34e7a5f6458bd5299b8f92c6e4ef5a3403125e5096fc50c02d8e6fa2a66",
-      "remittanceSha256": "aea1632a7600a02853151e70f601beb4e0462a22abbdc4aaae0a9d12ccf16228"
+      "textSha256": "a20b6a9cb714eed3ad66ad43f6ee0879853f691fe4027f29fe2872110558e5d6",
+      "groundTruthSha256": "aefec4bf6177b49f1d5e78a559be6db35b8cc80064e7ca202ef962332f5087e6",
+      "remittanceSha256": "77cac629b89a91c32b50db702091f4f1e58ae387856e2f52155e88f0e90da7b1"
     },
     {
       "type": "ppo-eob",
@@ -848,7 +848,7 @@
         "charge-above-approved"
       ],
       "textSha256": "a16c800fff2a4811f099c63f327fdfca022abb86f2019312d70fa634dbb34eb3",
-      "groundTruthSha256": "00296f5cc5f778f28ad8ee2ab89a3145bf55afd0c26688cabc5f5902112bb0e6",
+      "groundTruthSha256": "9093000777beed89ec8f2d57a7b456c1c491df33bbc9ebec9675243e84de4cd1",
       "remittanceSha256": "aaed075c8e98092571c7070b17cc8e7771005ae2cef5dc6578fa8bae2f5011cd"
     },
     {
@@ -911,7 +911,7 @@
         "charge-above-approved"
       ],
       "textSha256": "13e282ecb88d523e2f7c83ba70b0ec7ecd2f520265657205c5c6f181b0ab675a",
-      "groundTruthSha256": "56932704919c5d05527872c76470277e9e66211a2d850079f4c7672eb78cb5b0",
+      "groundTruthSha256": "3487ef4be101ea665d8bf44ff1ea2ef6ed7c176a9c3b9ac3540939138f3b2f1d",
       "remittanceSha256": "0466d3b57e257df2e9ac306f0b21496005e008f2d9df9d8ba5e68ace49f8ad11"
     },
     {
@@ -1034,7 +1034,7 @@
         "charge-above-approved"
       ],
       "textSha256": "38eeea5fd8ed4c482606eae44b5a43c27e8f32c1a0f2e4a6d4690a280017ebe5",
-      "groundTruthSha256": "664935e6f783816436357a7e6e0972184128c9b96748dfed1a0f892e882dfb0b",
+      "groundTruthSha256": "dd472ea67e08ad1651257aa962227fa6e2eab84a20b2faddd2097492f8d1b384",
       "remittanceSha256": "0466d3b57e257df2e9ac306f0b21496005e008f2d9df9d8ba5e68ace49f8ad11"
     }
   ]

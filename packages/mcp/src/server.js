@@ -7,13 +7,17 @@ import fs from 'fs'; import path from 'path'; import crypto from 'crypto';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { generateData, listScenarios, loadScenario, render, launchBrowser, verifyFromSeed, degradeRendered, DEGRADE_PRESETS, ALSO, RENDERERS, SLUG, SEED, VARIANT_STRINGS, checkVariantOption, variantIds, BLIND_ID, BLIND_STRINGS } from '@claimseed/core';
+import { generateData, listScenarios, loadScenario, render, launchBrowser, verifyFromSeed, degradeRendered, DEGRADE_PRESETS, ALSO, RENDERERS, SLUG, SEED, VARIANT_STRINGS, checkVariantOption, variantIds, BLIND_ID, BLIND_STRINGS , PAIR_STRINGS, BILL_VARIANTS, alsoList} from '@claimseed/core';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { DOCUMENT_TYPES } from './types.js';
 import { openWorkspace } from './workspace.js';
 import { createGate, withTimeout, createBrowserPool } from './limits.js';
 import { previewPages } from './preview.js';
 import { VIEW_URI, VIEW_MIME, VIEW_HTML } from './view.js';
+const PAIR_TEXT = PAIR_STRINGS.mcp;
+// also: one value, or the two as a list (the library refuses a repeated one with its own message)
+const Also = (describe) => z.union([z.enum(ALSO), z.array(z.enum(ALSO)).min(1).max(ALSO.length)]).optional().describe(describe);
+const Bill = z.enum(BILL_VARIANTS).optional().describe(PAIR_TEXT.bill);
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const RESOURCES = path.resolve(here, '../resources');
@@ -150,14 +154,16 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
 
   // Render one document (or, with a preset, a degraded copy of it) and deliver it: page images, the PDF on request, the
   // files in the workspace when there is one. Shared by render_document and degrade_document.
-  async function deliver({ type, scenario, seed, preset = null, preview = ws ? 'first' : 'all', from_page: fromPage = 1, include_pdf: includePdf = false, also = null, layout_variant: lv }, extra, { blind = false } = {}) {
+  async function deliver({ type, scenario, seed, preset = null, preview = ws ? 'first' : 'all', from_page: fromPage = 1, include_pdf: includePdf = false, also = null, bill = null, layout_variant: lv }, extra, { blind = false } = {}) {
     needScenario(type, scenario); const layoutVariant = needVariant(type, lv);
+    // a degraded copy has no provider's statement (the library refuses one the same way)
+    if (preset && alsoList(also, 'render').includes('bill')) throw new Error(PAIR_STRINGS.messages.billDegraded.replace('{who}', 'degrade'));
     const out = await gate.run(async () => {
       const browser = await pool.acquire();
       const gen = pool.generation;
       try {
         return await withTimeout((async () => {
-          const r = await render({ type, scenario, seed, browser, also, layoutVariant, blind: blind ? { salt: blindSalt } : false });
+          const r = await render({ type, scenario, seed, browser, also, bill, layoutVariant, blind: blind ? { salt: blindSalt } : false });
           if (preset) Object.assign(r, await degradeRendered(browser, { type, scenario, seed, preset, clean: r, pageImages: false }));
           // the PDF, when asked for, counts toward the same limit: it goes in only when it fits, and the pictures then
           // take what room is left (none forced in); a PDF over the limit is left out and the result says so
@@ -182,13 +188,20 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
     if (blind) return deliverBlind(out, { preset, preview, fromPage, includePdf });
     const vid = out.groundTruth.documents[0].layoutVariant?.id; const stem = `${seed}${vid ? `.${vid}` : ''}`;   // a variant names its files
     let saved = null;
+    // the provider's statement (also bill) is saved in the same set as the EOB (<base>.bill.pdf and its key), the two
+    // keys naming each other's files, or embedded in the result
+    let billSaved = null;
     if (ws) {
-      const gtBytes = Buffer.from(JSON.stringify(out.groundTruth, null, 2));
-      const files = [{ ext: 'pdf', bytes: out.bytes }, { ext: 'ground-truth.json', bytes: gtBytes }];
-      if (out.remittance) files.push({ ext: '835', bytes: Buffer.from(out.remittance) });   // byte for byte, as its SHA-256 in the answer key
-      saved = ws.save(`${type}_${scenario}_${stem}${preset ? `_${preset}` : ''}`, files);
+      saved = ws.save(`${type}_${scenario}_${stem}${preset ? `_${preset}` : ''}`, (base) => {
+        if (out.bill) { out.groundTruth.pair.with = `${base}.bill`; out.bill.groundTruth.pair.with = base; }
+        const files = [{ ext: 'pdf', bytes: out.bytes }, { ext: 'ground-truth.json', bytes: Buffer.from(JSON.stringify(out.groundTruth, null, 2)) }];
+        if (out.remittance) files.push({ ext: '835', bytes: Buffer.from(out.remittance) });   // byte for byte, as its SHA-256 in the answer key
+        if (out.bill) files.push({ ext: 'bill.pdf', bytes: out.bill.bytes }, { ext: 'bill.ground-truth.json', bytes: Buffer.from(JSON.stringify(out.bill.groundTruth, null, 2)) });
+        return files;
+      });
       if (saved.evicted) log(`quota: removed ${saved.evicted} older output file(s)`);
-    }
+      if (out.bill) billSaved = { paths: { pdf: saved.paths['bill.pdf'], 'ground-truth.json': saved.paths['bill.ground-truth.json'] } };
+    } else if (out.bill) { out.groundTruth.pair.with = null; out.bill.groundTruth.pair.with = null; }   // no files: the keys name none
     const doc = out.groundTruth.documents[0];
     const images = out.preview?.images || [];
     const shown = images.map((i) => i.page);
@@ -198,7 +211,9 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
       sha256: crypto.createHash('sha256').update(out.bytes).digest('hex'), pages: doc.pages, bytes: out.bytes.length, pdfEmbedded: !!out.embedPdf, groundTruth: out.groundTruth,
       preview: { pages: shown, omitted: preview === 'none' || out.previewError ? 0 : omitted, next: preview !== 'none' && !out.previewError && omitted ? last + 1 : null },
       // render_document's result always names its 835 (null without one); degrade_document's schema has no such field
-      ...(preset ? {} : { remittance: out.remittance ? { file: saved ? saved.paths['835'] : null, sha256: out.groundTruth.documents[1].sha256, embedded: !saved } : null }) };
+      ...(preset ? {} : { remittance: out.remittance ? { file: saved ? saved.paths['835'] : null, sha256: out.groundTruth.documents[1].sha256, embedded: !saved } : null }),
+      ...(preset ? {} : { bill: out.bill ? { pdf: billSaved ? billSaved.paths.pdf : null, groundTruthFile: billSaved ? billSaved.paths['ground-truth.json'] : null, sha256: out.bill.groundTruth.documents[0].sha256,
+        pages: out.bill.groundTruth.documents[0].pages, bytes: out.bill.bytes.length, embedded: !billSaved, groundTruth: out.bill.groundTruth } : null }) };
     const errs = out.groundTruth.errors.map((e) => e.kind);
     const decoys = (out.groundTruth.decoys || []).length;
     const none = decoys === 1 ? 'no injected errors but 1 decoy (not a clean control)' : decoys ? `no injected errors but ${decoys} decoys (not a clean control)` : 'no injected errors';
@@ -212,6 +227,7 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
     }
     if (saved) lines.push(`PDF: ${result.pdf}`, `Ground truth: ${result.groundTruthFile}`);
     if (out.remittance) lines.push(saved ? `835 remittance: ${result.remittance.file}` : 'The 835 remittance of the same claims is embedded in this result as text.');
+    if (out.bill) lines.push(billSaved ? PAIR_TEXT.statementSaved.replace('{pdf}', result.bill.pdf).replace('{key}', result.bill.groundTruthFile) : PAIR_TEXT.statementEmbedded);
     if (includePdf && !out.embedPdf) lines.push(pdfLeftOut(out));
     if (!saved) lines.push(out.embedPdf ? 'The PDF is embedded in this result. No file was saved.' : `No file was saved${includePdf ? '' : '; set include_pdf to get the PDF in the result'}.`);
     lines.push('Ground truth (expected findings and field values) is in the structured result.');
@@ -223,6 +239,10 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
       { type: 'resource_link', uri: pathToFileURL(result.pdf).href, name: path.basename(result.pdf), mimeType: 'application/pdf', description: 'synthetic specimen PDF' },
       { type: 'resource_link', uri: pathToFileURL(result.groundTruthFile).href, name: path.basename(result.groundTruthFile), mimeType: 'application/json', description: 'ground truth for the PDF' });
     if (out.remittance && saved) content.push({ type: 'resource_link', uri: pathToFileURL(result.remittance.file).href, name: path.basename(result.remittance.file), mimeType: 'application/edi-x12', description: 'synthetic specimen X12 835 remittance' });
+    if (out.bill && !billSaved) content.push({ type: 'resource', resource: { uri: `claimseed://document/${type}/${scenario}/${stem}.bill.pdf`, mimeType: 'application/pdf', blob: out.bill.bytes.toString('base64') } });
+    if (billSaved) content.push(
+      { type: 'resource_link', uri: pathToFileURL(result.bill.pdf).href, name: path.basename(result.bill.pdf), mimeType: 'application/pdf', description: 'synthetic specimen PDF' },
+      { type: 'resource_link', uri: pathToFileURL(result.bill.groundTruthFile).href, name: path.basename(result.bill.groundTruthFile), mimeType: 'application/json', description: 'ground truth for the PDF' });
     return { content, structuredContent: result };
   }
 
@@ -241,6 +261,12 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
       saved = ws.save(id, files);
       if (saved.evicted) log(`quota: removed ${saved.evicted} older output file(s)`);
     }
+    // the provider's statement (also bill): its own id, its key kept like the EOB's, never in the result
+    let billSaved = null;
+    if (out.bill) {
+      keepKey(out.bill.id, out.bill.groundTruth);
+      if (ws) { billSaved = ws.save(out.bill.id, [{ ext: 'pdf', bytes: out.bill.bytes }]); if (billSaved.evicted) log(`quota: removed ${billSaved.evicted} older output file(s)`); }
+    }
     const doc = out.groundTruth.documents[0];
     const images = out.preview?.images || [];
     const shown = images.map((i) => i.page);
@@ -248,13 +274,16 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
     const omitted = Math.max(0, doc.pages - last);
     const result = { id, degradation: preset, pdf: saved ? saved.paths.pdf : null, sha256: crypto.createHash('sha256').update(out.bytes).digest('hex'), pages: doc.pages, bytes: out.bytes.length, pdfEmbedded: !!out.embedPdf,
       preview: { pages: shown, omitted: preview === 'none' || out.previewError ? 0 : omitted, next: preview !== 'none' && !out.previewError && omitted ? last + 1 : null },
-      remittance: out.remittance ? { file: saved ? saved.paths['835'] : null, sha256: out.groundTruth.documents[1].sha256, embedded: !saved } : null };
+      remittance: out.remittance ? { file: saved ? saved.paths['835'] : null, sha256: out.groundTruth.documents[1].sha256, embedded: !saved } : null,
+      bill: out.bill ? { id: out.bill.id, pdf: billSaved ? billSaved.paths.pdf : null, sha256: out.bill.groundTruth.documents[0].sha256, pages: out.bill.groundTruth.documents[0].pages, bytes: out.bill.bytes.length, embedded: !billSaved } : null };
     const M = BLIND_TEXT;
     const lines = [M.rendered.replace('{id}', id).replace('{pages}', doc.pages).replace('{bytes}', out.bytes.length)];
     if (out.previewError) lines.push(M.noImages);
     else if (preview !== 'none' && shown.length) { lines.push(M.shown.replace('{first}', shown[0]).replace('{last}', shown.at(-1)).replace('{pages}', doc.pages)); if (result.preview.next) lines.push(M.more.replace('{next}', result.preview.next)); }
     if (saved) lines.push(`PDF: ${result.pdf}`);
     if (out.remittance) lines.push(saved ? `835: ${result.remittance.file}` : M.remittanceInline);
+    if (out.bill) lines.push(PAIR_TEXT.statementBlind.replace('{id}', out.bill.id).replace('{bytes}', out.bill.bytes.length));
+    if (billSaved) lines.push(`PDF: ${billSaved.paths.pdf}`);
     if (includePdf && !out.embedPdf) lines.push(pdfLeftOut(out));   // the same line as render_document's: sizes only
     if (!saved) lines.push(out.embedPdf ? M.pdfEmbedded : includePdf ? 'No file was saved.' : M.nothingSaved);
     lines.push(M.keyHint);
@@ -264,6 +293,8 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
     if (out.remittance && !saved) content.push({ type: 'resource', resource: { uri: `claimseed://blind/${id}.835`, mimeType: 'application/edi-x12', text: out.remittance } });
     if (saved) content.push({ type: 'resource_link', uri: pathToFileURL(result.pdf).href, name: path.basename(result.pdf), mimeType: 'application/pdf', description: 'synthetic specimen PDF' });
     if (out.remittance && saved) content.push({ type: 'resource_link', uri: pathToFileURL(result.remittance.file).href, name: path.basename(result.remittance.file), mimeType: 'application/edi-x12', description: 'synthetic specimen X12 835 remittance' });
+    if (out.bill && !billSaved) content.push({ type: 'resource', resource: { uri: `claimseed://blind/${out.bill.id}.pdf`, mimeType: 'application/pdf', blob: out.bill.bytes.toString('base64') } });
+    if (billSaved) content.push({ type: 'resource_link', uri: pathToFileURL(billSaved.paths.pdf).href, name: path.basename(billSaved.paths.pdf), mimeType: 'application/pdf', description: 'synthetic specimen PDF' });
     return { content, structuredContent: result };
   }
 
@@ -271,6 +302,8 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
     .describe(`pages returned as images: none, the first (from from_page), or all from from_page on, as many as fit in one result (default ${ws ? 'first' : 'all'})`);
   const PreviewOut = z.object({ pages: z.array(z.number()), omitted: z.number(), next: z.number().nullable() });
   const RemittanceOut = z.object({ file: z.string().nullable(), sha256: z.string(), embedded: z.boolean() }).nullable();
+  const BillOut = z.object({ pdf: z.string().nullable(), groundTruthFile: z.string().nullable(), sha256: z.string(), pages: z.number(), bytes: z.number(), embedded: z.boolean(), groundTruth: z.record(z.string(), z.unknown()) }).nullable();
+  const BlindBillOut = z.object({ id: z.string(), pdf: z.string().nullable(), sha256: z.string(), pages: z.number(), bytes: z.number(), embedded: z.boolean() }).nullable();
   server.registerTool('render_document', {
     title: 'Render a document to PDF',
     description: ws
@@ -280,10 +313,10 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
       type: Type, scenario: Scenario, seed: Seed, preview: Preview,
       from_page: z.number().int().min(1).max(999).default(1).describe('first page to return as an image (default 1)'),
       include_pdf: z.boolean().default(false).describe('also return the PDF itself, embedded in the result; it counts toward the same size limit as the page images and is left out, with a note, when it alone is over it'),
-      also: z.enum(ALSO).optional().describe('835: also write the X12 835 remittance of the same claims (msn, ppo-eob and hmo-eob only), as a file in the workspace or as text in the result'),
+      also: Also(PAIR_TEXT.alsoRender), bill: Bill,
       layout_variant: LayoutVariant,
     },
-    outputSchema: { type: z.string(), scenario: z.string(), seed: z.string(), degradation: z.string().nullable(), pdf: z.string().nullable(), groundTruthFile: z.string().nullable(), sha256: z.string(), pages: z.number(), bytes: z.number(), pdfEmbedded: z.boolean(), groundTruth: z.record(z.string(), z.unknown()), preview: PreviewOut, remittance: RemittanceOut },
+    outputSchema: { type: z.string(), scenario: z.string(), seed: z.string(), degradation: z.string().nullable(), pdf: z.string().nullable(), groundTruthFile: z.string().nullable(), sha256: z.string(), pages: z.number(), bytes: z.number(), pdfEmbedded: z.boolean(), groundTruth: z.record(z.string(), z.unknown()), preview: PreviewOut, remittance: RemittanceOut, bill: BillOut.optional() },
     annotations: ws ? { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false } : { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     _meta: { ui: { resourceUri: VIEW_URI }, 'ui/resourceUri': VIEW_URI },
   }, (args, extra) => deliver(args, extra));
@@ -318,10 +351,10 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
       preview: Preview,
       from_page: z.number().int().min(1).max(999).default(1).describe('first page to return as an image (default 1)'),
       include_pdf: z.boolean().default(false).describe('also return the PDF itself, embedded in the result; it counts toward the same size limit as the page images and is left out, with a note, when it alone is over it'),
-      also: z.enum(ALSO).optional().describe(BLIND_TEXT.tool.also),
+      also: Also(PAIR_TEXT.alsoBlind), bill: Bill,
       layout_variant: LayoutVariant,
     },
-    outputSchema: { id: z.string(), degradation: z.string().nullable(), pdf: z.string().nullable(), sha256: z.string(), pages: z.number(), bytes: z.number(), pdfEmbedded: z.boolean(), preview: PreviewOut, remittance: RemittanceOut },
+    outputSchema: { id: z.string(), degradation: z.string().nullable(), pdf: z.string().nullable(), sha256: z.string(), pages: z.number(), bytes: z.number(), pdfEmbedded: z.boolean(), preview: PreviewOut, remittance: RemittanceOut, bill: BlindBillOut },
     annotations: ws ? { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false } : { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   }, (args, extra) => deliver(args, extra, { blind: true }));
 
@@ -347,12 +380,13 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
       // Clients are shown the extractor-output schema.
       output: z.unknown().meta(REPORT_SCHEMA),
       layout_variant: LayoutVariant,
+      document: z.enum(['eob', 'bill']).optional().describe(PAIR_TEXT.verifyDocument), bill: z.enum(BILL_VARIANTS).optional().describe(PAIR_TEXT.verifyBill),
     },
     outputSchema: { answerKey: z.object({ scenario: z.string(), seed: z.string(), schemaVersion: z.string() }), fields: z.record(z.string(), z.unknown()).nullable(), errors: z.record(z.string(), z.unknown()).nullable() },
     annotations: readOnly,
-  }, async ({ type, scenario, seed, output, layout_variant: lv }) => {
+  }, async ({ type, scenario, seed, output, layout_variant: lv, document = 'eob', bill = 'clean' }) => {
     needScenario(type, scenario);
-    const r = verifyFromSeed({ type, scenario, seed, output, layoutVariant: needVariant(type, lv) });
+    const r = verifyFromSeed({ type, scenario, seed, output, layoutVariant: needVariant(type, lv), document, bill });
     const f = r.fields ? `fields ${r.fields.correct}/${r.fields.expected} correct (${r.fields.wrong} wrong, ${r.fields.missing} missing)` : 'fields not scored';
     const e = r.errors ? `errors ${r.errors.found}/${r.errors.expected} found, ${r.errors.falseAlarms} false alarm(s)${r.errors.decoysFlagged.length ? ` incl. ${r.errors.decoysFlagged.length} decoy(s)` : ''}` : 'errors not scored';
     return { content: [text(`${type} / ${scenario} / seed ${seed}: ${f}; ${e}.\n${json(r)}`)], structuredContent: r };

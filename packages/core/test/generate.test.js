@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs';
 import path from 'path';
-import { generateData, listScenarios, loadScenario, SCENARIOS_DIR, ASSEMBLERS } from '../src/generate/index.js';
+import { generateData, generatePair, listScenarios, loadScenario, SCENARIOS_DIR, ASSEMBLERS } from '../src/generate/index.js';
+import { BILL_VARIANTS, PAIRED_TYPES } from '../src/generate/provider-statement.js';
 import { isSyntheticNpi, isSyntheticMbi, syntheticNpi, syntheticMbi, luhnCheckDigit } from '../src/generate/identifiers.js';
 import { makeRng } from '../src/generate/rng.js';
 import { OPS, DECOY_OPS } from '../src/generate/mutations.js';
@@ -147,11 +148,24 @@ test('denied line is printed as NO with its note and the dashboard counts it', (
 test('reapply-deductible keeps the line footing and never pays a negative amount', () => {
   for (const seed of SEEDS) {
     const { data, groundTruth } = generateData({ type: 'msn', scenario: 'deductible-applied-after-met', seed });
-    const l = data.claims[0].lineItems[0];
+    const l = data.claims[3].lineItems[0];
     assert.ok(l.amountMedicarePaid >= 0, `${seed}: paid ${l.amountMedicarePaid}`);
     assert.ok(near(l.amountMedicarePaid + l.maxYouMayBeBilled, l.medicareApprovedAmount), `${seed}: paid + patient = approved`);
     assert.equal(data.deductible.met, data.deductible.annual, 'deductible status says it was already met');
     assert.equal(groundTruth.errors[0].kind, 'deductible-misapplied'); assert.ok(groundTruth.errors[0].delta > 0);
+  }
+});
+
+// A deductible error must show on the page: the document's own lines apply more to the deductible than the year's
+// whole deductible exactly when a deductible-misapplied error is planted (every published notice and PPO EOB, seeds
+// 1-20), which no correct document can print. Before 0.7.0 two scenarios met the deductible before the period, so a
+// correct document with a different earlier amount printed the same lines.
+test('a planted deductible error applies more to the deductible on the page than the whole deductible', () => {
+  const annual = { msn: 283, 'ppo-eob': 150 };
+  for (const type of ['msn', 'ppo-eob']) for (const scenario of listScenarios(type)) for (let i = 1; i <= 20; i++) {
+    const { groundTruth: g } = generateData({ type, scenario, seed: String(i) });
+    const applied = g.claims.flatMap((c) => c.lines).reduce((t, l) => t + (l.toDeductible || 0), 0);
+    assert.equal(applied > annual[type] + 0.005, g.errors.some((e) => e.kind === 'deductible-misapplied'), `${type}/${scenario}/${i}`);
   }
 });
 
@@ -257,9 +271,14 @@ test('error taxonomy both ways: emitted kinds are implemented, implemented kinds
     if (loadScenario(type, slug).status !== 'published') continue;
     const { groundTruth } = generateData({ type, scenario: slug, seed: 't1' });
     for (const e of groundTruth.errors) errors.add(e.kind); for (const d of groundTruth.decoys || []) decoys.add(d.kind);
+    // and the provider's statement of a Medicare Advantage EOB, in each of its variants, over the seeds it applies on
+    if (PAIRED_TYPES.includes(type)) for (const bill of BILL_VARIANTS) for (let i = 1; i <= 40; i++) {
+      const { statement } = generatePair({ type, scenario: slug, seed: `t${i}`, bill, orClean: true });
+      for (const e of statement.groundTruth.errors) errors.add(e.kind); for (const d of statement.groundTruth.decoys) decoys.add(d.kind);
+    }
   }
   assert.deepEqual([...errors].filter((k) => !implErrors.has(k)), [], 'emitted error kinds not marked implemented');
   assert.deepEqual([...implErrors].filter((k) => !errors.has(k)), [], 'implemented error kinds no published scenario emits');
   assert.deepEqual([...decoys].sort(), [...implDecoys].sort(), 'decoy kinds');
-  assert.ok(implErrors.size >= 10 && implDecoys.size === 5);
+  assert.ok(implErrors.size >= 10 && implDecoys.size === 6);
 });

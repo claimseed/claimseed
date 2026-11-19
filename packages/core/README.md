@@ -26,6 +26,8 @@ node src/cli.js render msn baseline-clean --seed demo --out ./output --also 835 
 node src/cli.js render itemized-bill balance-billing --seed demo --out ./output
 node src/cli.js render ppo-eob baseline-clean --seed demo --out ./output   # also hmo-eob
 node src/cli.js render ppo-eob baseline-clean --seed demo --out ./output --layout-variant p07   # also seeded, all; not msn
+# also a provider's statement for one claim, with a balance due above the EOB's member share (.bill.pdf and its key)
+node src/cli.js render ppo-eob baseline-clean --seed demo --out ./output --also bill --bill over-owed
 
 # a set: PDFs, answer keys and manifest.jsonl (SHA-256 of each file, the degradation preset or null, claimseed and Chrome versions) in a new DIR;
 # with --also 835 (types msn, ppo-eob and hmo-eob only), each document also gets its .835, listed in the manifest with its SHA-256
@@ -35,6 +37,8 @@ node src/cli.js batch --types ppo-eob,hmo-eob --seeds 20 --layout-variant seeded
 node src/cli.js render msn baseline-clean --seed demo --out ./output --blind-keys ./keys   # not ./output or a folder inside it
 node src/cli.js batch --types msn,itemized-bill --seeds 50 --out ./set --blind-keys ./keys
 node src/cli.js batch --types msn,itemized-bill --seeds 50 --out ./set --blind-keys ./keys --blind-salt SALT   # a key's salt: the same set
+# plus a provider's statement per EOB as its own blind document (over-owed where allowed, else clean); see pairs.jsonl
+node src/cli.js batch --types ppo-eob,hmo-eob --seeds 20 --out ./set --blind-keys ./keys --also bill --bill over-owed
 # the published set "standard": 1,022 blind documents fixed by the set file (no type, scenario, seed, degrade, 835 or layout options)
 node src/cli.js batch --set standard --out ./documents --blind-keys ./keys   # --blind-salt SALT (from set.json): the same content again
 
@@ -182,6 +186,82 @@ remittance needs data it does not carry.
   in `src/x12/check835.js` (`check835`, `checkSpecimen835`) reads these files; it expects a procedure code of five
   characters after `HC`, as every code in `reference-data/service-catalog.json` is.
 
+## Provider statements (Medicare Advantage pairs)
+
+Beside a Medicare Advantage EOB (`ppo-eob` or `hmo-eob`, claimseed's fictional PPO and HMO), claimseed can render the
+provider's statement for one claim of that EOB: a one-page patient statement from the provider, of document type
+`provider-statement`. Which claim it bills is drawn from the seed. The EOB is exactly the same with or without its
+statement.
+
+The statement lists the claim's lines (date, code, description, units, charge) and an account summary: Total Charges,
+Contractual Adjustment, Denied by Your Plan (only when a line was denied), Paid by Your Plan, Payments Received and
+Balance Due. On a correct statement the balance due is the member share the EOB shows for that claim.
+
+### Variants
+
+The variant is the value of `bill`. It gives the statement its own error or decoy, or none:
+
+- `clean` (the default): no error of its own.
+- `over-owed`: the contractual adjustment is too small, so the balance due is more than the EOB's member share. Error
+  kind `bill-vs-eob-mismatch`, at the balance due.
+- `denied-line-billed`: a line the plan denied is billed to the patient, so the balance due is more than the EOB's
+  member share by that line's charge. Error kind `bill-vs-eob-mismatch`.
+- `payment-misposted`: Paid by Your Plan differs from what the EOB says the plan paid, and the adjustment moves the
+  other way, so the balance due is still right. Error kind `bill-payment-mismatch`, severity low.
+- `paid-at-visit`: a decoy. Payments Received shows the copay paid at the visit, so the balance due is less than the
+  EOB's member share, and that is correct.
+- `over-owed-with-payment`: the `paid-at-visit` decoy and the `over-owed` error on one statement.
+
+A variant applies only where the billed claim allows it; for example, `denied-line-billed` needs a denied line on that
+claim. A single render refuses a variant that does not apply. A batch renders that statement clean instead, and its
+answer key says which variant it got (`pair.variant`). When the EOB claim a statement bills has a planted math error
+in its printed total (the total does not add up from its lines), the statement follows the EOB's lines, which are
+right, not the misprinted total. The statement's own error variants do not apply to that claim, so only a clean
+statement is made for it.
+
+Some statements also carry, keyed on their own lines, errors and decoys that the EOB has on that claim and that the
+provider made: a line billed twice, a wrong date of service, a service repeated on another date, a charge far above
+the approved amount.
+
+### Options
+
+On the command line, `render` takes `--also bill` (or `--also 835,bill` for the 835 too) and `--bill <variant>`. In
+the library, `render()` takes `also: 'bill'` or `also: ['835', 'bill']`, `bill` (the variant) and `billParams`, the
+variant's amounts in dollars, given to the cent (for example `by: 9.84` is $9.84): `by` for an error, `amount` for the
+decoy. An amount not given is drawn from the seed.
+
+### Files and keys
+
+The statement is written as `<name>.bill.pdf`, with its key in `<name>.bill.ground-truth.json`, beside the EOB's
+`<name>.pdf` and key. Both keys are answer-key version 1.6 and carry `pair`: `role` (`eob` or `bill`), `with` (the
+other document's file name without `.pdf`, or its blind id), `claim`, `variant` and `params`.
+
+### Blind documents
+
+In blind mode the statement has its own opaque id, drawn from the salt, the EOB's id, the statement variant and its
+amounts, so two statements of one EOB with different variants or amounts have different ids. It is written as
+`<id>.pdf`, and its key goes to the keys folder.
+
+### Batch
+
+`batch` takes `--also bill` and `--bill <variant>` too. Each statement is written as a document of its own, at its own
+place in the order (shuffled by the salt when blind). Each statement has its own manifest line, with type
+`provider-statement`, the EOB's scenario and seed, and `pairOf`, the EOB's file name without `.pdf` or its id.
+`pairs.jsonl` in the documents folder publishes the pairing: it lists each pair as `{ "eob": ..., "bill": ... }`, with
+names or ids only.
+
+### Scoring
+
+A report on a statement is scored like any document's, against its own key: with `verify --answer-key` or a manifest.
+`verifyFromSeed` takes `document: 'bill'` and `bill` (the variant) to rebuild the statement's key, instead of the
+EOB's, from the type, scenario and seed.
+
+### Not supported yet
+
+A statement has no layout variants of its own, and nothing can ask for one. The EOB's layout variant applies to the
+EOB. Degraded copies of a statement and statements in a published set are not supported yet. Each is refused with a
+message.
+
 ## Scenario files
 
 A scenario is one JSON file at `scenarios/<type>/<slug>.json`. It describes a *situation*, not a document: the
@@ -259,9 +339,10 @@ KEYDIR, never the documents' folder or one inside it. A degraded copy is blind t
 Content comes from a seed derived from a salt, 128 random bits drawn per set, recorded in every key, so nobody can
 rebuild a document from a guessed scenario and seed and match a printed claim number. `--blind-salt SALT` or
 `blind: { salt }` (32 lowercase hexadecimal digits from an earlier set's key) makes the same set again; documents
-are written in an order drawn from the salt. Keys (ground truth 1.5) hold a `blind` object: `id`, `salt`, `seed`
-and `layoutVariant` as asked, `copyOf` on a degraded copy, `set` and `canary` in a published set (every manifest
-line carries the canary too). `verify --manifest` scores a blind set exactly as an open set.
+are written in an order drawn from the salt. Keys (ground truth 1.5 for a blind document alone, 1.6 for either
+document of a pair) hold a `blind` object: `id`, `salt`, `seed` and `layoutVariant` as asked, `copyOf` on a
+degraded copy, `set` and `canary` in a published set (every manifest line carries the canary too). `verify
+--manifest` scores a blind set exactly as an open set.
 
 `--set standard` (`set: 'standard'`) makes the published set "standard" of 1,022 blind documents (see the repository
 README). A set is always blind and its file fixes every document, so `--set` takes no `--types`, `--scenarios`,
@@ -285,7 +366,8 @@ flagged. Either part may be left out.
   lists their paths.
 - Errors: a flag finds an error when its kind matches and its place names the same line or total (a field inside
   the line counts; for a duplicate charge, either line of the pair). A second flag on a found error is a repeat,
-  not a false alarm. A flag on a decoy is a false alarm and is listed under `decoysFlagged`.
+  not a false alarm. A flag on a decoy, or on the line a decoy repeats (`relatedLineRef`), is a false alarm and
+  is listed under `decoysFlagged`.
 - The report is size-capped (5,000 fields, 1,000 errors, 200-character paths, 1,000-character values) and
   refused if it has any other shape; the result holds counts, rates and answer-key paths only, never the
   report's own text.

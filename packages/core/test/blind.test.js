@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import { render, renderBatch, renderDegraded, launchBrowser, findChrome, finalizePdf, markImage, readManifest, BLIND_STRINGS, BLIND_SALT, BLIND_ID } from '../src/index.js';
+import { PAIR_STRINGS } from '../src/generate/provider-statement.js';
 import { degradeRendered } from '../src/degrade.js';
 import { generateData } from '../src/generate/index.js';
 import { blindSalt, blindSeed, blindId, blindOrder, blindCopyId } from '../src/blind.js';
@@ -63,7 +64,9 @@ test('the schema describes the blind record in the clean side\'s words, in both 
   const S = BLIND_STRINGS.schema;
   for (const file of ['../../../schemas/ground-truth.schema.json', '../../mcp/resources/ground-truth.schema.json']) {
     const sc = JSON.parse(fs.readFileSync(path.join(here, file), 'utf-8'));
-    assert.ok(sc.properties.schemaVersion.description.endsWith(` ${S.schema15}`), file);
+    // 1.5's sentence, verbatim, then 1.6's and the one on decoys that repeat a line (the clean side's, in
+    // data/pair.json), and nothing after them
+    assert.ok(sc.properties.schemaVersion.description.endsWith(` ${S.schema15} ${PAIR_STRINGS.schema.schema16} ${PAIR_STRINGS.schema.schemaDecoyRefs}`), file);
     assert.equal(sc.properties.blind.description, S.blind, file);
     for (const k of ['id', 'salt', 'seed', 'layoutVariant', 'copyOf']) assert.equal(sc.properties.blind.properties[k].description, S[`blind.${k}`], `${file} blind.${k}`);
   }

@@ -4,6 +4,7 @@
  "files": {
   "blind.test.js": { "render": 5, "degraded": 1, "single": 0, "seconds": 21 },
   "limits.test.js": { "render": 0, "degraded": 0, "single": 0, "seconds": 1 },
+  "pair.test.js": { "render": 6, "degraded": 0, "single": 0, "seconds": 30 },
   "preview.test.js": { "render": 6, "degraded": 0, "single": 0, "seconds": 25 },
   "resources.test.js": { "render": 0, "degraded": 0, "single": 0, "seconds": 1 },
   "server.test.js": { "render": 21, "degraded": 1, "single": 0, "seconds": 78 },

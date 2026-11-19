@@ -2,10 +2,10 @@
  "note": "Messages of published sets (0.6.0). Filled in by the code: {who} {names} {guid} {line} {presets}.",
  "messages": {
   "setUnknown": "No published set has that name; the published sets are {names}",
-  "setFixed": "`--set` cannot be used with `--types`, `--scenarios`, `--seeds`, `--seed-prefix`, `--degrade`, `--also` or `--layout-variant`, because the set fixes them",
+  "setFixed": "`--set` cannot be used with `--types`, `--scenarios`, `--seeds`, `--seed-prefix`, `--degrade`, `--also`, `--bill` or `--layout-variant`, because the set fixes them",
   "setNeedsKeys": "`--set` can be used only with `--blind-keys`, because a set is always blind",
   "setNotBlind": "{who}: a set is always blind; it needs the blind option and a separate folder for its answer keys",
-  "setOptions": "{who}: a set fixes its types, scenarios, seeds, seed prefix, degraded preset, 835 and layout variant, so none of them can be given with it",
+  "setOptions": "{who}: a set fixes its types, scenarios, seeds, seed prefix, degraded preset, extra documents (835 or statement), statement variant and layout variant, so none of them can be given with it",
   "manifestDegradation": "manifest line {line} has a degradation that is neither null nor one of the presets: {presets}",
   "scoreRows": "set scoring needs every document to have a type given as text and a degradation that is null or one of the presets"
  },

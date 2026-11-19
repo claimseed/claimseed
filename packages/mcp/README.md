@@ -30,9 +30,8 @@ To also keep each PDF and its ground truth as files, give it a folder:
 ```
 
 Or from a checkout: `node packages/mcp/src/cli.js` (add `--workspace ./out` for files). With Docker, using the published image
-`ghcr.io/claimseed/claimseed-mcp` (Chromium is inside it; `:latest`, or a version tag such as `:0.6.0`), or one you
-build from the `Dockerfile` at the repository root (`docker build -t claimseed-mcp .`, then use `claimseed-mcp` as the
-image name below):
+`ghcr.io/claimseed/claimseed-mcp` (Chromium is inside it; `:latest`, or a version tag such as `:0.7.0`), or one you build from
+the `Dockerfile` at the repository root (`docker build -t claimseed-mcp .`, then use `claimseed-mcp` as the image name below):
 
 ```sh
 docker run -i --rm --network none --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
@@ -63,7 +62,7 @@ boundary, which is why the flags above take away its network, its capabilities a
 | `generate_data` | The data and ground truth of one document, without rendering; nothing is written. Takes `layout_variant`. |
 | `render_document` | Renders one document and returns its pages as images, its ground truth, the PDF's SHA-256 and page count; with a workspace, also writes the PDF and its ground-truth JSON there and returns both paths. With `also: "835"`, also the X12 835 remittance of the same claims (Medicare Summary Notice and Medicare Advantage EOBs). With `layout_variant`, one of the type's layout variants. |
 | `degrade_document` | Like `render_document`, but for a scanned-looking copy of the document: a flatbed scan, a fax, a phone photo or a low-resolution copy (`preset`). The copy is an image-only PDF with the specimen band and watermark drawn on top of the degraded pages; its ground truth has the same fields, errors and decoys, plus `degradation` and the seeded settings in `degradationParams`. Its structured result names the preset in `degradation` (null in a `render_document` result). Takes `layout_variant` like `render_document`. |
-| `render_blind` | Renders a blind document, for testing a tool that must not see the answers: it is named by an opaque id, and its specimen band, PDF title, file names, page-image markers and 835 never carry the scenario, the planted errors or the seed. Takes the arguments of `render_document`, plus `preset` for a degraded copy and `also: "835"`; returns the id, the page images and the PDF's SHA-256, never the answer key, the scenario or the seed. |
+| `render_blind` | Renders a blind document, for testing a tool that must not see the answers: it is named by an opaque id, and its specimen band, PDF title, file names, page-image markers and 835 never carry the scenario, the planted errors or the seed. Takes the arguments of `render_document`, plus `preset` for a degraded copy, `also` (`"835"`, `"bill"` or a list of both) and `bill` (the statement variant); returns the id, the page images and the PDF's SHA-256, never the answer key, the scenario or the seed. |
 | `get_answer_key` | The answer key of a blind document, by its id. Keys live only in the running server's memory, which holds the most recent 1,000, so save each key you need. |
 | `verify_document` | Scores what an extractor or bill auditor reported about one document against its answer key: field accuracy with the paths read wrong or missed, error recall and precision, false alarms and the decoys flagged. Nothing is rendered or written. With `layout_variant`, the key of that variant. |
 
@@ -88,12 +87,22 @@ id of another type and `all` are refused with an error that repeats nothing sent
 - `include_pdf`: also return the PDF itself, embedded in the result. It counts toward the same limit: when it fits,
   page images take the room left (none is forced in); when the PDF alone is over the limit it is left out, and the
   result says so (`pdfEmbedded: false`).
-- `also`: `835` (the only value) — also write the X12 835 remittance of the same claims, for `msn`, `ppo-eob` and
-  `hmo-eob`; any other type is refused. With a workspace it is saved beside the PDF under a name the server chooses
-  (`.835`) and linked in the result; without one its text is embedded in the result (`application/edi-x12`). The
-  structured result's `remittance` gives the file (or null), its SHA-256 and whether it is embedded; the ground truth
-  holds the 835 as `documents[1]` and, on each error it carries, `x12Ref`. What the file contains: the core README,
-  "X12 835 remittances".
+- `also`: `835`, `bill`, or a list of both. `835` (for `msn`, `ppo-eob` and `hmo-eob`) adds the X12 835 of the
+  same claims: with a workspace it is saved beside the PDF under a name the server chooses, and without one its
+  text is embedded in the result. It is reported in the structured result's `remittance`, and the ground truth
+  refers to it in `documents[1]` and `x12Ref`; see "X12 835 remittances" in the core README. `bill` (for `ppo-eob`
+  and `hmo-eob` only) adds the provider's statement for one claim of the EOB: with a workspace its PDF and ground
+  truth are saved beside the EOB's files and their paths are in the structured result's `bill`; without one its
+  PDF is embedded in the result and its ground truth is in `bill`. See "Provider statements (Medicare Advantage
+  pairs)" in the core README.
+- `bill`: the provider's statement variant when `also` includes `bill`, default `clean`. `clean`: no error of its
+  own. `over-owed`: the contractual adjustment is too small, so the balance due is more than the EOB's member
+  share. `denied-line-billed`: a line the plan denied is billed to the patient. `payment-misposted`: Paid by Your
+  Plan differs from what the EOB says the plan paid, but the balance due is still right. `paid-at-visit`: a decoy;
+  Payments Received shows the copay paid at the visit, so the balance due is less than the EOB's member share, and
+  that is correct. `over-owed-with-payment`: the decoy and the `over-owed` error on one statement. A variant
+  applies only where the billed claim allows it; `denied-line-billed`, for example, needs a denied line on that
+  claim.
 
 `degrade_document` takes the same arguments as `render_document` and `preset`: `scan`, `fax`, `photo` or `low-res`.
 The settings (rotation, blur, noise, resolution and the rest) come from the type, scenario, seed and preset, so the
@@ -102,19 +111,27 @@ in the browser), and so can the copy's bytes; its ground truth records the SHA-2
 degraded copy against the same answer key as the clean document.
 
 `render_blind` is for testing a tool that must not see the answers. It takes the arguments of `render_document`,
-plus `preset` for a degraded copy (`scan`, `fax`, `photo` or `low-res`, with its own id) and `also: "835"`. Its
-result returns the opaque id, the page images and the PDF's SHA-256, never the answer key, the scenario or the
-seed. With a workspace the PDF (and 835) is written there, named by the id; without one, `include_pdf` returns the
-PDF in the result. `get_answer_key` takes the id and returns the key. Keys live only in the running server's memory,
-which holds the most recent 1,000, so save each key you need. The server draws one salt for its life.
+plus `preset` for a degraded copy (`scan`, `fax`, `photo` or `low-res`, with its own id), `also` (`"835"`, `"bill"`
+or a list of both) and `bill` (the statement variant). Its result returns the opaque id, the page images and the
+PDF's SHA-256, never the answer key, the scenario or the seed. With a workspace the PDF (and 835) is written there,
+named by the id; without one, `include_pdf` returns the PDF in the result. `get_answer_key` takes the id and returns
+the key. Keys live only in the running server's memory, which holds the most recent 1,000, so save each key you
+need. The server draws one salt for its life.
+
+When `also` includes `bill`, `render_blind` gives the provider's statement its own id and saves it named by that
+id, or embeds it when there is no workspace. Its key is kept for `get_answer_key` under that id; the result never
+holds the statement's key.
 
 `verify_document` takes the type, scenario and seed of the document and `output`, the report in the shape of
-`schema://extractor-output`: `fields` maps answer-key field paths (the keys of `documents[0].fields`) to the values
-read, and `errors` lists `{ kind, fieldRef or lineRef }`. It rebuilds the answer key from the seed with this
-version of claimseed. Matching follows `@claimseed/core`'s `verify` command: money to the cent, dates in ISO,
-M/D/YYYY or "April 11, 2026", text without regard to case; an error is found when its kind and line match, and
-for a duplicate charge either line counts; a flag on a decoy (a line that looks wrong but follows the rules) is a
-false alarm. To score a whole rendered set, use `claimseed-core batch` and `claimseed-core verify --manifest`.
+`schema://extractor-output`: `fields` maps answer-key field paths (the keys of `documents[0].fields`) to the
+values read, and `errors` lists `{ kind, fieldRef or lineRef }`. It rebuilds the answer key from the seed with
+this version of claimseed. To score a report on a provider's statement, set `document` to `bill` (the default is
+`eob`) and `bill` to the variant the statement was rendered with (default `clean`). Matching follows
+`@claimseed/core`'s `verify` command: money to the cent, dates in ISO, M/D/YYYY or "April 11, 2026", text without
+regard to case; an error is found when its kind and line match, and for a duplicate charge either line counts; a
+flag on a decoy (a line that looks wrong but follows the rules), or on the line a decoy repeats on another date,
+is a false alarm. To score a whole rendered set, use `claimseed-core batch` and
+`claimseed-core verify --manifest`.
 
 Resources: `schema://ground-truth` (the ground-truth JSON Schema), `schema://extractor-output` (the report
 `verify_document` scores), `catalog://scenarios`, `catalog://mutations` (error and decoy operations),

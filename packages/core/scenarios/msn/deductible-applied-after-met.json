@@ -2,13 +2,13 @@
   "type": "msn",
   "slug": "deductible-applied-after-met",
   "status": "published",
-  "description": "The patient met the full 2026 Part B deductible earlier in the year, and the notice's deductible-status box says so. Nevertheless the first claim's office visit has its approved amount applied to the deductible again, so the patient is shown owing the whole visit instead of 20% coinsurance.",
+  "description": "None of the 2026 Part B deductible ($283) was met before May. The notice lists four cardiology claims, each an office visit and an electrocardiogram. The first claims' lines use up the whole $283: they carry the note that the amount was applied to the deductible, Medicare pays 80% of the rest, and the page-1 deductible box shows $283 of $283 met. Nevertheless claim 4's office visit has its whole approved amount applied to the deductible again, with the same note, and Medicare pays nothing for it, so the patient is shown owing the whole visit instead of 20% coinsurance. The amounts the notice's own lines apply to the deductible add up to more than $283, which no correct notice can show.",
   "period": { "start": "2026-05-01", "end": "2026-05-31" },
-  "claimCount": 3,
-  "claimShapes": ["CARD"],
-  "deductibleMetBefore": 283,
+  "claimCount": 4,
+  "claimShapes": ["CARD", "CARD", "CARD", "CARD"],
+  "deductibleMetBefore": 0,
   "mutations": [
-    { "op": "reapply-deductible", "args": { "claim": 0, "line": 0 } }
+    { "op": "reapply-deductible", "args": { "claim": 3, "line": 0 } }
   ],
   "sources": [
     { "what": "Only one Part B deductible applies per calendar year", "source": "42 CFR 410.160(a), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-410/subpart-I/section-410.160" },

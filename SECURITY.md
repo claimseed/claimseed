@@ -18,7 +18,7 @@ than refused; nothing reaches a tool through it.
 
 - **Files.** Started without a workspace folder, the server saves no file. Its browser's working files (profile,
   settings, caches and temporary files, which Chrome would otherwise put under the home folder and the temp folder)
-  are kept in one private folder per launch under the system temp folder, `claimseed-chrome-*`, removed when the
+  are kept in one private folder per launch under the system temp folder, `cs-*`, removed when the
   browser exits; on Linux the isolated fontconfig adds `claimseed-fc-*`, removed when the server exits. A process
   that is killed can leave both behind. With a workspace, the server writes only into the workspace folder fixed at
   startup (resolved to its real path, re-checked before every write, never `/` or the home folder), under names it

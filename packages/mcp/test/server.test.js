@@ -47,7 +47,9 @@ test('the server offers exactly the eight documented tools, each with an input s
   const render = tools.find((t) => t.name === 'render_document');
   assert.equal(render._meta.ui.resourceUri, 'ui://claimseed/preview', 'render_document names its MCP Apps view');
   assert.deepEqual(render.inputSchema.properties.preview.enum, ['none', 'first', 'all']);
-  assert.deepEqual(render.inputSchema.properties.also.enum, ['835'], 'also is a closed list');
+  // also is a closed list: one value, or both as a list of at most two
+  assert.deepEqual(render.inputSchema.properties.also.anyOf.map((x) => x.enum || x.items.enum), [['835', 'bill'], ['835', 'bill']], 'also is a closed list');
+  assert.equal(render.inputSchema.properties.also.anyOf[1].maxItems, 2);
   assert.equal(render.inputSchema.properties.preview.default, 'first', 'with a workspace, the first page only by default');
   const degrade = tools.find((t) => t.name === 'degrade_document');
   assert.deepEqual(degrade.inputSchema.properties.preset.enum, ['scan', 'fax', 'photo', 'low-res']);
@@ -319,7 +321,7 @@ test('without a workspace: every document type comes back as page images within 
     assert.deepEqual(fs.readdirSync(cwd), [], 'something was written');
     assert.deepEqual(files(home), [], 'something was written in HOME');
     // while the browser runs, its own working folder (and, on Linux, the fontconfig folder) is all there is in the temp folder
-    assert.deepEqual([...new Set(files(tmpdir).map((f) => f.split(path.sep)[0]))].filter((d) => !/^claimseed-(chrome|fc)-/.test(d)), [], 'something besides the browser\'s working folder was written in the temp folder');
+    assert.deepEqual([...new Set(files(tmpdir).map((f) => f.split(path.sep)[0]))].filter((d) => !/^(cs|claimseed-fc)-/.test(d)), [], 'something besides the browser\'s working folder was written in the temp folder');
   } finally { await t.close(); }
   for (let i = 0; i < 50 && files(tmpdir).length; i++) await new Promise((r) => setTimeout(r, 200));
   assert.deepEqual(files(tmpdir), [], 'the browser profile was left behind after a clean shutdown');

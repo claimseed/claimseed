@@ -118,12 +118,14 @@ export async function degradeRendered(browser, { type, scenario, seed, preset, c
 // Render a document and a degraded copy of it. Returns { pdf, groundTruth, bytes, images, files }. With outDir, writes
 // <type>_<scenario>_<seed>_<preset>.pdf, its .ground-truth.json and one image per page (_p<N>.jpg, or .png for a
 // fax), each created exclusively.
-export async function renderDegraded({ type, scenario, seed = 'claimseed', preset, outDir = null, browser = null, pageImages = true, also = null, layoutVariant = null, blind = false, keysDir = null }) {
+export async function renderDegraded({ type, scenario, seed = 'claimseed', preset, outDir = null, browser = null, pageImages = true, also = null, bill = null, layoutVariant = null, blind = false, keysDir = null }) {
   if (!PRESETS.includes(preset)) throw new Error(`degrade: no such preset; presets: ${PRESETS.join(', ')}`);
-  const { render, checkRender, keysApart } = await import('./index.js');
+  const { render, checkRender, keysApart, alsoList } = await import('./index.js');
   const { launchBrowser } = await import('./browser.js');
   // everything render would refuse, and the blind option, is refused before any folder is made
-  checkRender({ type, scenario, seed, also, layoutVariant, outDir, keysDir }, 'degrade');
+  checkRender({ type, scenario, seed, also, bill, layoutVariant, outDir, keysDir }, 'degrade');
+  // a provider's statement is not made as a degraded copy (yet)
+  if (alsoList(also, 'degrade').includes('bill')) { const { pairMessage } = await import('./generate/provider-statement.js'); throw new Error(pairMessage('billDegraded', 'degrade')); }
   if (blind !== false) blindSalt(blind);
   if (blind !== false && outDir && !keysDir) throw new Error(blindMessage('needKeys', 'degrade'));
   if (keysDir !== null && (blind === false || !outDir)) throw new Error(blindMessage('keysOnlyBlind', 'degrade'));

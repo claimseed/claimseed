@@ -1,0 +1,83 @@
+{% extends "base-portrait.html" %}
+{# The provider's statement of one claim of a Medicare Advantage EOB (provider-statement.js). Every printed word is a
+   label from data/pair.json (the clean side's) or a value of the statement; the colours and fonts are the itemized
+   bill's. #}
+{% macro credit(x) %}{% if x > 0 %}-${{ x | formatMoney }}{% else %}${{ 0 | formatMoney }}{% endif %}{% endmacro %}
+
+{% block extra_styles %}
+    .page { padding: 0.45in 0.6in 0.75in 0.6in; }
+    .bar { background: {{ stock.colors.headerBg }}; color: {{ stock.colors.headerText }}; padding: 7pt 12pt; display: flex; justify-content: space-between; align-items: center; }
+    .bar .name { font-size: {{ stock.fonts.logoSize }}; font-weight: 700; letter-spacing: -0.3pt; }
+    .bar .addr, .bar .ids { font-size: {{ stock.fonts.tinySize }}; line-height: 1.4; }
+    .bar .ids { text-align: right; }
+    h1 { font-size: {{ stock.fonts.titleSize }}; margin: 14pt 0 8pt 0; color: {{ stock.colors.headerBg }}; }
+    .info { display: grid; grid-template-columns: 1fr 1fr; gap: 3pt 24pt; background: {{ stock.colors.infoBg }}; border-left: 3pt solid {{ stock.colors.infoBorder }}; padding: 8pt 12pt; margin-bottom: 10pt; }
+    .info .k { font-size: {{ stock.fonts.smallSize }}; color: #444444; }
+    .info .v { font-weight: 600; }
+    .intro { margin: 0 0 10pt 0; }
+    table.lines, table.summary { width: 100%; font-size: {{ stock.fonts.tableSize }}; }
+    table.lines th { background: {{ stock.colors.columnHeaderBg }}; color: {{ stock.colors.columnHeaderText }}; text-align: left; padding: 4pt 6pt; }
+    table.lines td { padding: 4pt 6pt; border-bottom: 0.5pt solid #E3E6EA; }
+    table.lines tr:nth-child(even) td { background: {{ stock.colors.zebraStripeBg }}; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .section { background: {{ stock.colors.summaryHeaderBg }}; color: {{ stock.colors.summaryHeaderText }}; font-size: {{ stock.fonts.sectionTitleSize }}; font-weight: 700; padding: 5pt 10pt; margin-top: 14pt; }
+    table.summary td { padding: 4pt 10pt; border-bottom: 0.5pt solid #EEEEEE; }
+    table.summary tr.balance td { font-weight: 700; font-size: {{ stock.fonts.headingSize }}; border-top: 1pt solid {{ stock.colors.headerBg }}; border-bottom: none; }
+    .pay { display: grid; grid-template-columns: 1fr 1fr; gap: 6pt 24pt; margin-top: 8pt; }
+    .pay .k { font-weight: 700; }
+    .note { margin-top: 10pt; font-size: {{ stock.fonts.smallSize }}; }
+{% endblock %}
+
+{% block body %}
+<div class="page">
+  <div class="bar">
+    <div>
+      <div class="name">{{ metadata.providerName }} <span class="specimen-badge">SPECIMEN</span></div>
+      <div class="addr">{{ metadata.providerAddress }} &bull; {{ metadata.providerCityStateZip }} &bull; {{ metadata.providerPhone }}</div>
+    </div>
+    <div class="ids">
+      <div>{{ labels.providerNpi }}: {{ metadata.npi }}</div>
+      <div>{{ labels.taxId }}: {{ metadata.taxId }}</div>
+    </div>
+  </div>
+
+  <h1>{{ labels.title }}</h1>
+  <div class="info">
+    <div><div class="k">{{ labels.statementDate }}</div><div class="v">{{ metadata.statementDate }}</div></div>
+    <div><div class="k">{{ labels.accountNumber }}</div><div class="v">{{ metadata.accountNumber }}</div></div>
+    <div><div class="k">{{ labels.patient }}</div><div class="v">{{ metadata.patientName }}</div></div>
+    <div><div class="k">{{ labels.memberId }}</div><div class="v">{{ metadata.memberId }}</div></div>
+    <div><div class="k">{{ labels.plan }}</div><div class="v">{{ metadata.planName }}</div></div>
+    <div><div class="k">{{ labels.claimNumber }}</div><div class="v">{{ metadata.claimNumber }}</div></div>
+    <div><div class="k">{{ labels.dateOfService }}</div><div class="v">{{ metadata.serviceDateRange }}</div></div>
+  </div>
+  <p class="intro">{{ labels.intro }}</p>
+
+  <table class="lines">
+    <tr><th>{{ labels.columnDate }}</th><th>{{ labels.columnCode }}</th><th>{{ labels.columnDescription }}</th><th class="num">{{ labels.columnUnits }}</th><th class="num">{{ labels.columnCharge }}</th></tr>
+    {% for l in lineItems %}
+    <tr><td>{{ l.date }}</td><td>{{ l.code }}</td><td>{{ l.description }}</td><td class="num">{{ l.units }}</td><td class="num">${{ l.charge | formatMoney }}</td></tr>
+    {% endfor %}
+  </table>
+
+  <div class="section">{{ labels.summaryTitle }}</div>
+  <table class="summary">
+    <tr><td>{{ labels.totalCharges }}</td><td class="num">${{ summary.totalCharges | formatMoney }}</td></tr>
+    <tr><td>{{ labels.contractualAdjustment }}</td><td class="num">{{ credit(summary.contractualAdjustment) }}</td></tr>
+    {% if summary.deniedNotBilled %}<tr><td>{{ labels.denied }}</td><td class="num">{{ credit(summary.deniedNotBilled) }}</td></tr>{% endif %}
+    <tr><td>{{ labels.paidByPlan }}</td><td class="num">{{ credit(summary.paidByPlan) }}</td></tr>
+    <tr><td>{{ labels.paymentsReceived }}</td><td class="num">{{ credit(summary.paymentsReceived) }}</td></tr>
+    <tr class="balance"><td>{{ labels.balanceDue }}</td><td class="num">${{ summary.balanceDue | formatMoney }}</td></tr>
+  </table>
+
+  <div class="section">{{ labels.howToPay }}</div>
+  <div class="pay">
+    <div><div class="k">{{ labels.payByPhone }}</div><div>{{ metadata.billingPhone }}</div></div>
+    <div><div class="k">{{ labels.payByMail }}</div><div>{{ labels.payableTo }}: {{ metadata.providerName }}</div><div>{{ metadata.providerAddress }}</div><div>{{ metadata.providerCityStateZip }}</div></div>
+  </div>
+  <p class="note">{{ questions }}</p>
+  <p class="note">{{ labels.financialHelp }}</p>
+
+  <div class="page-footer"><div>{{ labels.accountNumber }}: {{ metadata.accountNumber }}</div></div>
+</div>
+{% endblock %}
