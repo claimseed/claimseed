@@ -9,9 +9,9 @@
 // apart from outDir; each manifest line adds the document's id.
 // With `set` (a published set's name, set.js) the set file fixes every document, its layout, degraded copy and 835
 // included; a set is always blind, and its keys and manifest lines also name the set and carry its canary.
-// With `also` holding `bill` (ppo-eob and hmo-eob only; `bill` names the statement variant, and a claim it does not
-// apply to gets a clean statement, as its key says) each EOB comes with the provider's statement for one of its claims
-// (index.js render). The statement is a job of its own, written at its own place in the order (drawn from the salt
+// With `also` holding `bill` (ppo-eob, hmo-eob and commercial-eob only; `bill` names the statement variant, and a claim
+// it does not apply to gets a clean statement, as its key says) each EOB comes with the provider's statement for one
+// of its claims (index.js render). The statement is a job of its own, written at its own place in the order (drawn from the salt
 // when blind), and pairs.jsonl publishes which two belong together; it has its own manifest line (type
 // provider-statement, the EOB's scenario and seed, pairOf the EOB's file name without .pdf), and pairs.jsonl in outDir
 // lists each pair as { eob, bill } file names without .pdf (blind: the two ids), sorted, and nothing else.
@@ -24,7 +24,7 @@ import { readRegularFile } from './safe-read.js';
 import { scalarText } from './scalar-text.js';
 
 import { VariantError, checkVariantOption, variantIds } from './variants.js';
-import { blindSalt, blindOrder, blindMessage, checkFolders } from './blind.js';
+import { blindSalt, blindOrder, blindMessage, checkFolders, blindCopyId } from './blind.js';
 import { PRESETS } from './presets.js';
 import { SET_STRINGS } from './set.js';
 const PKG = JSON.parse(fs.readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../package.json'), 'utf-8'));
@@ -82,7 +82,6 @@ export async function renderBatch(options) {
   const list = alsoList(also, 'batch'); const withBill = list.includes('bill');
   if (bill !== null && bill !== undefined && !withBill) throw new Error(pairMessage('billNeedsAlso', 'batch'));
   if (withBill && !(typeof (bill ?? 'clean') === 'string' && BILL_VARIANTS.includes(bill ?? 'clean'))) throw new Error(pairMessage('billVariant', 'batch'));
-  if (withBill && degrade !== null) throw new Error(pairMessage('billDegraded', 'batch'));
   const salt = blind === false ? null : blindSalt(blind);
   const planned = planBatch({ types, scenarios, seeds, seedPrefix, layoutVariant });
   if (list.includes('835') && planned.some((j) => !REMITTANCE_TYPES.includes(j.type))) throw new Error(`batch: an 835 is written for ${REMITTANCE_TYPES.join(', ')} only`);
@@ -96,20 +95,23 @@ export async function renderBatch(options) {
 // A published set (set.js): the set file fixes every document, so no other batch option may be given beside it, and a
 // set is always blind. Its answer keys and manifest lines also name the set, and each key carries the set's canary.
 async function renderSet({ set, outDir, browser = null, blind = false, keysDir = null, onProgress = () => {}, ...rest }) {
-  const { SetError, setMessage, loadSet, planSet, canaryOf } = await import('./set.js');
+  const { SetError, setMessage, loadSet, drawSalt, canaryOf } = await import('./set.js');
   const spec = loadSet(set);
   for (const k of ['types', 'scenarios', 'seeds', 'seedPrefix', 'degrade', 'also', 'bill', 'layoutVariant']) if (rest[k] !== undefined && rest[k] !== null) throw new SetError(setMessage('setOptions'));
   if (blind === false || keysDir === null || keysDir === undefined) throw new SetError(setMessage('setNotBlind'));
   const { REMITTANCE_TYPES } = await import('./index.js');
-  const salt = blindSalt(blind);
-  const jobs = blindOrder(salt, planSet(spec, { remittanceTypes: REMITTANCE_TYPES }));
-  return writeJobs({ jobs, salt, outDir, keysDir, browser, onProgress, set: { name: spec.name, canary: canaryOf(spec) } });
+  // the floors are checked from the generator before anything is rendered (set.js drawSalt)
+  const { salt, plan, draws, missed } = drawSalt(spec, blind, { remittanceTypes: REMITTANCE_TYPES });
+  const jobs = blindOrder(salt, plan.jobs);
+  const r = await writeJobs({ jobs, salt, outDir, keysDir, browser, onProgress, set: { name: spec.name, canary: canaryOf(spec) } });
+  return { ...r, draws, missed };
 }
 
 // Render planned jobs ({ type, scenario, seed, layoutVariant?, degrade, also }) into outDir, the answer keys and
 // manifest.jsonl beside them or, for a blind set, in keysDir. Not exported from index.js: renderBatch is the entry point.
 export async function writeJobs({ jobs, salt, outDir, keysDir = null, browser = null, onProgress = () => {}, set = null }) {
   const { degradeRendered } = await import('./degrade.js');
+  const { STATEMENT_TYPE } = await import('./generate/provider-statement.js');
   const { keysApart } = await import('./index.js');
   checkFolders({ outDir, keysDir }, 'batch');
   if (!outDir) throw new Error('batch: an output folder is required');
@@ -138,17 +140,25 @@ export async function writeJobs({ jobs, salt, outDir, keysDir = null, browser = 
         const r = held.get(k) || await render({ ...job, browser: b, also, bill, billOrClean: true, ...(salt ? { blind: { salt } } : {}) });
         if (held.has(k)) held.delete(k); else held.set(k, r);
         const vid = r.groundTruth.documents[0].layoutVariant?.id; const { layoutVariant: _lv, ...fields } = job;
-        const eobBase = salt ? r.id : `${job.type}_${job.scenario}_${job.seed}${vid ? `.${vid}` : ''}`;
-        const doc = part === 'eob' ? { bytes: r.bytes, groundTruth: r.groundTruth, remittance: r.remittance } : { bytes: r.bill.bytes, groundTruth: r.bill.groundTruth, remittance: null };
-        const base = part === 'eob' ? eobBase : (salt ? r.bill.id : `${eobBase}.bill`);
+        // the two names, of the documents or, with `degrade`, of their copies (the statement's settings from its own type)
+        const eobBase = salt ? (degrade ? blindCopyId(salt, r.id, degrade) : r.id) : `${job.type}_${job.scenario}_${job.seed}${vid ? `.${vid}` : ''}${degrade ? `_${degrade}` : ''}`;
+        const billBase = salt ? (degrade ? blindCopyId(salt, r.bill.id, degrade) : r.bill.id) : `${job.type}_${job.scenario}_${job.seed}${vid ? `.${vid}` : ''}.bill${degrade ? `_${degrade}` : ''}`;
+        let doc = part === 'eob' ? { bytes: r.bytes, groundTruth: r.groundTruth, remittance: r.remittance } : { bytes: r.bill.bytes, groundTruth: r.bill.groundTruth, remittance: null };
+        if (degrade) {
+          const copy = await degradeRendered(b, { ...job, ...(part === 'bill' ? { type: STATEMENT_TYPE } : {}), preset: degrade, clean: { bytes: doc.bytes, groundTruth: doc.groundTruth }, pageImages: false });
+          copy.groundTruth.pair = { ...copy.groundTruth.pair, with: part === 'eob' ? billBase : eobBase };
+          doc = { ...doc, bytes: copy.bytes, groundTruth: copy.groundTruth };
+        }
+        const base = part === 'eob' ? eobBase : billBase;
+        if (set) doc.groundTruth.blind = { ...doc.groundTruth.blind, set: set.name, canary: set.canary };
         const gt = Buffer.from(JSON.stringify(doc.groundTruth, null, 2));
         fs.writeFileSync(path.join(outDir, `${base}.pdf`), doc.bytes, { flag: 'wx' });
         fs.writeFileSync(path.join(keys, `${base}.ground-truth.json`), gt, { flag: 'wx' });
-        const line = { pdf: `${base}.pdf`, groundTruth: `${base}.ground-truth.json`, ...(salt ? { id: base } : {}), ...fields, ...(part === 'bill' ? { type: doc.groundTruth.documents[0].type, pairOf: eobBase } : {}),
-          ...(vid && part === 'eob' ? { layoutVariant: vid } : {}), degradation: null, pages: doc.groundTruth.documents[0].pages, sha256: sha(doc.bytes), groundTruthSha256: sha(gt), claimseedVersion: VERSION, chrome };
+        const line = { pdf: `${base}.pdf`, groundTruth: `${base}.ground-truth.json`, ...(salt ? { id: base } : {}), ...(set ? { set: set.name, canary: set.canary } : {}), ...fields, ...(part === 'bill' ? { type: doc.groundTruth.documents[0].type, pairOf: eobBase } : {}),
+          ...(vid && part === 'eob' ? { layoutVariant: vid } : {}), degradation: degrade, pages: doc.groundTruth.documents[0].pages, sha256: sha(doc.bytes), groundTruthSha256: sha(gt), claimseedVersion: VERSION, chrome };
         if (doc.remittance !== null) { const x = Buffer.from(doc.remittance); fs.writeFileSync(path.join(outDir, `${base}.835`), x, { flag: 'wx' }); line.remittance = `${base}.835`; line.remittanceSha256 = sha(x); }
         fs.writeSync(manifest, JSON.stringify(line) + '\n');
-        if (part === 'eob') pairs.push({ eob: eobBase, bill: salt ? r.bill.id : `${eobBase}.bill` });
+        if (part === 'eob') pairs.push({ eob: eobBase, bill: billBase });
         onProgress(n + 1, jobs.length, base);
         continue;
       }

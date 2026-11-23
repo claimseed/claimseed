@@ -36,3 +36,14 @@ Every commit carries a `Signed-off-by:` line (`git commit -s`) certifying the
   the core tests with `CLAIMSEED_WRITE_HTML_GUARD=1`); variant wording lives in `data/<type>/labels.json` and, like
   all printed text, must be public or a reviewed original
 - [ ] Commits are signed off
+
+The full checks assume the Linux CI runner. With `CI=1` set, a test that skips on another platform counts as a
+failure. `npm run release-ready` runs `npm pack`, so it needs a writable npm cache. `examples --check` compares
+against examples rendered on the pinned Chrome on Linux, and renders made on another platform can differ from them.
+
+## Reporting a problem
+
+Open a GitHub issue on this repository for a bug, a wrong rule or a confusing passage in the docs. Give the document
+type, scenario, seed and claimseed version, which is enough to make the document again. Report a vulnerability as
+`SECURITY.md` describes, never in an issue. Never attach, paste or describe a real medical document, bill or notice,
+not even a redacted one.

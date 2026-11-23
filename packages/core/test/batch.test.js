@@ -19,7 +19,7 @@ test('a batch plan names every document once and refuses unknown types, bad pref
   assert.equal(jobs.length, 3 + 6, 'msn has baseline-clean only of the two; the bill has both');
   assert.equal(new Set(jobs.map((j) => `${j.type}/${j.scenario}/${j.seed}`)).size, jobs.length);
   // refusals never repeat the requested name
-  for (const t of ['w2', 'constructor', '__proto__', '../x']) assert.throws(() => planBatch({ types: [t] }), (e) => e.message === 'batch: unknown document type; the known types are msn, itemized-bill, ppo-eob, hmo-eob', t);
+  for (const t of ['w2', 'constructor', '__proto__', '../x']) assert.throws(() => planBatch({ types: [t] }), (e) => e.message === 'batch: unknown document type; the known types are msn, itemized-bill, ppo-eob, hmo-eob, commercial-eob', t);
   for (const s of [['BAD-canary'], ['../canary'], 'canary']) assert.throws(() => planBatch({ types: ['msn'], scenarios: s }), (e) => e.message === 'batch: invalid scenario name; use only lowercase letters, digits and hyphens', JSON.stringify(s));
   assert.throws(() => planBatch({ types: ['msn'], seedPrefix: '../x' }), /seed prefix/);
   assert.throws(() => planBatch({ types: ['msn'], seeds: 0 }), /at least 1/);

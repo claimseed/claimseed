@@ -2,6 +2,7 @@
 // balancing rules, the duplicate check, the specimen markers, the free-text allow-list and the synthetic
 // identifiers. It reads only claimseed's delimiters (* ^ > ~) and returns findings; the tests treat it as the source
 // of truth and an independent open-source parser as a second reader.
+import { INSURERS } from '../generate/commercial-eob.js';
 import { SPECIMEN_STRINGS } from './remittance.js';
 
 const cents = (v) => Math.round(Number(v) * 100);
@@ -23,7 +24,7 @@ const emptySegment = (text) => asText(text).split('~').slice(0, -1).some((p) => 
 // an amount as X12 writes it: no leading zero, no negative zero, at most two decimals
 const AMOUNT = /^(?!-0(\.0{1,2})?$)-?(0|[1-9][0-9]*)(\.[0-9]{1,2})?$/; const DATE8 = /^[0-9]{8}$/;
 const READ = { BPR: { 1: /^[IH]$/, 2: AMOUNT, 4: /^(CHK|NON)$/ }, CLP: { 3: AMOUNT, 4: AMOUNT, 5: AMOUNT },
-  SVC: { 1: /^HC>[0-9A-Z]{5}$/, 2: AMOUNT, 3: AMOUNT }, AMT: { 1: /^B6$/, 2: AMOUNT }, DTM472: { 2: DATE8 } };
+  SVC: { 1: /^HC>[0-9A-Z]{5}(>[0-9A-Z]{2})?$/, 2: AMOUNT, 3: AMOUNT }, AMT: { 1: /^B6$/, 2: AMOUNT }, DTM472: { 2: DATE8 } };
 // the segments a transaction holds, by where they stand: its header; a claim before its first service (the patient,
 // the claim's own adjustments); a service (its date, adjustments and allowed amount, or the next service or claim)
 const TX_HEADER = new Set(['BPR', 'TRN', 'DTM', 'N1', 'N3', 'N4', 'PER', 'REF', 'LX']);
@@ -199,7 +200,8 @@ export function checkSpecimen835(text, options) {
   if (S[0]?.[6]?.trim() !== str.interchangeSenderId || S[0]?.[8]?.trim() !== str.interchangeReceiverId) problems.push('ISA sender or receiver is not the specimen ID');
   if (S[1]?.[2] !== str.interchangeSenderId || S[1]?.[3] !== str.interchangeReceiverId) problems.push('GS sender or receiver is not the specimen ID');
   if (!get('PER', 'BL').every((s) => s[2] === str.technicalContactName && s[3] === 'TE' && s[4] === str.technicalContactPhone) || !get('PER', 'BL').length) problems.push('technical contact is not the specimen contact');
-  const payerNames = new Set(Object.values(str.payerNames));
+  // the Medicare types' specimen payers, and each fictional insurer as the commercial EOB's 835 names it
+  const payerNames = new Set([...Object.values(str.payerNames), ...INSURERS.insurers.map((i) => `${i.name} - SPECIMEN - TEST ONLY`.toUpperCase().replace(/\./g, ''))]);
   for (const s of get('N1', 'PR')) { if (!payerNames.has(s[2])) problems.push('payer name is not a specimen name'); if (!/^CS[A-Z0-9]+$/.test(s[4] || '')) problems.push('payer ID is not a sentinel'); }
   for (const s of get('N1', 'PE')) if (!/^9[0-9]{9}$/.test(s[4] || '') || !luhnNpi(s[4])) problems.push('payee NPI is not a synthetic NPI');
   for (const s of get('REF', 'TJ')) if (!/^00[0-9]{7}$/.test(s[2] || '')) problems.push('payee tax ID is not 00-prefixed');
@@ -211,7 +213,7 @@ export function checkSpecimen835(text, options) {
   for (const s of get('NM1', 'QC')) {
     const id = s[9] || '';
     // a Medicare number with a letter Medicare never uses (S L O I B Z), or a sentinel member ID
-    if (!(/^[0-9A-Z]{11}$/.test(id) && /[SLOIBZ]/.test(id.slice(1)) || /^SPEC[0-9]{8}$/.test(id))) problems.push('patient ID is neither an impossible Medicare number nor a sentinel member ID');
+    if (!(/^[0-9A-Z]{11}$/.test(id) && /[SLOIBZ]/.test(id.slice(1)) || /^SPEC[0-9]{8}(-[0-9]{2})?$/.test(id))) problems.push('patient ID is neither an impossible Medicare number nor a sentinel member ID');
   }
   // free text only where allowed
   const allowed = new Set([...payerNames, str.technicalContactName, str.payerAddress.line1, str.payerAddress.city, ...names]);
@@ -219,9 +221,9 @@ export function checkSpecimen835(text, options) {
   const AMT = AMOUNT; const DATE = /^[0-9]{8}$/;
   const CODED = {
     BPR: [/^[IH]$/, AMT, /^C$/, /^(CHK|NON)$/, ...Array(11).fill(/^$/), DATE],
-    CLP: [/^CS[0-9]{10}$/, /^[14]$/, AMT, AMT, AMT, /^(MB|16)$/, /^(99[0-9]{11}|CS[0-9]{10})$/],
-    SVC: [/^HC>[0-9A-Z]{5}$/, AMT, AMT, /^$/, /^[1-9][0-9]*$/],
-    CAS: [/^(CO|OA|PR)$/, ...Array(6).fill(null).flatMap(() => [/^(1|2|3|18|45|50)$/, AMT, /^$/])],
+    CLP: [/^CS[0-9]{10}$/, /^[14]$/, AMT, AMT, AMT, /^(MB|16|CI)$/, /^(99[0-9]{11}|CS[0-9]{10})$/],
+    SVC: [/^HC>[0-9A-Z]{5}(>[0-9A-Z]{2})?$/, AMT, AMT, /^$/, /^[1-9][0-9]*$/],
+    CAS: [/^(CO|OA|PR)$/, ...Array(6).fill(null).flatMap(() => [/^(1|2|3|18|45|50|119|197)$/, AMT, /^$/])],
     AMT: [/^B6$/, AMT],
     DTM: [/^(405|472)$/, DATE],
   };

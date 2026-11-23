@@ -1,0 +1,1022 @@
+{
+  "description": "The services the commercial employer-plan EOB draws from, one entry per service and setting. Descriptions are written by claimseed in plain language (not CPT or HCPCS descriptors). Each Medicare amount is the 2026 national figure from the CMS file named beside it, read on the date given; the plan allows that amount times the CBO multiple of its setting.",
+  "year": 2026,
+  "multiples": {
+    "facility": {
+      "value": 2.23,
+      "source": "CBO, The Prices That Commercial Health Insurers and Medicare Pay for Hospitals' and Physicians' Services (January 2022), hospital average",
+      "url": "https://www.cbo.gov/system/files/2022-01/57422-medical-prices.pdf"
+    },
+    "physician": {
+      "value": 1.29,
+      "source": "the same CBO report, physician average",
+      "url": "https://www.cbo.gov/system/files/2022-01/57422-medical-prices.pdf",
+      "note": "also applied to lab, anesthesia, ambulance and the vaccine product: a stored assumption (CBO reports hospitals and physicians only)"
+    }
+  },
+  "outOfNetworkAllowance": {
+    "value": 1.1,
+    "of": "the Medicare amount",
+    "note": "fictional; below every in-network rate"
+  },
+  "qpaFactor": {
+    "value": 0.95,
+    "of": "the in-network allowed amount",
+    "note": "fictional: a synthetic qualifying payment amount, recorded in the key, never a real plan's rate"
+  },
+  "services": [
+    {
+      "id": "office-primary",
+      "code": "99213",
+      "system": "CPT",
+      "description": "Return visit to your own doctor, low complexity",
+      "setting": "office",
+      "category": "visit",
+      "costShare": "copay-primary",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 95.19,
+        "file": "RVU26A PPRRVU2026_Jan_nonQPP.csv",
+        "rvuTotal": 2.85,
+        "rvuColumn": "non-facility total",
+        "conversionFactor": 33.4009,
+        "medicareStatus": "A",
+        "url": "https://www.cms.gov/files/zip/rvu26a-updated-12-29-2025.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+        "read": "2026-11-12",
+        "verified": true
+      }
+    },
+    {
+      "id": "urgent-care-visit",
+      "code": "99213",
+      "system": "CPT",
+      "description": "Visit to an urgent care center, low complexity",
+      "setting": "office",
+      "category": "visit",
+      "costShare": "copay-primary",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 95.19,
+        "file": "RVU26A PPRRVU2026_Jan_nonQPP.csv",
+        "rvuTotal": 2.85,
+        "rvuColumn": "non-facility total",
+        "conversionFactor": 33.4009,
+        "medicareStatus": "A",
+        "url": "https://www.cms.gov/files/zip/rvu26a-updated-12-29-2025.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+        "read": "2026-11-12",
+        "verified": true
+      }
+    },
+    {
+      "id": "office-specialist",
+      "code": "99214",
+      "system": "CPT",
+      "description": "Return visit to a specialist, medium complexity",
+      "setting": "office",
+      "category": "visit",
+      "costShare": "copay-specialist",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 135.61,
+        "file": "RVU26A PPRRVU2026_Jan_nonQPP.csv",
+        "rvuTotal": 4.06,
+        "rvuColumn": "non-facility total",
+        "conversionFactor": 33.4009,
+        "medicareStatus": "A",
+        "url": "https://www.cms.gov/files/zip/rvu26a-updated-12-29-2025.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+        "read": "2026-11-12",
+        "verified": true
+      }
+    },
+    {
+      "id": "wellchild-infant",
+      "code": "99391",
+      "system": "CPT",
+      "description": "Routine checkup for a baby under 1 year old",
+      "setting": "office",
+      "category": "preventive-visit",
+      "costShare": "preventive",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 102.54,
+        "file": "RVU26A PPRRVU2026_Jan_nonQPP.csv",
+        "rvuTotal": 3.07,
+        "rvuColumn": "non-facility total",
+        "conversionFactor": 33.4009,
+        "medicareStatus": "N",
+        "url": "https://www.cms.gov/files/zip/rvu26a-updated-12-29-2025.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "preventive": [
+        {
+          "list": "HRSA (Bright Futures periodicity schedule)",
+          "topic": "well-child visits",
+          "issued": "2010-07-19",
+          "source": "https://www.govinfo.gov/content/pkg/FR-2010-07-19/html/2010-17242.htm (75 FR 41726, 19 July 2010: the HRSA-supported comprehensive guidelines for infants, children and adolescents); https://www.aap.org/periodicityschedule",
+          "read": "2026-11-20",
+          "verified": true,
+          "ages": [
+            0,
+            0
+          ],
+          "sex": "any"
+        }
+      ],
+      "fallbackCostShare": "copay-primary",
+      "medicareNote": "no Medicare payment for this code; the amount is RVU x conversion factor"
+    },
+    {
+      "id": "wellchild-1-4",
+      "code": "99392",
+      "system": "CPT",
+      "description": "Routine checkup for a child aged 1 to 4",
+      "setting": "office",
+      "category": "preventive-visit",
+      "costShare": "preventive",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 108.89,
+        "file": "RVU26A PPRRVU2026_Jan_nonQPP.csv",
+        "rvuTotal": 3.26,
+        "rvuColumn": "non-facility total",
+        "conversionFactor": 33.4009,
+        "medicareStatus": "N",
+        "url": "https://www.cms.gov/files/zip/rvu26a-updated-12-29-2025.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "preventive": [
+        {
+          "list": "HRSA (Bright Futures periodicity schedule)",
+          "topic": "well-child visits",
+          "issued": "2010-07-19",
+          "source": "https://www.govinfo.gov/content/pkg/FR-2010-07-19/html/2010-17242.htm (75 FR 41726, 19 July 2010: the HRSA-supported comprehensive guidelines for infants, children and adolescents); https://www.aap.org/periodicityschedule",
+          "read": "2026-11-20",
+          "verified": true,
+          "ages": [
+            1,
+            4
+          ],
+          "sex": "any"
+        }
+      ],
+      "fallbackCostShare": "copay-primary",
+      "medicareNote": "no Medicare payment for this code; the amount is RVU x conversion factor"
+    },
+    {
+      "id": "wellchild-5-11",
+      "code": "99393",
+      "system": "CPT",
+      "description": "Routine checkup for a child aged 5 to 11",
+      "setting": "office",
+      "category": "preventive-visit",
+      "costShare": "preventive",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 108.55,
+        "file": "RVU26A PPRRVU2026_Jan_nonQPP.csv",
+        "rvuTotal": 3.25,
+        "rvuColumn": "non-facility total",
+        "conversionFactor": 33.4009,
+        "medicareStatus": "N",
+        "url": "https://www.cms.gov/files/zip/rvu26a-updated-12-29-2025.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "preventive": [
+        {
+          "list": "HRSA (Bright Futures periodicity schedule)",
+          "topic": "well-child visits",
+          "issued": "2010-07-19",
+          "source": "https://www.govinfo.gov/content/pkg/FR-2010-07-19/html/2010-17242.htm (75 FR 41726, 19 July 2010: the HRSA-supported comprehensive guidelines for infants, children and adolescents); https://www.aap.org/periodicityschedule",
+          "read": "2026-11-20",
+          "verified": true,
+          "ages": [
+            5,
+            11
+          ],
+          "sex": "any"
+        }
+      ],
+      "fallbackCostShare": "copay-primary",
+      "medicareNote": "no Medicare payment for this code; the amount is RVU x conversion factor"
+    },
+    {
+      "id": "wellteen-12-17",
+      "code": "99394",
+      "system": "CPT",
+      "description": "Routine checkup for a teen aged 12 to 17",
+      "setting": "office",
+      "category": "preventive-visit",
+      "costShare": "preventive",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 119.24,
+        "file": "RVU26A PPRRVU2026_Jan_nonQPP.csv",
+        "rvuTotal": 3.57,
+        "rvuColumn": "non-facility total",
+        "conversionFactor": 33.4009,
+        "medicareStatus": "N",
+        "url": "https://www.cms.gov/files/zip/rvu26a-updated-12-29-2025.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "preventive": [
+        {
+          "list": "HRSA (Bright Futures periodicity schedule)",
+          "topic": "well-child visits",
+          "issued": "2010-07-19",
+          "source": "https://www.govinfo.gov/content/pkg/FR-2010-07-19/html/2010-17242.htm (75 FR 41726, 19 July 2010: the HRSA-supported comprehensive guidelines for infants, children and adolescents); https://www.aap.org/periodicityschedule",
+          "read": "2026-11-20",
+          "verified": true,
+          "ages": [
+            12,
+            17
+          ],
+          "sex": "any"
+        }
+      ],
+      "fallbackCostShare": "copay-primary",
+      "medicareNote": "no Medicare payment for this code; the amount is RVU x conversion factor"
+    },
+    {
+      "id": "welladult-18-39",
+      "code": "99395",
+      "system": "CPT",
+      "description": "Yearly checkup for an adult aged 18 to 39",
+      "setting": "office",
+      "category": "preventive-visit",
+      "costShare": "preventive",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 121.58,
+        "file": "RVU26A PPRRVU2026_Jan_nonQPP.csv",
+        "rvuTotal": 3.64,
+        "rvuColumn": "non-facility total",
+        "conversionFactor": 33.4009,
+        "medicareStatus": "N",
+        "url": "https://www.cms.gov/files/zip/rvu26a-updated-12-29-2025.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "preventive": [
+        {
+          "list": "HRSA (Women's Preventive Services Guidelines)",
+          "topic": "well-woman preventive visit",
+          "issued": "2011-12",
+          "sex": "F",
+          "source": "https://www.hrsa.gov/womens-guidelines (originally established in 2011; well-woman preventive visits in the current guidelines)",
+          "read": "2026-11-20",
+          "verified": true,
+          "note": "the page gives the year only; taken as its last month",
+          "ages": [
+            18,
+            39
+          ]
+        },
+        {
+          "rule": "29 CFR 2590.715-2713(a)(2)(ii); 45 CFR 147.130(a)(2)(ii)",
+          "topic": "a preventive visit whose main purpose is listed services not billed separately",
+          "ages": [
+            18,
+            39
+          ],
+          "sex": "any"
+        }
+      ],
+      "fallbackCostShare": "copay-primary",
+      "medicareNote": "no Medicare payment for this code; the amount is RVU x conversion factor"
+    },
+    {
+      "id": "welladult-40-64",
+      "code": "99396",
+      "system": "CPT",
+      "description": "Yearly checkup for an adult aged 40 to 64",
+      "setting": "office",
+      "category": "preventive-visit",
+      "costShare": "preventive",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 128.93,
+        "file": "RVU26A PPRRVU2026_Jan_nonQPP.csv",
+        "rvuTotal": 3.86,
+        "rvuColumn": "non-facility total",
+        "conversionFactor": 33.4009,
+        "medicareStatus": "N",
+        "url": "https://www.cms.gov/files/zip/rvu26a-updated-12-29-2025.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "preventive": [
+        {
+          "list": "HRSA (Women's Preventive Services Guidelines)",
+          "topic": "well-woman preventive visit",
+          "issued": "2011-12",
+          "sex": "F",
+          "source": "https://www.hrsa.gov/womens-guidelines (originally established in 2011; well-woman preventive visits in the current guidelines)",
+          "read": "2026-11-20",
+          "verified": true,
+          "note": "the page gives the year only; taken as its last month",
+          "ages": [
+            40,
+            64
+          ]
+        },
+        {
+          "rule": "29 CFR 2590.715-2713(a)(2)(ii); 45 CFR 147.130(a)(2)(ii)",
+          "topic": "a preventive visit whose main purpose is listed services not billed separately",
+          "ages": [
+            40,
+            64
+          ],
+          "sex": "any"
+        }
+      ],
+      "fallbackCostShare": "copay-primary",
+      "medicareNote": "no Medicare payment for this code; the amount is RVU x conversion factor"
+    },
+    {
+      "id": "depression-screen",
+      "code": "96127",
+      "system": "CPT",
+      "description": "Short depression screening questionnaire",
+      "setting": "office",
+      "category": "screening",
+      "costShare": "preventive",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 5.01,
+        "file": "RVU26A PPRRVU2026_Jan_nonQPP.csv",
+        "rvuTotal": 0.15,
+        "rvuColumn": "non-facility total",
+        "conversionFactor": 33.4009,
+        "medicareStatus": "A",
+        "url": "https://www.cms.gov/files/zip/rvu26a-updated-12-29-2025.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "fallbackCostShare": "deductible-coinsurance",
+      "preventive": [
+        {
+          "list": "USPSTF",
+          "topic": "uspstf-depression-adolescents",
+          "grade": "B",
+          "issued": "2022-10",
+          "ages": [
+            12,
+            18
+          ],
+          "sex": "any",
+          "source": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation-topics/uspstf-a-and-b-recommendations",
+          "read": "2026-11-12",
+          "verified": true
+        },
+        {
+          "list": "USPSTF",
+          "topic": "uspstf-depression-adults",
+          "grade": "B",
+          "issued": "2023-06",
+          "ages": [
+            19,
+            64
+          ],
+          "sex": "any",
+          "source": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation-topics/uspstf-a-and-b-recommendations",
+          "read": "2026-11-12",
+          "verified": true
+        }
+      ]
+    },
+    {
+      "id": "vaccine-admin-adult",
+      "code": "90471",
+      "system": "CPT",
+      "description": "Giving a vaccine shot, not the vaccine itself",
+      "setting": "office",
+      "category": "vaccine-admin",
+      "costShare": "preventive",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 22.04,
+        "file": "RVU26A PPRRVU2026_Jan_nonQPP.csv",
+        "rvuTotal": 0.66,
+        "rvuColumn": "non-facility total",
+        "conversionFactor": 33.4009,
+        "medicareStatus": "A",
+        "url": "https://www.cms.gov/files/zip/rvu26a-updated-12-29-2025.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "fallbackCostShare": "deductible-coinsurance",
+      "preventive": [
+        {
+          "list": "ACIP (CDC immunization schedules)",
+          "topic": "annual influenza vaccination from 6 months",
+          "issued": "2010-02-24",
+          "source": "https://archive.cdc.gov/www_cdc_gov/media/pressrel/2010/r100224.htm (ACIP vote of 24 February 2010: annual influenza vaccination for everyone 6 months and older, from the 2010-2011 season); https://www.cdc.gov/vaccines/hcp/imz-schedules/adult-age.html",
+          "read": "2026-11-20",
+          "verified": true,
+          "note": "the list in force before the stayed 2025 changes (a stored assumption of the data); issue date checked against the ACIP source this entry cites, read 2026-11-20",
+          "ages": [
+            0,
+            64
+          ],
+          "sex": "any",
+          "with": "flu-vaccine"
+        }
+      ]
+    },
+    {
+      "id": "vaccine-admin-child",
+      "code": "90460",
+      "system": "CPT",
+      "description": "Vaccine shot for a child, with parent counseling",
+      "setting": "office",
+      "category": "vaccine-admin",
+      "costShare": "preventive",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 23.38,
+        "file": "RVU26A PPRRVU2026_Jan_nonQPP.csv",
+        "rvuTotal": 0.7,
+        "rvuColumn": "non-facility total",
+        "conversionFactor": 33.4009,
+        "medicareStatus": "A",
+        "url": "https://www.cms.gov/files/zip/rvu26a-updated-12-29-2025.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "fallbackCostShare": "deductible-coinsurance",
+      "preventive": [
+        {
+          "list": "ACIP (CDC immunization schedules)",
+          "topic": "annual influenza vaccination from 6 months",
+          "issued": "2010-02-24",
+          "source": "https://archive.cdc.gov/www_cdc_gov/media/pressrel/2010/r100224.htm (ACIP vote of 24 February 2010: annual influenza vaccination for everyone 6 months and older, from the 2010-2011 season); https://www.cdc.gov/vaccines/hcp/imz-schedules/adult-age.html",
+          "read": "2026-11-20",
+          "verified": true,
+          "note": "the list in force before the stayed 2025 changes (a stored assumption of the data); issue date checked against the ACIP source this entry cites, read 2026-11-20",
+          "ages": [
+            0,
+            64
+          ],
+          "sex": "any",
+          "with": "flu-vaccine"
+        }
+      ]
+    },
+    {
+      "id": "flu-vaccine",
+      "code": "90656",
+      "system": "CPT",
+      "description": "Flu vaccine itself, single dose, no preservative",
+      "setting": "office",
+      "category": "vaccine-product",
+      "costShare": "preventive",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 23.22,
+        "file": "January 2026 Medicare Part B Payment Limit File updated 091526.csv",
+        "paymentLimit": 23.215,
+        "url": "https://www.cms.gov/files/zip/january-2026-medicare-part-b-payment-limit-files.zip",
+        "page": "https://www.cms.gov/medicare/payment/part-b-drugs/asp-pricing-files",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "fallbackCostShare": "deductible-coinsurance",
+      "preventive": [
+        {
+          "list": "ACIP (CDC immunization schedules)",
+          "topic": "annual influenza vaccination from 6 months",
+          "issued": "2010-02-24",
+          "source": "https://archive.cdc.gov/www_cdc_gov/media/pressrel/2010/r100224.htm (ACIP vote of 24 February 2010: annual influenza vaccination for everyone 6 months and older, from the 2010-2011 season); https://www.cdc.gov/vaccines/hcp/imz-schedules/adult-age.html",
+          "read": "2026-11-20",
+          "verified": true,
+          "note": "the list in force before the stayed 2025 changes (a stored assumption of the data); issue date checked against the ACIP source this entry cites, read 2026-11-20",
+          "ages": [
+            0,
+            64
+          ],
+          "sex": "any"
+        }
+      ]
+    },
+    {
+      "id": "hepc-test",
+      "code": "86803",
+      "system": "CPT",
+      "description": "Blood screen for hepatitis C antibodies",
+      "setting": "lab",
+      "category": "screening-lab",
+      "costShare": "preventive",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 14.27,
+        "file": "CLFS 2026 Q1V1.csv",
+        "url": "https://www.cms.gov/files/zip/26clabq1.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/clinical-laboratory-fee-schedule-clfs/files/26clabq1",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "fallbackCostShare": "deductible-coinsurance",
+      "preventive": [
+        {
+          "list": "USPSTF",
+          "topic": "uspstf-hepatitis-c-screening",
+          "grade": "B",
+          "issued": "2020-03",
+          "ages": [
+            18,
+            79
+          ],
+          "sex": "any",
+          "source": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation-topics/uspstf-a-and-b-recommendations",
+          "read": "2026-11-12",
+          "verified": true
+        }
+      ]
+    },
+    {
+      "id": "hiv-test",
+      "code": "87389",
+      "system": "CPT",
+      "description": "Blood screen for human immunodeficiency virus",
+      "setting": "lab",
+      "category": "screening-lab",
+      "costShare": "preventive",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 24.08,
+        "file": "CLFS 2026 Q1V1.csv",
+        "url": "https://www.cms.gov/files/zip/26clabq1.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/clinical-laboratory-fee-schedule-clfs/files/26clabq1",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "fallbackCostShare": "deductible-coinsurance",
+      "preventive": [
+        {
+          "list": "USPSTF",
+          "topic": "uspstf-hiv-screening",
+          "grade": "A",
+          "issued": "2019-06",
+          "ages": [
+            15,
+            65
+          ],
+          "sex": "any",
+          "source": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation-topics/uspstf-a-and-b-recommendations",
+          "read": "2026-11-12",
+          "verified": true
+        }
+      ]
+    },
+    {
+      "id": "a1c-test",
+      "code": "83036",
+      "system": "CPT",
+      "description": "Average blood sugar test for diabetes screening",
+      "setting": "lab",
+      "category": "screening-lab",
+      "costShare": "preventive",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 9.71,
+        "file": "CLFS 2026 Q1V1.csv",
+        "url": "https://www.cms.gov/files/zip/26clabq1.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/clinical-laboratory-fee-schedule-clfs/files/26clabq1",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "fallbackCostShare": "deductible-coinsurance",
+      "preventive": [
+        {
+          "list": "USPSTF",
+          "topic": "uspstf-prediabetes-diabetes-screening",
+          "grade": "B",
+          "issued": "2021-08",
+          "ages": [
+            35,
+            70
+          ],
+          "sex": "any",
+          "source": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation-topics/uspstf-a-and-b-recommendations",
+          "read": "2026-11-12",
+          "verified": true,
+          "condition": "overweight"
+        }
+      ]
+    },
+    {
+      "id": "pap-test",
+      "code": "88142",
+      "system": "CPT",
+      "description": "Cervical cancer screening, cells read by the lab",
+      "setting": "lab",
+      "category": "screening-lab",
+      "costShare": "preventive",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 20.26,
+        "file": "CLFS 2026 Q1V1.csv",
+        "url": "https://www.cms.gov/files/zip/26clabq1.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/clinical-laboratory-fee-schedule-clfs/files/26clabq1",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "fallbackCostShare": "deductible-coinsurance",
+      "preventive": [
+        {
+          "list": "USPSTF",
+          "topic": "uspstf-cervical-cancer-screening",
+          "grade": "A",
+          "issued": "2018-08",
+          "ages": [
+            21,
+            65
+          ],
+          "sex": "F",
+          "source": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation-topics/uspstf-a-and-b-recommendations",
+          "read": "2026-11-12",
+          "verified": true
+        }
+      ]
+    },
+    {
+      "id": "chlamydia-test",
+      "code": "87491",
+      "system": "CPT",
+      "description": "Lab test looking for chlamydia genetic material",
+      "setting": "lab",
+      "category": "screening-lab",
+      "costShare": "preventive",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 35.09,
+        "file": "CLFS 2026 Q1V1.csv",
+        "url": "https://www.cms.gov/files/zip/26clabq1.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/clinical-laboratory-fee-schedule-clfs/files/26clabq1",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "fallbackCostShare": "deductible-coinsurance",
+      "preventive": [
+        {
+          "list": "USPSTF",
+          "topic": "uspstf-chlamydia-screening",
+          "grade": "B",
+          "issued": "2021-09",
+          "ages": [
+            15,
+            24
+          ],
+          "sex": "F",
+          "source": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation-topics/uspstf-a-and-b-recommendations",
+          "read": "2026-11-12",
+          "verified": true,
+          "condition": "sexually-active"
+        }
+      ]
+    },
+    {
+      "id": "metabolic-panel",
+      "code": "80053",
+      "system": "CPT",
+      "description": "Standard group of blood chemistry tests",
+      "setting": "lab",
+      "category": "lab",
+      "costShare": "deductible-coinsurance",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 10.56,
+        "file": "CLFS 2026 Q1V1.csv",
+        "url": "https://www.cms.gov/files/zip/26clabq1.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/clinical-laboratory-fee-schedule-clfs/files/26clabq1",
+        "read": "2026-11-12",
+        "verified": true
+      }
+    },
+    {
+      "id": "blood-count",
+      "code": "85025",
+      "system": "CPT",
+      "description": "Full blood cell count with white cell breakdown",
+      "setting": "lab",
+      "category": "lab",
+      "costShare": "deductible-coinsurance",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 7.77,
+        "file": "CLFS 2026 Q1V1.csv",
+        "url": "https://www.cms.gov/files/zip/26clabq1.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/clinical-laboratory-fee-schedule-clfs/files/26clabq1",
+        "read": "2026-11-12",
+        "verified": true
+      }
+    },
+    {
+      "id": "blood-draw",
+      "code": "36415",
+      "system": "CPT",
+      "description": "Drawing blood from a vein for lab tests",
+      "setting": "lab",
+      "category": "lab",
+      "costShare": "deductible-coinsurance",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 9.34,
+        "file": "CLFS 2026 Q1V1.csv",
+        "url": "https://www.cms.gov/files/zip/26clabq1.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/clinical-laboratory-fee-schedule-clfs/files/26clabq1",
+        "read": "2026-11-12",
+        "verified": true
+      }
+    },
+    {
+      "id": "chest-xray-facility",
+      "code": "71046",
+      "system": "CPT",
+      "description": "Hospital charge: chest X-ray, 2 views",
+      "setting": "facility",
+      "category": "imaging",
+      "costShare": "deductible-coinsurance",
+      "multiple": "facility",
+      "medicare": {
+        "amount": 88.91,
+        "file": "2026 January Web Addendum B.12.29.25.csv",
+        "statusIndicator": "Q3",
+        "apc": "5521",
+        "column": "Payment Rate",
+        "url": "https://www.cms.gov/files/zip/january-2026-opps-addendum-b.zip",
+        "page": "https://www.cms.gov/medicare/payment/prospective-payment-systems/hospital-outpatient-pps/quarterly-addenda-updates/january-2026-addendum-b",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "facilityType": "hospital-outpatient"
+    },
+    {
+      "id": "chest-xray-reading",
+      "code": "71046",
+      "system": "CPT",
+      "description": "Radiologist's reading: chest X-ray, 2 views",
+      "setting": "reading",
+      "category": "imaging",
+      "costShare": "deductible-coinsurance",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 10.02,
+        "file": "RVU26A PPRRVU2026_Jan_nonQPP.csv",
+        "rvuTotal": 0.3,
+        "rvuColumn": "total (modifier 26)",
+        "conversionFactor": 33.4009,
+        "medicareStatus": "A",
+        "url": "https://www.cms.gov/files/zip/rvu26a-updated-12-29-2025.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "modifier": "26",
+      "specialty": "radiology"
+    },
+    {
+      "id": "knee-xray-reading",
+      "code": "73562",
+      "system": "CPT",
+      "description": "Radiologist's reading: 3 knee X-rays in surgery",
+      "setting": "reading",
+      "category": "imaging",
+      "costShare": "deductible-coinsurance",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 9.35,
+        "file": "RVU26A PPRRVU2026_Jan_nonQPP.csv",
+        "rvuTotal": 0.28,
+        "rvuColumn": "total (modifier 26)",
+        "conversionFactor": 33.4009,
+        "medicareStatus": "A",
+        "url": "https://www.cms.gov/files/zip/rvu26a-updated-12-29-2025.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "modifier": "26",
+      "specialty": "radiology"
+    },
+    {
+      "id": "er-facility",
+      "code": "99284",
+      "system": "CPT",
+      "description": "Hospital charge: moderate severity ER visit",
+      "setting": "facility",
+      "category": "emergency",
+      "costShare": "er-copay-coinsurance",
+      "multiple": "facility",
+      "medicare": {
+        "amount": 426.3,
+        "file": "2026 January Web Addendum B.12.29.25.csv",
+        "statusIndicator": "J2",
+        "apc": "5024",
+        "column": "Payment Rate",
+        "url": "https://www.cms.gov/files/zip/january-2026-opps-addendum-b.zip",
+        "page": "https://www.cms.gov/medicare/payment/prospective-payment-systems/hospital-outpatient-pps/quarterly-addenda-updates/january-2026-addendum-b",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "facilityType": "hospital-emergency-department"
+    },
+    {
+      "id": "er-physician",
+      "code": "99284",
+      "system": "CPT",
+      "description": "ER doctor's fee: moderate severity visit",
+      "setting": "facility-professional",
+      "category": "emergency",
+      "costShare": "deductible-coinsurance",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 118.24,
+        "file": "RVU26A PPRRVU2026_Jan_nonQPP.csv",
+        "rvuTotal": 3.54,
+        "rvuColumn": "facility total",
+        "conversionFactor": 33.4009,
+        "medicareStatus": "A",
+        "url": "https://www.cms.gov/files/zip/rvu26a-updated-12-29-2025.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "specialty": "emergency-medicine"
+    },
+    {
+      "id": "knee-surgery-facility",
+      "code": "29881",
+      "system": "CPT",
+      "description": "Hospital charge: knee scope, trim torn cartilage",
+      "setting": "facility",
+      "category": "surgery",
+      "costShare": "deductible-coinsurance",
+      "multiple": "facility",
+      "medicare": {
+        "amount": 3342.87,
+        "file": "2026 January Web Addendum B.12.29.25.csv",
+        "statusIndicator": "J1",
+        "apc": "5113",
+        "column": "Payment Rate",
+        "url": "https://www.cms.gov/files/zip/january-2026-opps-addendum-b.zip",
+        "page": "https://www.cms.gov/medicare/payment/prospective-payment-systems/hospital-outpatient-pps/quarterly-addenda-updates/january-2026-addendum-b",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "facilityType": "hospital-outpatient",
+      "priorAuth": true
+    },
+    {
+      "id": "knee-surgery-surgeon",
+      "code": "29881",
+      "system": "CPT",
+      "description": "Surgeon's fee: knee scope, trim torn cartilage",
+      "setting": "facility-professional",
+      "category": "surgery",
+      "costShare": "deductible-coinsurance",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 515.71,
+        "file": "RVU26A PPRRVU2026_Jan_nonQPP.csv",
+        "rvuTotal": 15.44,
+        "rvuColumn": "facility total",
+        "conversionFactor": 33.4009,
+        "medicareStatus": "A",
+        "url": "https://www.cms.gov/files/zip/rvu26a-updated-12-29-2025.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "specialty": "orthopedic-surgery",
+      "priorAuth": true
+    },
+    {
+      "id": "knee-anesthesia",
+      "code": "01400",
+      "system": "CPT",
+      "description": "Anesthesia care: knee scope, trim torn cartilage",
+      "setting": "anesthesia",
+      "category": "anesthesia",
+      "costShare": "deductible-coinsurance",
+      "multiple": "physician",
+      "medicare": {
+        "nationalConversionFactor": 20.49754,
+        "baseUnits": 4,
+        "file": "Anesthesia CY 2026 ... 20NOV25_508.csv; CY_2022_Anesthesia_Base_Units_110921.txt",
+        "url": "https://www.cms.gov/files/zip/2026-anesthesia-conversion-factors.zip",
+        "baseUnitsUrl": "https://www.cms.gov/files/zip/2022-anesthesia-base-units-cpt-code.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/physician/anesthesiologists-center",
+        "read": "2026-11-12",
+        "verified": true,
+        "derivation": "(base units + one time unit per 15 minutes, rounded up) x the 2026 national anesthesia conversion factor (non-qualifying APM)",
+        "baseUnitsNote": "base units from the latest published file (CY 2022); a stored assumption that they are unchanged for 2026"
+      },
+      "specialty": "anesthesiology"
+    },
+    {
+      "id": "tissue-exam",
+      "code": "88305",
+      "system": "CPT",
+      "description": "Pathologist's exam of tissue removed in surgery",
+      "setting": "reading",
+      "category": "pathology",
+      "costShare": "deductible-coinsurance",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 35.07,
+        "file": "RVU26A PPRRVU2026_Jan_nonQPP.csv",
+        "rvuTotal": 1.05,
+        "rvuColumn": "total (modifier 26)",
+        "conversionFactor": 33.4009,
+        "medicareStatus": "A",
+        "url": "https://www.cms.gov/files/zip/rvu26a-updated-12-29-2025.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "modifier": "26",
+      "specialty": "pathology"
+    },
+    {
+      "id": "ambulance-transport",
+      "code": "A0427",
+      "system": "HCPCS",
+      "description": "Emergency ambulance trip, advanced life support",
+      "setting": "ambulance",
+      "category": "ambulance",
+      "costShare": "deductible-coinsurance",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 540.66,
+        "file": "AFS2026_PUF_ext.txt",
+        "rvu": 1.9,
+        "derivation": "RVU x conversion factor at GPCI 1.0",
+        "url": "https://www.cms.gov/files/zip/cy-2026-file.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/ambulance/ambulance-fee-schedule-public-use-files",
+        "read": "2026-11-12",
+        "verified": true
+      }
+    },
+    {
+      "id": "ambulance-mileage",
+      "code": "A0425",
+      "system": "HCPCS",
+      "description": "Ambulance mileage by road, charged per mile",
+      "setting": "ambulance",
+      "category": "ambulance",
+      "costShare": "deductible-coinsurance",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 9.15,
+        "file": "AFS2026_PUF_ext.txt",
+        "rvu": 1.0,
+        "derivation": "national base mileage rate per mile",
+        "url": "https://www.cms.gov/files/zip/cy-2026-file.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/ambulance/ambulance-fee-schedule-public-use-files",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "unit": "mile"
+    },
+    {
+      "id": "acupuncture",
+      "code": "97810",
+      "system": "CPT",
+      "description": "Acupuncture, needles only, first 15 minutes",
+      "setting": "office",
+      "category": "therapy",
+      "costShare": "deductible-coinsurance",
+      "multiple": "physician",
+      "medicare": {
+        "amount": 48.1,
+        "file": "RVU26A PPRRVU2026_Jan_nonQPP.csv",
+        "rvuTotal": 1.44,
+        "rvuColumn": "non-facility total",
+        "conversionFactor": 33.4009,
+        "medicareStatus": "A",
+        "url": "https://www.cms.gov/files/zip/rvu26a-updated-12-29-2025.zip",
+        "page": "https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu26a",
+        "read": "2026-11-12",
+        "verified": true
+      },
+      "outsideBenchmark": true
+    }
+  ]
+}

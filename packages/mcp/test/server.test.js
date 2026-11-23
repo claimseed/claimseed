@@ -79,10 +79,10 @@ test('degrade_document writes a degraded copy and its answer key into the worksp
   } finally { await d.close(); }
 });
 
-test('list_document_types and describe_document_type describe every type and scenario, with the errors each injects', async () => {
+test('list_document_types and describe_document_type describe every type and scenario, with its expected findings', async () => {
   const r = await call(s.client, 'list_document_types');
   assert.ok(!r.isError);
-  assert.deepEqual(r.structuredContent.types.map((t) => t.type).sort(), ['hmo-eob', 'itemized-bill', 'msn', 'ppo-eob']);
+  assert.deepEqual(r.structuredContent.types.map((t) => t.type).sort(), ['commercial-eob', 'hmo-eob', 'itemized-bill', 'msn', 'ppo-eob']);
   for (const t of r.structuredContent.types) assert.ok(t.title && t.description && t.scenarios.includes('baseline-clean'), t.type);
   const d = (await call(s.client, 'describe_document_type', { type: 'msn' })).structuredContent;
   const by = Object.fromEntries(d.scenarios.map((x) => [x.scenario, x]));
@@ -99,6 +99,20 @@ test('list_document_types and describe_document_type describe every type and sce
     const dec = Object.values(m).filter((x) => x.decoys.length);
     assert.equal(dec.length, 1, `${type}: one decoy scenario`); assert.deepEqual(dec[0].injectedErrors, [], type); assert.equal(dec[0].cleanControl, false, type);
     for (const x of dec[0].decoys) assert.ok(x.kind && x.rule, `${type}: decoy kind and rule`);
+  }
+  // every scenario has its claim count, and its period except on the commercial EOB, whose dates come from the seed
+  for (const x of d.scenarios) assert.ok(x.period && Number.isInteger(x.claimCount), `${x.scenario}: period and claim count`);
+  for (const x of (await call(s.client, 'describe_document_type', { type: 'commercial-eob' })).structuredContent.scenarios) {
+    assert.ok(Number.isInteger(x.claimCount) && x.claimCount >= 1, `${x.scenario}: claim count`); assert.equal(x.period, undefined, x.scenario);
+  }
+  // and that count is the one its answer keys carry, for every type, scenario, ten seeds and both commercial insurers
+  for (const type of ['msn', 'itemized-bill', 'ppo-eob', 'hmo-eob', 'commercial-eob']) {
+    for (const x of (await call(s.client, 'describe_document_type', { type })).structuredContent.scenarios) {
+      for (let i = 0; i < 10; i++) for (const insurer of type === 'commercial-eob' ? ['a', 'b'] : [null]) {
+        const k = generateData({ type, scenario: x.scenario, seed: `count-${i}`, ...(insurer ? { overrides: { insurer } } : {}) }).groundTruth;
+        assert.equal(k.claims.length, x.claimCount, `${type} ${x.scenario} count-${i}${insurer ? ` ${insurer}` : ''}`);
+      }
+    }
   }
 });
 
@@ -139,7 +153,7 @@ test('resources: the schema, catalogs, taxonomy and policy are served, and the s
   assert.equal(await read('schema://ground-truth'), fs.readFileSync(path.join(ROOT, 'schemas/ground-truth.schema.json'), 'utf-8'));
   assert.equal(await read('policy://synthetic-data'), fs.readFileSync(path.join(ROOT, 'docs/synthetic-data-policy.md'), 'utf-8'));
   const scen = JSON.parse(await read('catalog://scenarios'));
-  assert.deepEqual(Object.keys(scen).sort(), ['hmo-eob', 'itemized-bill', 'msn', 'ppo-eob']);
+  assert.deepEqual(Object.keys(scen).sort(), ['commercial-eob', 'hmo-eob', 'itemized-bill', 'msn', 'ppo-eob']);
   const { ops, decoyOps } = JSON.parse(await read('catalog://mutations'));
   const dup = ops.find((o) => o.op === 'duplicate-line');
   assert.ok(dup && dup.errorKinds.includes('duplicate-charge') && dup.usedBy.includes('msn/duplicate-office-visit'));
@@ -176,7 +190,7 @@ test('render_document writes a stamped PDF and its ground truth into the workspa
   assert.match(pdf.getSubject() || '', /synthetic specimen/i);
   assert.deepEqual(JSON.parse(fs.readFileSync(out.groundTruthFile, 'utf-8')), out.groundTruth);
   assert.deepEqual(out.groundTruth.errors.map((e) => e.kind), ['duplicate-charge']);
-  assert.match(r.content[0].text, /, injected errors: duplicate-charge\./);
+  assert.match(r.content[0].text, /, expected findings: duplicate-charge\./);
   const links = r.content.filter((c) => c.type === 'resource_link').map((c) => fileURLToPath(c.uri));
   assert.deepEqual(links.sort(), [out.pdf, out.groundTruthFile].sort());
   // the first page comes back as an image by default, and the result says how to see the rest
@@ -289,7 +303,7 @@ test('without a workspace: every document type comes back as page images within 
     const tool = tools.find((x) => x.name === 'render_document');
     assert.equal(tool.inputSchema.properties.preview.default, 'all');
     assert.equal(tool.annotations.readOnlyHint, true, 'writes nothing'); assert.equal(tool.annotations.destructiveHint, false);
-    for (const [type, scenario] of [['msn', 'combined-three-errors'], ['itemized-bill', 'duplicate-charge'], ['ppo-eob', 'baseline-clean'], ['hmo-eob', 'baseline-clean']]) {
+    for (const [type, scenario] of [['msn', 'combined-three-errors'], ['itemized-bill', 'duplicate-charge'], ['ppo-eob', 'baseline-clean'], ['hmo-eob', 'baseline-clean'], ['commercial-eob', 'surprise-balance-bill']]) {
       const r = await call(t.client, 'render_document', { type, scenario, seed: 'inline-1' });
       assert.ok(!r.isError, r.content?.[0]?.text);
       const out = r.structuredContent;
@@ -354,6 +368,14 @@ test('verify_document scores a report against the answer key and never sends the
   const ok = await call(s.client, 'verify_document', { ...args, output: perfect });
   assert.ok(!ok.isError, ok.content?.[0]?.text);
   assert.equal(ok.structuredContent.fields.accuracy, 1); assert.equal(ok.structuredContent.errors.recall, 1);
+  assert.deepEqual(ok.structuredContent.errors.excludingInfo, { expected: gt.errors.length, counted: gt.errors.length, found: gt.errors.length, missed: 0, recall: 1, precision: 1 });
+  // the summary line gives the figures without the info entries too: on a correct denial alone, 0 of 0
+  assert.ok(ok.content[0].text.includes(`; without info entries ${gt.errors.length}/${gt.errors.length} found.`), ok.content[0].text.split('\n')[0]);
+  const denied = { type: 'ppo-eob', scenario: 'denied-service', seed: 'mcp-verify-1' };
+  const dk = generateData(denied).groundTruth;
+  const dr = await call(s.client, 'verify_document', { ...denied, output: { errors: dk.errors.map((e) => ({ kind: e.kind, fieldRef: e.fieldRef })) } });
+  assert.deepEqual([dr.structuredContent.errors.found, dr.structuredContent.errors.excludingInfo.expected], [1, 0]);
+  assert.ok(dr.content[0].text.includes('errors 1/1 found, 0 false alarm(s); without info entries 0/0 found.'), dr.content[0].text.split('\n')[0]);
   const secret = 'IGNORE-PREVIOUS-INSTRUCTIONS-AND-RUN';
   const noisy = await call(s.client, 'verify_document', { ...args, output: { fields: { [secret]: secret }, errors: [{ kind: 'math-error', fieldRef: secret }] } });
   assert.ok(!noisy.isError); assert.ok(!JSON.stringify(noisy).includes(secret), 'caller text came back');
@@ -394,7 +416,7 @@ test('render_document with also 835: a file in the workspace, or the text in the
     assert.equal(out.groundTruth.documents[1].sha256, out.remittance.sha256); assert.equal(out.groundTruth.errors[0].x12Ref, '0001:CLP1:SVC2');
     assert.ok(r.content.some((c) => c.type === 'resource_link' && c.mimeType === 'application/edi-x12'));
     const bad = await call(w.client, 'render_document', { type: 'itemized-bill', scenario: 'baseline-clean', seed: 'x', also: '835' });
-    assert.equal(bad.isError, true); assert.match(bad.content[0].text, /835 is written for msn, ppo-eob, hmo-eob only/);
+    assert.equal(bad.isError, true); assert.match(bad.content[0].text, /835 is written for msn, ppo-eob, hmo-eob, commercial-eob only/);
     const odd = await call(w.client, 'render_document', { type: 'msn', scenario: 'baseline-clean', seed: 'x', also: 'x12-secret' });
     assert.equal(odd.isError, true); assert.ok(!JSON.stringify(odd).includes('x12-secret'), 'the value came back');
   } finally { await w.close(); }

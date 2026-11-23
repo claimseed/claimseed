@@ -78,7 +78,7 @@ test('blind rendering, batch presets and folder options refuse such values with 
       await assert.rejects(render({ ...base, outDir: docs, keysDir: keys, layoutVariant: v }), (e) => e.code === 'LAYOUT_VARIANT');
       await assert.rejects(renderDegraded({ ...base, preset: 'scan', outDir: docs, keysDir: keys, layoutVariant: v, browser: {} }), (e) => e.code === 'LAYOUT_VARIANT');
       await assert.rejects(renderBatch({ types: ['msn'], degrade: v, outDir: docs }), exact(PRESET));
-      assert.throws(() => buildRemittance({ type: v, scenario: 'baseline-clean', seed: 's', generated: {} }), exact('remittance: an 835 is written for msn, ppo-eob, hmo-eob only'));
+      assert.throws(() => buildRemittance({ type: v, scenario: 'baseline-clean', seed: 's', generated: {} }), exact('remittance: an 835 is written for msn, ppo-eob, hmo-eob, commercial-eob only'));
     }
     for (const v of folders) {
       await assert.rejects(render({ ...base, outDir: v, keysDir: keys }), exact(msg('outDirText', 'render')));
@@ -98,7 +98,7 @@ test('blind rendering, batch presets and folder options refuse such values with 
     await assert.rejects(render({ ...base, scenario: 'fictional-not-found', outDir: docs, keysDir: keys, browser: {} }), exact('scenario not found'));
     await assert.rejects(renderDegraded({ ...base, scenario: 'fictional-not-found', preset: 'low-res', outDir: docs, keysDir: keys, browser: {} }), exact('scenario not found'));
     await assert.rejects(renderDegraded({ ...base, preset: 'low-res', blind: JSON.parse('{"toString":null}'), outDir: docs, keysDir: keys, browser: {} }), exact(BLIND_STRINGS.messages.blindOption));
-    await assert.rejects(renderDegraded({ ...base, type: 'itemized-bill', also: '835', preset: 'scan', outDir: docs, keysDir: keys, browser: {} }), exact('render: an 835 is written for msn, ppo-eob, hmo-eob only'));
+    await assert.rejects(renderDegraded({ ...base, type: 'itemized-bill', also: '835', preset: 'scan', outDir: docs, keysDir: keys, browser: {} }), exact('render: an 835 is written for msn, ppo-eob, hmo-eob, commercial-eob only'));
     await assert.rejects(renderBatch({ types: ['msn'], degrade: 'blur', outDir: docs, blind: true, keysDir: keys }), exact(PRESET));
     assert.deepEqual(fs.readdirSync(dir), [], 'a refused call made a folder');
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }

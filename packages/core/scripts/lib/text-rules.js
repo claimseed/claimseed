@@ -1,7 +1,8 @@
 // text-rules.js — rules applied both to the committed tree (check-synthetic.js) and to rendered text
 // (scan-rendered.js), so the two gates cannot drift apart.
-// Public federal lines printed on CMS/HHS model documents: 1-800-MEDICARE and TTY, Social Security and TTY, HHS OCR voice and TDD.
-export const FEDERAL = new Set(['8006334227', '8774862048', '8007721213', '8003250778', '8003681019', '8005377697']);
+// Public federal lines printed on CMS/HHS model documents: 1-800-MEDICARE and TTY, Social Security and TTY, HHS OCR voice and TDD;
+// and the two federal help lines the commercial EOB prints.
+export const FEDERAL = new Set(['8006334227', '8774862048', '8007721213', '8003250778', '8003681019', '8005377697', '8664443272', '8009853059']);
 // Phone candidates: any separator run (spaces, hyphens, en/em dashes, dots, parentheses) between the groups, plus bare
 // 10-digit runs next to call/phone/tel/fax/tty wording and 1-8XX vanity numbers. Toll-free prefixes are never allowed
 // (8XX-555-01xx is assignable), so a 555-01xx number must carry a geographic area code.

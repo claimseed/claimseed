@@ -3,7 +3,8 @@
 // same rules check-synthetic.js applies to the tree (scripts/lib/text-rules.js): real organization names
 // (scripts/lib/brand-denylist.js), NPIs that do not start with 9, phone numbers outside geographic NNN-555-01xx
 // (federal lines excepted), real-format Medicare numbers, homoglyph words — and, on EVERY page, the specimen band
-// and watermark. Runs in CI on every push.
+// and watermark. On a type with statements, every scenario is rendered once more with its provider statement, and the
+// statement gets the same checks. Runs in CI on every push.
 //   node scripts/scan-rendered.js [--seeds 3] [--type msn] [--variants all|none] [--blind all|none] [--part i/m]
 //   (--variants all: one more document per layout variant id of each type, the default; --blind all: blind documents
 //   covering every scenario and every layout variant id of each type, as CI runs it; none, the default: no blind pass). A blind
@@ -20,7 +21,8 @@ import { listScenarios } from '../src/generate/index.js';
 import { RENDERERS } from '../src/layouts.js';
 import { watermarkRectsPerPage } from './lib/pdf-markers.js';
 import { norm, words, loadPublic, loadOriginal, loadVerifiedSentences, PLAN_NAMES, inlineSelectors, cssOf, textByLayout, pdfWords, assembledLines } from './lib/provenance.js';
-import { generateData } from '../src/generate/index.js';
+import { generateData, generatePair } from '../src/generate/index.js';
+import { PAIRED_TYPES } from '../src/generate/provider-statement.js';
 import { variantIds } from '../src/variants.js';
 import { blindSeed, blindId } from '../src/blind.js';
 import { scanJobs, CI_SCAN, ciPartCount } from './lib/rendered-plan.js';
@@ -95,6 +97,7 @@ for (const t of fs.readdirSync(path.join(CORE, 'data'))) {
   const lp = path.join(CORE, 'data', t, 'labels.json');   // layout-variant label sets print like stock labels
   if (fs.existsSync(lp)) for (const v of allStrings(JSON.parse(fs.readFileSync(lp, 'utf-8')).sets)) classify(v);
 }
+{ const pp = path.join(CORE, 'data', 'pair.json'); if (fs.existsSync(pp)) for (const v of allStrings(JSON.parse(fs.readFileSync(pp, 'utf-8')).labels)) classify(v); }   // the provider statement's labels
 function walkTpl(dir, out = []) { for (const e of fs.readdirSync(dir, { withFileTypes: true })) { const p = path.join(dir, e.name); if (e.isDirectory()) walkTpl(p, out); else if (/\.(html|njk)$/.test(p)) out.push(p); } return out; }
 const TPL_INLINE = inlineSelectors(walkTpl(path.join(CORE, 'templates')).map((f) => cssOf(fs.readFileSync(f, 'utf-8'))).join('\n'));
 for (const f of walkTpl(path.join(CORE, 'templates'))) {
@@ -156,23 +159,11 @@ function provenanceProblems(text, data, dataAlts, where, out, label = where) {
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'cs-scan-'));
 const keys = fs.mkdtempSync(path.join(os.tmpdir(), 'cs-scan-keys-'));   // a blind document's answer key goes apart from it
 const SCAN_SALT = '5ca1ab1e0c0ffee05ca1ab1e0c0ffee0';   // fixed, so the blind pass scans the same documents every run
-async function scanOne(type, scenario, seed, { id = null, blind = false } = {}) {
-  const job = { type, scenario, seed, layoutVariant: id }; const bid = blind ? blindId(SCAN_SALT, job) : null;
-  execFileSync(process.execPath, [CLI, 'render', type, scenario, '--seed', seed, '--out', work, ...(id ? ['--layout-variant', id] : []), ...(blind ? ['--blind-keys', keys, '--blind-salt', SCAN_SALT] : [])], { stdio: ['ignore', 'ignore', 'inherit'] });
-  const stem = blind ? bid : `${type}_${scenario}_${seed}${id ? `.${id}` : ''}`; const pdf = path.join(work, `${stem}.pdf`); rendered++;
+// The checks every rendered PDF gets: its printed text's provenance (against its own data and three alternates' values),
+// real organization names and identifier formats, mixed scripts, and the specimen band and watermark on every page.
+async function checkPdf(pdf, where, data, dataAlts, band) {
   const text = execFileSync('pdftotext', ['-layout', pdf, '-'], { encoding: 'utf-8' });
-  const layout = id ? `${type}.${id}` : type; const where = blind ? `${layout}/${scenario} blind ${bid}` : `${layout}/${scenario} seed ${seed}`;
-  // a blind document's values come from the seed drawn from the salt, and its band carries the id alone
-  const gen = blind ? blindSeed(SCAN_SALT, job) : seed; const band = blind ? bid : `${layout} ${scenario} seed ${seed}`;
-  const data = generateData({ type, scenario, seed: gen }).data, dataAlts = ['-alt', '-alt2', '-alt3'].map((x) => generateData({ type, scenario, seed: gen + x }).data);
   const values = provenanceProblems(execFileSync('pdftotext', ['-raw', pdf, '-'], { encoding: 'utf-8' }), data, dataAlts, where, problems, band);
-  if (blind) {
-    const keyFile = path.join(keys, `${bid}.ground-truth.json`); const key = JSON.parse(fs.readFileSync(keyFile, 'utf-8'));
-    if (key.blind?.id !== bid) problems.push(`${where}: the answer key does not name the blind document's id`);
-    const tokens = leak.tokensOf(key);
-    if (!tokens.includes(scenario) || !tokens.includes(seed)) problems.push(`${where}: the leak check was given no scenario or seed to look for`);
-    for (const l of leak.leaksIn({ files: [pdf] }, tokens)) problems.push(`${where}: ${l.where} gives away "${l.token}"`);
-  }
   if (PUB) {
     for (const f of assembledLines(pdfWords(pdf), { grams: GRAMS, verified: VERIFIED, values: new Set([...values].filter(Boolean)), band, fields: new Set([...allStrings(data)].flatMap(pieces).filter((n) => words(n) >= 2)) }))
       problems.push(`${where}: printed line on page ${f.page} assembles text neither public nor reviewed original: "${f.text}" (printed as: ${f.line.slice(0, 160)})`);
@@ -193,6 +184,29 @@ async function scanOne(type, scenario, seed, { id = null, blind = false } = {}) 
     if (!pt.includes('SYNTHETICSPECIMEN')) problems.push(`${where}: specimen band missing on page ${p}`);
     if (!(rects[p - 1] >= 100)) problems.push(`${where}: watermark missing on page ${p}`);
   }
+}
+async function scanOne(type, scenario, seed, { id = null, blind = false, bill = null } = {}) {
+  const job = { type, scenario, seed, layoutVariant: id }; const bid = blind ? blindId(SCAN_SALT, job) : null;
+  execFileSync(process.execPath, [CLI, 'render', type, scenario, '--seed', seed, '--out', work, ...(id ? ['--layout-variant', id] : []), ...(blind ? ['--blind-keys', keys, '--blind-salt', SCAN_SALT] : []), ...(bill ? ['--also', 'bill', '--bill', bill] : [])], { stdio: ['ignore', 'ignore', 'inherit'] });
+  const stem = blind ? bid : `${type}_${scenario}_${seed}${id ? `.${id}` : ''}`; const pdf = path.join(work, `${stem}.pdf`); rendered++;
+  if (bill) {   // the statement, judged as a document of its own with its own data and band
+    const stPdf = path.join(work, `${stem}.bill.pdf`); rendered++;
+    const st = (s) => generatePair({ type, scenario, seed: s, bill, orClean: true }).statement.data;
+    await checkPdf(stPdf, `provider-statement/${scenario} (${type} ${bill}) seed ${seed}`, st(seed), ['-alt', '-alt2', '-alt3'].map((x) => st(seed + x)), `provider-statement / ${scenario} / seed ${seed}`);
+    fs.rmSync(stPdf, { force: true }); fs.rmSync(path.join(work, `${stem}.bill.ground-truth.json`), { force: true });
+  }
+  const layout = id ? `${type}.${id}` : type; const where = blind ? `${layout}/${scenario} blind ${bid}` : `${layout}/${scenario} seed ${seed}`;
+  // a blind document's values come from the seed drawn from the salt, and its band carries the id alone
+  const gen = blind ? blindSeed(SCAN_SALT, job) : seed; const band = blind ? bid : `${layout} ${scenario} seed ${seed}`;
+  const data = generateData({ type, scenario, seed: gen }).data, dataAlts = ['-alt', '-alt2', '-alt3'].map((x) => generateData({ type, scenario, seed: gen + x }).data);
+  if (blind) {
+    const keyFile = path.join(keys, `${bid}.ground-truth.json`); const key = JSON.parse(fs.readFileSync(keyFile, 'utf-8'));
+    if (key.blind?.id !== bid) problems.push(`${where}: the answer key does not name the blind document's id`);
+    const tokens = leak.tokensOf(key);
+    if (!tokens.includes(scenario) || !tokens.includes(seed)) problems.push(`${where}: the leak check was given no scenario or seed to look for`);
+    for (const l of leak.leaksIn({ files: [pdf] }, tokens)) problems.push(`${where}: ${l.where} gives away "${l.token}"`);
+  }
+  await checkPdf(pdf, where, data, dataAlts, band);
   fs.rmSync(pdf, { force: true }); fs.rmSync(path.join(blind ? keys : work, `${stem}.ground-truth.json`), { force: true });
 }
 // every scenario for each seed, then every layout variant id once (on the scenarios in turn, seed scan-v), so the
@@ -203,12 +217,12 @@ let expected = 0;
 for (const type of Object.keys(RENDERERS)) {
   if (only && type !== only) continue;
   const scen = listScenarios(type).length; const ids = variantIds(type).length;
-  expected += scen * seeds + (variants === 'all' ? ids : 0) + (blindPass === 'all' ? Math.max(scen, ids) : 0);
+  expected += scen * seeds + (variants === 'all' ? ids : 0) + (blindPass === 'all' ? Math.max(scen, ids) : 0) + (PAIRED_TYPES.includes(type) ? scen : 0);
 }
-if (jobs.length !== expected) problems.push(`scan-rendered: ${jobs.length} documents listed, ${expected} by the formula (scenarios x seeds + variant ids + blind documents)`);
+if (jobs.length !== expected) problems.push(`scan-rendered: ${jobs.length} documents listed, ${expected} by the formula (scenarios x seeds + variant ids + blind documents + scenarios with a statement)`);
 const mine = part ? partOf(jobs, part.i, part.n) : jobs;
 const started = Date.now();
-for (const j of mine) await scanOne(j.type, j.scenario, j.seed, { id: j.id, blind: j.blind });
+for (const j of mine) await scanOne(j.type, j.scenario, j.seed, { id: j.id, blind: j.blind, bill: j.bill ?? null });
 const took = (Date.now() - started) / 1000;
 if (part) {
   console.log(`scan-rendered: part ${part.i}/${part.n}: ${mine.length} of ${jobs.length} documents in ${took.toFixed(0)} s (${(took / Math.max(1, mine.length)).toFixed(1)} s each; planned ${DOC_SECONDS})`);
@@ -217,4 +231,4 @@ if (part) {
 fs.rmSync(work, { recursive: true, force: true }); fs.rmSync(keys, { recursive: true, force: true });
 if (problems.length) { console.error([...new Set(problems)].join('\n')); console.error(`\n${problems.length} problem(s) in ${rendered} rendered documents`); process.exit(1); }
 if (!rendered) { console.error('scan-rendered: the options select no documents, so nothing was scanned'); process.exit(1); }
-console.log(`scan-rendered: ok (${rendered} documents${part ? `, part ${part.i}/${part.n} of ${jobs.length}` : ''}, ${seeds} seed(s) per scenario, every layout variant id once${blindPass === 'all' ? ', every scenario and variant id blind' : ''})`);
+console.log(`scan-rendered: ok (${rendered} documents${part ? `, part ${part.i}/${part.n} of ${jobs.length}` : ''}, ${seeds} seed(s) per scenario, every layout variant id once${blindPass === 'all' ? ', every scenario and variant id blind' : ''}, every scenario of a type with statements with its statement)`);

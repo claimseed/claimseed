@@ -1,0 +1,37 @@
+    .hdr { display: flex; justify-content: space-between; align-items: center; border-bottom: 3pt solid {{ stock.colors.primary }}; padding-bottom: 6pt; margin-bottom: 8pt; }
+    .hdr.slim { border-bottom-width: 1.5pt; }
+    .brand { display: flex; align-items: center; gap: 6pt; }
+    .mark svg { width: 30pt; height: 30pt; display: block; }
+    .iname { font-size: {{ stock.fonts.logoSize }}; font-weight: 700; color: {{ stock.colors.primary }}; }
+    .title { text-align: right; }
+    .title .t { font-size: {{ stock.fonts.titleSize }}; font-weight: 700; color: {{ stock.colors.primary }}; }
+    .title .nb { font-size: {{ stock.fonts.smallSize }}; }
+    .who { display: flex; justify-content: space-between; gap: 18pt; margin-bottom: 6pt; }
+    .mail { font-size: {{ stock.fonts.bodySize }}; line-height: 1.35; }
+    table.kv td { padding: 1pt 10pt 1pt 0; font-size: {{ stock.fonts.smallSize }}; vertical-align: top; }
+    table.kv td:nth-child(odd) { color: #444444; }
+    table.kv td:nth-child(even) { font-weight: 600; }
+    .facts { margin: 4pt 0 6pt 0; background: {{ stock.colors.panelBg }}; width: 100%; }
+    .small { font-size: {{ stock.fonts.smallSize }}; margin: 2pt 0; }
+    .note { font-size: {{ stock.fonts.smallSize }}; margin: 2pt 0; padding-left: 6pt; border-left: 2pt solid {{ stock.colors.accent }}; }
+    .box { border: 0.75pt solid {{ stock.colors.primary }}; margin: 6pt 0; }
+    .boxt { background: {{ stock.colors.primary }}; color: #FFFFFF; font-weight: 700; font-size: {{ stock.fonts.sectionTitleSize }}; padding: 3pt 9pt; }
+    .box > table, .box > .small, .box > p { margin: 3pt 6pt; }
+    table.grid { width: calc(100% - 12pt); font-size: {{ stock.fonts.tableSize }}; }
+    table.acc td:first-child { width: 40%; }
+    table.acc { font-size: {{ stock.fonts.tinySize }}; }
+    table.acc tr.grp td { font-weight: 700; background: {{ stock.colors.panelBg }}; }
+    table.grid th, table.grid td { padding: 2pt 3pt; border-bottom: 0.5pt solid #DDDDDD; text-align: left; }
+    table.lines { width: 100%; font-size: {{ stock.fonts.tinySize }}; margin-bottom: 4pt; }
+    table.lines th { background: {{ stock.colors.primary }}; color: #FFFFFF; padding: 2pt 2pt; text-align: left; }
+    table.lines th { vertical-align: bottom; }
+    table.lines th.num { text-align: right; padding-left: 6pt; }
+    table.lines td { padding: 2pt 2pt; border-bottom: 0.5pt solid #E3E6EA; vertical-align: top; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.strong td { font-weight: 700; }
+    .cols { display: flex; gap: 10pt; }
+    .cols .col { flex: 1; }
+    .withpanel { display: flex; gap: 8pt; }
+    .withpanel .main { flex: 1; min-width: 0; }
+    .withpanel .panel { width: 3.7in; background: {{ stock.colors.panelBg }}; padding: 2pt; }
+    .claimblock { margin-bottom: 6pt; }

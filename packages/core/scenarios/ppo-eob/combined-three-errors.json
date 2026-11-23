@@ -2,7 +2,7 @@
   "type": "ppo-eob",
   "slug": "combined-three-errors",
   "status": "published",
-  "description": "This statement has three errors. Claim 1 prints the same eye exam twice on one date, charging the $40 copay twice; claim 2's annual wellness visit charges the $20 office-visit copay although preventive services cost the member nothing; and claim 3's member-share total is $15.00 higher than its only line, an X-ray of the chest. A careful reviewer should flag all three: a duplicate line, a preventive cost-sharing charge and a claim total that does not add up.",
+  "description": "This statement has three errors. Claim 1 prints the same eye exam twice on one date, charging the $40 copay twice; claim 2's annual wellness visit charges the $20 office-visit copay although preventive services cost the member nothing; and claim 3's member-share total is $15.00 higher than its only line, an X-ray of the chest. A complete review flags all three: a duplicate line, a preventive cost-sharing charge and a claim total that does not add up.",
   "period": {
     "start": "2026-03-01",
     "end": "2026-03-31"

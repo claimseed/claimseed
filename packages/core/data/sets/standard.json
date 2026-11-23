@@ -1,5 +1,5 @@
 {
- "note": "The published set 'standard' (0.6.0): every document fixed here, so batch --set standard and the salt in its answer keys make the same set again. Each type's scenarios are taken with seeds set-1 to set-N; on a type with layout variants, seed i takes the base layout or a variant in turn (base, then the type's ids in order); every degradeEvery-th seed is a degraded copy, the presets in turn; the 835 is written beside every document of a type that has one. The same rotation for every scenario, so layout and preset say nothing about the scenario.",
+ "note": "The published set 'standard' (0.8.0), with the commercial EOB: every document fixed here, so batch --set standard and the salt in its answer keys remake the same set. Each type's scenarios take seeds set-1 to set-N; on a type with layout variants, seeds rotate through base, then its ids in order; every degradeEvery-th seed is a degraded copy, the presets in turn; the 835 goes beside each document of a type that has one. statements.every: a provider's statement goes beside each ppo-eob, hmo-eob or commercial-eob whose seed number is a multiple of every, or that is a degraded copy (it takes the same preset). Its variant (planted error, decoy, both or none) is set by the salt under quotas and recorded in both answer keys of the pair, the statement's own and the EOB's (pair.variant), not in the PDFs. floors: minimum counts the set must reach, checked before rendering. Seed number alone sets preset and statement, and the layout of every type but commercial-eob, alike for every scenario, so they say nothing about it. A commercial-eob's insurer, and with it its layout, is drawn for each document from its own seed and scenario under the insurer floor, so its seed number does not tell its layout.",
  "name": "standard",
  "canaryGuid": "9a5d897f-77b4-496a-b5a4-2bf22a3a4995",
  "seedPrefix": "set",
@@ -19,6 +19,10 @@
   {
    "type": "hmo-eob",
    "seeds": 32
+  },
+  {
+   "type": "commercial-eob",
+   "seeds": 32
   }
  ],
  "degradeEvery": 5,
@@ -28,5 +32,17 @@
   "photo",
   "low-res"
  ],
- "remittance": true
+ "remittance": true,
+ "statements": {
+  "every": 2
+ },
+ "floors": {
+  "errorKind": 20,
+  "decoy": 20,
+  "statementKind": 20,
+  "statementClean": 20,
+  "statementVariant": 5,
+  "statementProvider": 2,
+  "insurerShare": 0.4
+ }
 }

@@ -2,7 +2,7 @@
   "type": "ppo-eob",
   "slug": "decoys-partial-deductible",
   "status": "published",
-  "description": "Nothing on this statement is wrong, but four lines look wrong. Before March 2026 the member had paid $300 out of pocket, $100 of it toward the deductible. Claim 1's biopsy takes the last $50 of the deductible plus 20% of the rest, so its share is above 20%, and claim 2's eye exam was approved at $24, below the $40 copay, so the member pays $24 and the plan $0. Claim 3 shows the same physical therapy service on two dates one day apart, each with its own $30 copay, and claim 4's X-ray of the chest was billed at five times its approved amount. A careful reviewer should report no errors.",
+  "description": "Nothing on this statement is wrong, but four lines look wrong. Before March 2026 the member had paid $300 out of pocket, $100 of it toward the deductible. Claim 1's biopsy takes the last $50 of the deductible plus 20% of the rest, so its share is above 20%, and claim 2's eye exam was approved at $24, below the $40 copay, so the member pays $24 and the plan $0. Claim 3 shows the same physical therapy service on two dates one day apart, each with its own $30 copay, and claim 4's X-ray of the chest was billed at five times its approved amount. There are no errors to report.",
   "period": {
     "start": "2026-03-01",
     "end": "2026-03-31"

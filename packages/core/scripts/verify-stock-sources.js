@@ -40,6 +40,10 @@ const LABEL_SETS = {};
 for (const t of fs.readdirSync(path.join(root, 'data'))) {
   const p = path.join(root, 'data', t, 'labels.json'); if (fs.existsSync(p)) { LABEL_SETS[t] = JSON.parse(fs.readFileSync(p, 'utf-8')); walkJson(LABEL_SETS[t].sets, `data/${t}/labels.json`); }
 }
+// the provider statement's printed labels (data/pair.json labels): printed like stock text
+const PAIR_PATH = path.join(root, 'data', 'pair.json');
+const PAIR_LABELS = fs.existsSync(PAIR_PATH) ? JSON.parse(fs.readFileSync(PAIR_PATH, 'utf-8')).labels : null;
+if (PAIR_LABELS) walkJson(PAIR_LABELS, 'data/pair.json labels');
 for (const t of fs.readdirSync(path.join(root, 'scenarios'))) for (const f of fs.readdirSync(path.join(root, 'scenarios', t))) {
   const s = JSON.parse(fs.readFileSync(path.join(root, 'scenarios', t, f), 'utf-8'));
   for (const m of s.mutations || []) if (m.args && m.args.note && m.args.note.text) addText(m.args.note.text, `scenarios/${t}/${f}`);
@@ -107,6 +111,9 @@ for (const f of fs.existsSync(path.join(root, 'templates')) ? walkTpl(path.join(
 }
 const catPath = path.join(root, 'reference-data/service-catalog.json');
 if (fs.existsSync(catPath)) for (const svc of JSON.parse(fs.readFileSync(catPath, 'utf-8')).services || []) addText(svc.lay || '', 'reference-data/service-catalog.json');
+// the commercial catalog's plain-language descriptions, printed on the commercial EOB
+const comCatPath = path.join(root, 'reference-data/commercial/service-catalog.json');
+if (fs.existsSync(comCatPath)) for (const svc of JSON.parse(fs.readFileSync(comCatPath, 'utf-8')).services || []) addText(svc.description || '', 'reference-data/commercial/service-catalog.json');
 // The printed text itself: every type and scenario is rendered through the real render path in capture mode (no
 // browser; print.js hands each page's HTML to a hook), with two seeds. Random values are the strings that differ
 // between the seeds; after they are removed, every LINE of printed text (block elements end lines, inline elements
@@ -124,6 +131,7 @@ let rendered = false;   // set when the capture render below ran (not with --no-
 if (!process.argv.includes('--no-render') && fs.existsSync(path.join(root, 'src/index.js')) && path.resolve(root) === path.resolve(path.join(path.dirname(fileURLToPath(import.meta.url)), '..'))) {
   rendered = true;
   const idx = await import(path.join(root, 'src/index.js')); const { printHooks } = await import(path.join(root, 'src/browser.js'));
+  const { renderStatement } = await import(path.join(root, 'src/render.js')); const { generatePair } = await import(path.join(root, 'src/generate/index.js'));
   const { loadVerifiedSentences } = await import('./lib/provenance.js');
   const GRAMS = new Set(); for (const sent of loadVerifiedSentences(root)) { const w = sent.split(' '); for (let i = 0; i + 5 <= w.length; i++) GRAMS.add(w.slice(i, i + 5).join(' ')); }
   const MONTHS = new Set('january february march april may june july august september october november december monday tuesday wednesday thursday friday saturday sunday'.split(' '));
@@ -133,7 +141,7 @@ if (!process.argv.includes('--no-render') && fs.existsSync(path.join(root, 'src/
   const FREE = new Set(['synthetic', 'specimen', 'generated', 'by', 'claimseed', 'for', 'software', 'testing', 'not', 'a', 'real', 'document', 'seed', ...MONTHS]); const SHORT = new Set();
   const pieces = (v) => String(v).split(/(?<=[.!?])\s+|\n+|;\s+|:\s+/).map(norm);
   const classify = (v) => { for (const n of pieces(v)) { const k = words(n); if (k === 1) FREE.add(n); else if (k >= 2 && k <= 5) SHORT.add(n); } };
-  for (const st of [...Object.values(STOCKS), ...Object.values(LABEL_SETS).map((l) => l.sets)]) for (const v of allStrings(st)) classify(v);
+  for (const st of [...Object.values(STOCKS), ...Object.values(LABEL_SETS).map((l) => l.sets), ...(PAIR_LABELS ? [PAIR_LABELS] : [])]) for (const v of allStrings(st)) classify(v);
   for (const f of walkTpl(path.join(root, 'templates'))) for (const node of textOfTpl(fs.readFileSync(f, 'utf-8')).split('\n')) classify(node);
   for (const lit of generatorLiterals) classify(lit);   // generator constants ("This service was denied.")
   for (const n of original) if (words(n) <= 5) SHORT.add(n);
@@ -144,13 +152,14 @@ if (!process.argv.includes('--no-render') && fs.existsSync(path.join(root, 'src/
   // render one document per seed in capture mode and judge its printed lines
   // allData: blank every string of the document's data, not only those that differ between the seeds (a variant's data is
   // its unvaried twin's, judged in the scenario loop; what is judged here is the text the variant adds around it)
-  const judge = async (type, where, gen, { allData = false } = {}) => {
-    const stock = JSON.parse(fs.readFileSync(path.join(root, 'data', type, 'stock-content.json'), 'utf-8'));
+  // statement: the provider statement printed beside the EOB, with the itemized bill's stock and data/pair.json's labels
+  const judge = async (type, where, gen, { allData = false, statement = false } = {}) => {
+    const stock = JSON.parse(fs.readFileSync(path.join(root, 'data', statement ? 'itemized-bill' : type, 'stock-content.json'), 'utf-8'));
     const pagesBySeed = {};
     for (const seed of ['vss-a', 'vss-b']) {
       const pages = []; printHooks.capture = (h) => pages.push(h);
       const work = fs.mkdtempSync(path.join(os.tmpdir(), 'cs-vss-render-'));
-      try { await idx.RENDERERS[type](gen(seed).data, stock, work, {}); } finally { printHooks.capture = null; fs.rmSync(work, { recursive: true, force: true }); }
+      try { await (statement ? renderStatement(gen(seed).data, stock, PAIR_LABELS, work, {}) : idx.RENDERERS[type](gen(seed).data, stock, work, {})); } finally { printHooks.capture = null; fs.rmSync(work, { recursive: true, force: true }); }
       pagesBySeed[seed] = { pages, data: gen(seed).data };
     }
     const a = allStrings(pagesBySeed['vss-a'].data), b = allStrings(pagesBySeed['vss-b'].data);
@@ -177,6 +186,12 @@ if (!process.argv.includes('--no-render') && fs.existsSync(path.join(root, 'src/
     }
   };
   for (const type of Object.keys(idx.RENDERERS)) for (const scenario of idx.listScenarios(type)) await judge(type, `${type}/${scenario}`, (seed) => idx.generateData({ type, scenario, seed }));
+  // the provider statement beside every scenario of each type that has one, the variants in turn (a variant that does
+  // not apply to the claim gives the clean statement, as a batch makes it)
+  for (const type of idx.PAIRED_TYPES) for (const [i, scenario] of idx.listScenarios(type).entries()) {
+    const bill = idx.BILL_VARIANTS[i % idx.BILL_VARIANTS.length];
+    await judge(type, `${type}/${scenario} statement ${bill}`, (seed) => generatePair({ type, scenario, seed, bill, orClean: true }).statement, { statement: true });
+  }
   // every layout variant id, on a document long enough that claims and department groups continue onto the next page
   const LONG = { 'itemized-bill': ['LAB', 'IM', 'LAB', 'CARD', 'LAB', 'IM', 'LAB', 'LAB'], 'ppo-eob': ['LAB', 'OPH', 'LAB', 'RAD', 'LAB', 'FP', 'LAB', 'LAB'], 'hmo-eob': ['LAB', 'PT', 'LAB', 'RAD', 'LAB', 'LAB', 'LAB', 'LAB'] };
   if (variantsMode === 'all') for (const type of idx.VARIANT_TYPES) for (const id of idx.variantIds(type)) await judge(type, `${type}.${id}`, (seed) => idx.generateData({ type, scenario: 'baseline-clean', seed, layoutVariant: id, overrides: { claimCount: LONG[type].length, claimShapes: LONG[type] } }), { allData: true });

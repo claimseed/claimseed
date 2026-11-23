@@ -2,7 +2,7 @@
   "type": "hmo-eob",
   "slug": "decoys-oop-cap-partial",
   "status": "published",
-  "description": "Nothing on this statement is wrong, but four lines look wrong. Before March 2026 the member had paid $4,825 of the $4,900 out-of-pocket maximum. Claim 1 shows the same physical therapy service on two dates one day apart, each with the $25 copay, and claim 2's eye exam was approved at $21, below the $35 copay, so the member pays $21 and the plan $0. On claim 3 the ECG's $10 copay is cut to $4 because the maximum is reached on that line, so later lines, including claim 4's X-ray of the chest billed at five times its approved amount, charge the member nothing. A careful reviewer should report no errors.",
+  "description": "Nothing on this statement is wrong, but four lines look wrong. Before March 2026 the member had paid $4,825 of the $4,900 out-of-pocket maximum. Claim 1 shows the same physical therapy service on two dates one day apart, each with the $25 copay, and claim 2's eye exam was approved at $21, below the $35 copay, so the member pays $21 and the plan $0. On claim 3 the ECG's $10 copay is cut to $4 because the maximum is reached on that line, so later lines, including claim 4's X-ray of the chest billed at five times its approved amount, charge the member nothing. No error should be reported.",
   "period": {
     "start": "2026-03-01",
     "end": "2026-03-31"

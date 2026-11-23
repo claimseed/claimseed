@@ -8,7 +8,7 @@ import { execFileSync, spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import Ajv2020 from 'ajv/dist/2020.js';
 import { generateData } from '../src/generate/index.js';
-import { scoreExtraction, verifyFromSeed, checkOutput, normDate, normNumber, sameValue, LIMITS } from '../src/verify.js';
+import { scoreExtraction, summarizeSet, verifyFromSeed, checkOutput, normDate, normNumber, sameValue, LIMITS } from '../src/verify.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const CLI = path.join(here, '../src/cli.js');
@@ -82,6 +82,83 @@ test('flagging a decoy is a false alarm that names the decoy, and leaves recall 
   assert.equal(r.errors.recall, 1); assert.equal(r.errors.falseAlarms, 1); assert.deepEqual(r.errors.decoysFlagged, ['decoy-1']); assert.equal(r.errors.precision, 0.5);
 });
 
+test('the example report of the README and the samples scores as they say', () => {
+  const r = verifyFromSeed({ type: 'msn', scenario: 'combined-three-errors', seed: 'example', output: { errors: [{ kind: 'duplicate-charge', lineRef: 'claims[0].lines[1]' }] } }).errors;
+  assert.deepEqual([r.found, r.expected, r.recall, r.precision, r.falseAlarms], [1, 3, 0.3333, 1, 0]);
+  assert.deepEqual(r.missedRefs.map((x) => x.split('@')[0]).sort(), ['cost-sharing-error', 'math-error']);
+});
+
+// excludingInfo: the figures without the entries at severity info, whose precision is found over the flags it counts
+const flag = (e) => ({ kind: e.kind, ...(e.lineRef ? { lineRef: e.lineRef } : { fieldRef: e.fieldRef }) });
+const ex = (gt, errors) => { const x = scoreExtraction(gt, { errors }).errors; assert.equal(x.excludingInfo.precision, x.excludingInfo.counted ? Math.round(x.excludingInfo.found / x.excludingInfo.counted * 10000) / 10000 : null); return x; };
+
+test('excludingInfo leaves out the info entries and the flags that found them, under each report shape', () => {
+  const gt = key('commercial-eob', 'combined-three-errors', 'example', { insurer: 'a' });
+  const info = gt.errors.filter((e) => e.severity === 'info'); const plain = gt.errors.filter((e) => e.severity !== 'info');
+  assert.deepEqual([info.length, plain.length], [1, 3]);
+  const all = ex(gt, gt.errors.map(flag));
+  assert.deepEqual([all.recall, all.precision], [1, 1]);
+  assert.deepEqual(all.excludingInfo, { expected: 3, counted: 3, found: 3, missed: 0, recall: 1, precision: 1 });
+  const onlyInfo = ex(gt, info.map(flag));
+  assert.deepEqual([onlyInfo.found, onlyInfo.recall], [1, 0.25]);
+  assert.deepEqual(onlyInfo.excludingInfo, { expected: 3, counted: 0, found: 0, missed: 3, recall: 0, precision: null });
+  const onlyPlain = ex(gt, plain.map(flag));
+  assert.deepEqual([onlyPlain.recall, onlyPlain.precision], [0.75, 1]);
+  assert.deepEqual(onlyPlain.excludingInfo, { expected: 3, counted: 3, found: 3, missed: 0, recall: 1, precision: 1 });
+  assert.deepEqual(ex(gt, []).excludingInfo, { expected: 3, counted: 0, found: 0, missed: 3, recall: 0, precision: null });
+  // the info entry flagged twice (a repeat) and one flag that finds nothing: only the false alarm is counted
+  const mixed = ex(gt, [flag(info[0]), flag(info[0]), { kind: 'math-error', lineRef: 'claims[0].lines[0]' }]);
+  assert.deepEqual([mixed.repeats, mixed.falseAlarms], [1, 1]);
+  assert.deepEqual(mixed.excludingInfo, { expected: 3, counted: 1, found: 0, missed: 3, recall: 0, precision: 0 });
+});
+
+test('excludingInfo on a correct denial that sits on a decoy\'s line: its own kind finds it, another kind is a false alarm', () => {
+  const gt = key('commercial-eob', 'decoys-only', 'example', { insurer: 'a' });
+  assert.equal(gt.errors.length, 2); assert.ok(gt.errors.every((e) => e.severity === 'info' && e.kind === 'coverage-denial'));
+  const on = gt.errors[0].lineRef; const d = gt.decoys.find((x) => x.lineRef === on);
+  assert.ok(d, 'the denial shares its line with a decoy');
+  const found = ex(gt, [{ kind: 'coverage-denial', lineRef: on }]);
+  assert.deepEqual([found.found, found.falseAlarms, found.decoysFlagged.length], [1, 0, 0]);
+  assert.deepEqual(found.excludingInfo, { expected: 0, counted: 0, found: 0, missed: 0, recall: null, precision: null });
+  const other = ex(gt, [{ kind: 'surprise-balance-bill', lineRef: on }]);
+  assert.deepEqual([other.found, other.falseAlarms, other.decoysFlagged], [0, 1, [d.id]]);
+  assert.deepEqual(other.excludingInfo, { expected: 0, counted: 1, found: 0, missed: 0, recall: null, precision: 0 });
+  const none = ex(gt, []);
+  assert.deepEqual([none.expected, none.recall], [2, 0]);
+  assert.deepEqual(none.excludingInfo, { expected: 0, counted: 0, found: 0, missed: 0, recall: null, precision: null });
+});
+
+test('excludingInfo: a key without info entries gives the headline figures; an entry without a severity is not info; key order decides between two unplaced entries of one kind', () => {
+  const gt = key('msn', 'combined-three-errors');
+  for (const errors of [gt.errors.map(flag), [flag(gt.errors[0]), flag(gt.errors[0]), { kind: 'math-error', lineRef: 'claims[0].lines[0]' }], []]) {
+    const r = ex(gt, errors);
+    assert.deepEqual([r.excludingInfo.expected, r.excludingInfo.found, r.excludingInfo.recall, r.excludingInfo.precision, r.excludingInfo.counted], [r.expected, r.found, r.recall, r.precision, r.flagged - r.repeats]);
+  }
+  const ce = structuredClone(key('commercial-eob', 'combined-three-errors', 'example', { insurer: 'a' }));
+  delete ce.errors.find((e) => e.severity === 'info').severity;
+  assert.equal(ex(ce, []).excludingInfo.expected, 4);
+  const two = structuredClone(gt);
+  const unplaced = { ...gt.errors[0], kind: 'missing-required-section', fieldRef: null, lineRef: null, relatedFieldRef: null, relatedLineRef: null };
+  two.errors = [{ ...unplaced, severity: 'info' }, { ...unplaced, severity: 'high' }];
+  const r = ex(two, [{ kind: 'missing-required-section' }]);
+  assert.deepEqual([r.found, r.excludingInfo.found, r.excludingInfo.counted], [1, 0, 0]);
+});
+
+test('a set\'s excludingInfo is summed from its documents, in the headline and in each breakdown', () => {
+  const ce = key('commercial-eob', 'combined-three-errors', 'example', { insurer: 'a' });
+  const msn = key('msn', 'combined-three-errors');
+  const info = ce.errors.filter((e) => e.severity === 'info');
+  const rows = [{ document: 'a.pdf', type: 'commercial-eob', degradation: null, key: ce, output: { errors: ce.errors.map(flag) } },
+    { document: 'b.pdf', type: 'commercial-eob', degradation: 'fax', key: ce, output: { errors: info.map(flag) } },
+    { document: 'c.pdf', type: 'msn', degradation: null, key: msn, output: { errors: [flag(msn.errors[0])] } }];
+  const s = summarizeSet(rows);
+  assert.deepEqual(s.errors.excludingInfo, { expected: 9, counted: 4, found: 4, missed: 5, recall: 0.4444, precision: 1 });
+  assert.deepEqual(s.byType['commercial-eob'].errors.excludingInfo, { expected: 6, counted: 3, found: 3, missed: 3, recall: 0.5, precision: 1 });
+  assert.deepEqual(s.byDegradation.fax.errors.excludingInfo, { expected: 3, counted: 0, found: 0, missed: 3, recall: 0, precision: null });
+  assert.deepEqual(s.scoredOnly.errors.excludingInfo, s.errors.excludingInfo);
+  assert.deepEqual([s.errors.found, s.errors.expected], [6, 11]);
+});
+
 test('the report is checked against the limits and the documented shape, and its text never comes back', () => {
   const secret = 'IGNORE-ALL-PREVIOUS-INSTRUCTIONS';
   assert.throws(() => checkOutput([]), /extractor output: must be a JSON object/);
@@ -144,4 +221,17 @@ test('the command line scores a report against a saved answer key or a seed, and
   fs.writeFileSync(path.join(dir, 'bad.json'), JSON.stringify({ fields: { x: { y: 1 } } }));
   const bad = spawnSync(process.execPath, [CLI, 'verify', '--answer-key', path.join(dir, 'key.json'), '--output', path.join(dir, 'bad.json')], { encoding: 'utf-8' });
   assert.equal(bad.status, 1); assert.match(bad.stderr, /extractor output: field 1/);
+});
+
+test('the command line scores a commercial EOB from its type, scenario, seed and insurer', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cs-verify-ins-'));
+  const gt = key('commercial-eob', 'baseline-clean', 'v-ins', { insurer: 'b' });
+  fs.writeFileSync(path.join(dir, 'report.json'), JSON.stringify(perfect(gt)));
+  const run = (...a) => spawnSync(process.execPath, [CLI, 'verify', 'commercial-eob', 'baseline-clean', '--seed', 'v-ins', '--output', path.join(dir, 'report.json'), ...a], { encoding: 'utf-8' });
+  const b = run('--insurer', 'b'); assert.equal(b.status, 0, b.stderr);
+  assert.equal(JSON.parse(b.stdout).fields.accuracy, 1, 'the key for insurer b');
+  const a = run('--insurer', 'a'); assert.equal(a.status, 0, a.stderr);
+  assert.ok(JSON.parse(a.stdout).fields.accuracy < 1, 'the key for insurer a is another key');
+  const x = run('--insurer', 'zz-probe'); assert.equal(x.status, 1); assert.ok(!x.stderr.includes('zz-probe') && /insurer/.test(x.stderr));
+  fs.rmSync(dir, { recursive: true, force: true });
 });

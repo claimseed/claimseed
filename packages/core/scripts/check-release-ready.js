@@ -1,9 +1,11 @@
 #!/usr/bin/env node
-// check-release-ready.js — refuses a release while any committed price is unverified, any scenario is engine-test only,
-// or what ships (the npm package's files, the image's allowlist) misses a layout's data, a data file or a template.
+// check-release-ready.js — refuses a release while any committed price or commercial datum is unverified, any scenario
+// is engine-test only, or what ships (the npm package's files, the image's allowlist) misses a layout's data, a data
+// file or a template.
 import fs from 'fs'; import path from 'path';
 import { repoRoot } from './lib/repo-root.js';
 import { isMain as runAsScript } from './lib/is-main.js';
+import { clasProblems } from '../src/generate/commercial/household.js';
 // run as a script (not imported by a test)
 const isMain = runAsScript(import.meta.url);
 const ROOT = repoRoot();
@@ -14,6 +16,19 @@ const unverifiedYears = Object.entries(params.years).filter(([, v]) => !v.verifi
 let bad = 0;
 if (unverified.length) { console.error(`unverified prices for: ${unverified.join(', ')} — run scripts/fetch-reference-data.js`); bad++; }
 if (unverifiedYears.length) { console.error(`unverified annual parameters: ${unverifiedYears.join(', ')}`); bad++; }
+// the commercial data: every price, every preventive basis's date and every place's county checked before a release,
+// and no place in a county on the CLAS list (dir: the commercial reference-data folder)
+export function commercialDataProblems(dir = path.join(ROOT, 'packages/core/reference-data/commercial')) {
+  const com = (f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf-8'));
+  const places = com('places.json');
+  const unverified = [...new Set([
+    ...com('service-catalog.json').services.flatMap((s) => [...(s.medicare.verified === true ? [] : [`${s.id} price`]), ...(s.preventive || []).filter((x) => x.list && x.verified !== true).map((x) => `${x.list} date`)]),
+    ...places.places.filter((p) => p.countyVerified !== true).map((p) => `${p.city} county`),
+  ])];
+  const clas = clasProblems(places.places, places.clas);
+  return [...(unverified.length ? [`unverified commercial data: ${unverified.join('; ')}`] : []), ...(clas.length ? [`commercial places the plans may not use: ${clas.join('; ')}`] : [])];
+}
+for (const m of commercialDataProblems()) { console.error(m); bad++; }
 for (const type of fs.readdirSync(path.join(ROOT, 'packages/core/scenarios'))) for (const f of fs.readdirSync(path.join(ROOT, 'packages/core/scenarios', type))) {
   const s = JSON.parse(fs.readFileSync(path.join(ROOT, 'packages/core/scenarios', type, f), 'utf-8'));
   if (s.status === 'engine-test') { console.error(`engine-test scenario still present: ${type}/${f}`); bad++; }

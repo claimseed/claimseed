@@ -2,6 +2,7 @@
 // The report uses the answer key's own vocabulary (schemas/extractor-output.schema.json): field paths from
 // documents[0].fields, and errors as { kind, fieldRef or lineRef }. The result names only the answer key's paths,
 // kinds and decoy ids, never text the caller sent, so it is safe to hand back to an agent.
+import { checkInsurer } from './generate/commercial-eob.js';
 import { generateData, generatePair } from './generate/index.js';
 import { pairMessage } from './generate/provider-statement.js';
 import { scalarText } from './scalar-text.js';
@@ -128,10 +129,13 @@ export function scoreExtraction(answerKey, output) {
     const matched = new Set(); const decoysHit = new Set(); const decoyKinds = new Map(); let falseAlarms = 0; let repeats = 0;
     for (const r of output.errors) {
       const kind = r.kind.trim().toLowerCase();
-      const i = expected.findIndex((e, j) => !matched.has(j) && e.kind === kind && sameLocation(e, r));
+      // an entry at a location first; then a document-level entry (a section the document leaves out has no location),
+      // which a report of its kind finds whether or not the report names a place
+      let i = expected.findIndex((e, j) => !matched.has(j) && e.kind === kind && locs(e).length && sameLocation(e, r));
+      if (i < 0) i = expected.findIndex((e, j) => !matched.has(j) && e.kind === kind && !locs(e).length);
       if (i >= 0) { matched.add(i); continue; }
       // the same error reported again (both lines of a duplicate pair, say): neither found twice nor a false alarm
-      if (expected.some((e, j) => matched.has(j) && e.kind === kind && sameLocation(e, r))) { repeats++; continue; }
+      if (expected.some((e, j) => matched.has(j) && e.kind === kind && (sameLocation(e, r) || !locs(e).length))) { repeats++; continue; }
       // a decoy at its own line before one that only names this line as its pair's other half
       const own = (x) => sameLocation({ fieldRef: x.fieldRef, lineRef: x.lineRef }, r) && (x.fieldRef || x.lineRef);
       const d = decoys.find(own) || decoys.find((x) => sameLocation(x, r) && locs(x).length);
@@ -146,10 +150,16 @@ export function scoreExtraction(answerKey, output) {
     expected.forEach((e, j) => { const b = kinds.get(e.kind) ?? { expected: 0, found: 0 }; b.expected++; if (matched.has(j)) b.found++; kinds.set(e.kind, b); });
     const byKind = Object.fromEntries(kinds);
     const ref = (e) => e.fieldRef || e.lineRef || '(document)';
+    // the same figures without the entries at severity info (correct denials a reviewer surfaces): a flag that found one
+    // is neither a hit nor a false alarm here, so it leaves the flags counted, as a repeat does
+    const plain = expected.map((e, j) => j).filter((j) => expected[j].severity !== 'info');
+    const plainFound = plain.filter((j) => matched.has(j)).length;
+    const counted = output.errors.length - repeats - (matched.size - plainFound);
+    const excludingInfo = { expected: plain.length, counted, found: plainFound, missed: plain.length - plainFound, recall: rate(plainFound, plain.length), precision: rate(plainFound, counted) };
     result.errors = { expected: expected.length, flagged: output.errors.length, found: matched.size, missed: expected.length - matched.size, falseAlarms, repeats,
       decoysFlagged: [...decoysHit].sort(), recall: rate(matched.size, expected.length), precision: rate(matched.size, output.errors.length - repeats),
       foundRefs: listed(expected.filter((_, j) => matched.has(j)).map((e) => `${e.kind}@${ref(e)}`)),
-      missedRefs: listed(expected.filter((_, j) => !matched.has(j)).map((e) => `${e.kind}@${ref(e)}`)), byKind };
+      missedRefs: listed(expected.filter((_, j) => !matched.has(j)).map((e) => `${e.kind}@${ref(e)}`)), byKind, excludingInfo };
   }
   return result;
 }
@@ -160,13 +170,17 @@ export function scoreExtraction(answerKey, output) {
 // leaves out once any report of the set gives that part (both parts when no report gives either), so skipping a hard
 // document never raises field accuracy or error recall. Precision counts only what was flagged, so it is read beside
 // recall. The figures over the reports that could be scored stay beside it (scoredOnly), with breakdowns by document
-// type, by degraded preset ("clean" for none) and by error kind.
+// type, by degraded preset ("clean" for none) and by error kind. Each error total carries excludingInfo, summed from
+// the documents' own.
 const sum = (rs, part, k) => rs.reduce((n, r) => n + (r[part]?.[k] || (Array.isArray(r[part]?.[k]) ? r[part][k].length : 0)), 0);
 const fieldTotals = (rs) => ({ expected: sum(rs, 'fields', 'expected'), correct: sum(rs, 'fields', 'correct'), accuracy: rate(sum(rs, 'fields', 'correct'), sum(rs, 'fields', 'expected')) });
+const excluding = (rs, k) => rs.reduce((n, r) => n + (r.errors?.excludingInfo?.[k] || 0), 0);
+const excludingTotals = (rs) => { const [expected, counted, found] = ['expected', 'counted', 'found'].map((k) => excluding(rs, k));
+  return { expected, counted, found, missed: expected - found, recall: rate(found, expected), precision: rate(found, counted) }; };
 const errorTotals = (rs) => ({ expected: sum(rs, 'errors', 'expected'), found: sum(rs, 'errors', 'found'), falseAlarms: sum(rs, 'errors', 'falseAlarms'),
   decoysFlagged: rs.reduce((n, r) => n + (r.errors?.decoysFlagged.length || 0), 0),
   recall: rate(sum(rs, 'errors', 'found'), sum(rs, 'errors', 'expected')),
-  precision: rate(sum(rs, 'errors', 'found'), sum(rs, 'errors', 'flagged') - sum(rs, 'errors', 'repeats')) });
+  precision: rate(sum(rs, 'errors', 'found'), sum(rs, 'errors', 'flagged') - sum(rs, 'errors', 'repeats')), excludingInfo: excludingTotals(rs) });
 export function summarizeSet(rows) {
   // the groups are named by a row's type and degradation: text (a preset or none), never an object that two groups
   // could share a name through, or whose conversion could run
@@ -209,10 +223,11 @@ const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const SEED = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 // `document: 'bill'` scores the report against the provider's statement rendered beside the EOB (render with also bill),
 // rebuilt with the statement variant `bill`, instead of against the EOB.
-export function verifyFromSeed({ type, scenario, seed = 'claimseed', output, layoutVariant = null, document = 'eob', bill = 'clean' }) {
+export function verifyFromSeed({ type, scenario, seed = 'claimseed', output, layoutVariant = null, document = 'eob', bill = 'clean', insurer = null }) {
   if (!SLUG.test(scalarText(type)) || !SLUG.test(scalarText(scenario)) || !SEED.test(scalarText(seed))) throw new Error('verify: invalid type, scenario or seed');
   if (document !== 'eob' && document !== 'bill') throw new Error(pairMessage('verifyDocument', 'verify'));
+  const ins = checkInsurer({ type, insurer }, 'verify');
   checkOutput(output);
-  const { groundTruth } = document === 'bill' ? generatePair({ type, scenario, seed, layoutVariant, bill, who: 'verify' }).statement : generateData({ type, scenario, seed, layoutVariant });
+  const { groundTruth } = document === 'bill' ? generatePair({ type, scenario, seed, layoutVariant, ...(ins ? { overrides: { insurer: ins } } : {}), bill, who: 'verify' }).statement : generateData({ type, scenario, seed, layoutVariant, ...(ins ? { overrides: { insurer: ins } } : {}) });
   return scoreExtraction(groundTruth, output);
 }

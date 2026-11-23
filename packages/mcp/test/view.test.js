@@ -84,7 +84,7 @@ test('the view opens with ui/initialize, says it is initialized once the host an
   } finally { await page.close(); }
 });
 
-test('the view shows the page images and the injected errors as text, loads nothing, and runs no markup from the result', { skip, timeout: 30000 }, async () => {
+test('the view shows the page images and the expected findings as text, loads nothing, and runs no markup from the result', { skip, timeout: 30000 }, async () => {
   const { page, frame, requests, dialogs } = await host(RESULT);
   try {
     const v = await frame.evaluate(() => ({
@@ -129,20 +129,20 @@ test('only a result with neither errors nor decoys is called a clean control; de
   const { page, frame, dialogs } = await host(withKey({ errors: [], decoys: [] }));
   try {
     let v = await headings(page, frame, withKey({ errors: [], decoys: [] }));
-    assert.deepEqual(v.h2, ['No injected errors: a clean control']); assert.deepEqual(v.decoyRows, []);
+    assert.deepEqual(v.h2, ['No expected findings and no decoys: a clean control']); assert.deepEqual(v.decoyRows, []);
     v = await headings(page, frame, withKey({ errors: [] })); // a key without a decoys list
-    assert.deepEqual(v.h2, ['No injected errors: a clean control']);
+    assert.deepEqual(v.h2, ['No expected findings and no decoys: a clean control']);
     v = await headings(page, frame, withKey({ errors: [], decoys: [
       { id: 'decoy-1', kind: 'repeat-service-different-date', lineRef: 'claims[0].lines[1]', fieldRef: 'claims[0].lines[1].serviceDate' },
       { id: 'decoy-2', kind: '<b>high</b>', lineRef: 'claims[0].lines[2]', fieldRef: null }, null, 'x'] }));
-    assert.deepEqual(v.h2, ['No injected errors, but 2 decoys: not a clean control', 'Decoys (2): lines that look wrong but follow the rules']);
+    assert.deepEqual(v.h2, ['No expected findings, but 2 decoys: not a clean control', 'Decoys (2): lines that look wrong but follow the rules']);
     assert.deepEqual(v.decoyRows, [['repeat-service-different-date', 'claims[0].lines[1].serviceDate'], ['<b>high</b>', 'claims[0].lines[2]']]);
     assert.equal(v.bold, 0);
     v = await headings(page, frame, withKey({ errors: [{ kind: 'duplicate-line', severity: 'high', lineRef: 'claims[1].lines[2]' }, null, 7], decoys: [{ kind: 'repeat-service-different-date', lineRef: null }] }));
-    assert.deepEqual(v.h2, ['Injected errors (1)', 'Decoy (1): a line that looks wrong but follows the rules']);
+    assert.deepEqual(v.h2, ['Expected findings (1)', 'Decoy (1): a line that looks wrong but follows the rules']);
     assert.deepEqual(v.decoyRows, [['repeat-service-different-date', 'document']]);
     v = await headings(page, frame, withKey({ errors: [], decoys: [{ kind: 'high-charge-within-limits', lineRef: 'claims[0].lines[0]' }] }));
-    assert.deepEqual(v.h2, ['No injected errors, but 1 decoy: not a clean control', 'Decoy (1): a line that looks wrong but follows the rules']);
+    assert.deepEqual(v.h2, ['No expected findings, but 1 decoy: not a clean control', 'Decoy (1): a line that looks wrong but follows the rules']);
     assert.deepEqual(dialogs, []);
   } finally { await page.close(); }
 });
@@ -164,7 +164,7 @@ test('the view and describe_document_type agree on clean controls for every scen
       for (const s of scenarios) {
         const { groundTruth } = generateData({ type, scenario: s.scenario, seed: 'view-check' });
         const v = await headings(page, frame, withKey(groundTruth));
-        assert.equal(v.h2[0] === 'No injected errors: a clean control', s.cleanControl, `${type}/${s.scenario}: the view and the catalog disagree`);
+        assert.equal(v.h2[0] === 'No expected findings and no decoys: a clean control', s.cleanControl, `${type}/${s.scenario}: the view and the catalog disagree`);
         assert.equal(v.decoyRows.length, (groundTruth.decoys || []).length, `${type}/${s.scenario}: decoy rows`);
         if (s.cleanControl) clean++; else if (!s.injectedErrors.length) decoyOnly++;
       }
@@ -173,11 +173,15 @@ test('the view and describe_document_type agree on clean controls for every scen
     const r = await client.callTool({ name: 'render_document', arguments: { type: 'itemized-bill', scenario: 'decoys-repeat-therapy-high-charge', seed: 'view-decoy', preview: 'none' } }, undefined, { timeout: 120000 });
     assert.ok(!r.isError, r.content?.[0]?.text);
     // the text summary every client gets says the same
-    assert.match(r.content[0].text, /, no injected errors but 2 decoys \(not a clean control\)\.$/m);
+    assert.match(r.content[0].text, /, no expected findings but 2 decoys \(not a clean control\)\.$/m);
     const cleanRender = await client.callTool({ name: 'render_document', arguments: { type: 'msn', scenario: 'baseline-clean', seed: 'view-clean', preview: 'none' } }, undefined, { timeout: 120000 });
-    assert.match(cleanRender.content[0].text, /, no injected errors\.$/m);
+    assert.match(cleanRender.content[0].text, /, no expected findings\.$/m);
+    // correct denials are expected findings, not planted errors: the commercial EOB with decoys and two denials
+    const denials = await client.callTool({ name: 'render_document', arguments: { type: 'commercial-eob', scenario: 'decoys-only', seed: 'view-deny', preview: 'none' } }, undefined, { timeout: 120000 });
+    assert.match(denials.content[0].text, /, expected findings: coverage-denial, coverage-denial\.$/m);
+    assert.doesNotMatch(denials.content[0].text, /injected/);
     const v = await headings(page, frame, r);
-    assert.deepEqual(v.h2, ['No injected errors, but 2 decoys: not a clean control', 'Decoys (2): lines that look wrong but follow the rules']);
+    assert.deepEqual(v.h2, ['No expected findings, but 2 decoys: not a clean control', 'Decoys (2): lines that look wrong but follow the rules']);
   } finally { await page.close(); await client.close(); }
 });
 

@@ -1,0 +1,113 @@
+{# Shared pieces of the commercial EOB (render-commercial.js). Every printed word comes from
+   data/commercial-eob/stock-content.json or is a value of the document; colours are the insurer's palette. #}
+{% macro money(x) %}${{ x | formatMoney }}{% endmacro %}
+{% macro dash(x) %}{% if x > 0 %}${{ x | formatMoney }}{% else %}-{% endif %}{% endmacro %}
+
+{% macro header(d, s) %}
+  <div class="hdr">
+    <div class="brand"><span class="mark">{{ d._mark | safe }}</span><span class="iname">{{ d.insurer.name }}</span> <span class="specimen-badge">SPECIMEN</span></div>
+    <div class="title"><div class="t">{{ s.title }}</div><div class="nb">{{ s.notABill }}</div></div>
+  </div>
+  <div class="who">
+    <div class="mail"><div>{{ d.mailing.name }}</div><div>{{ d.mailing.street }}</div><div>{{ d.mailing.cityStateZip }}</div></div>
+    <table class="kv">
+      <tr><td>{{ s.plan.patientLabel }}</td><td>{{ d.patient.name }}</td></tr>
+      <tr><td>{{ s.plan.memberIdLabel }}</td><td>{{ d.plan.memberId }}</td></tr>
+      <tr><td>{{ s.plan.planLabel }}</td><td>{{ d.plan.name }}</td></tr>
+      <tr><td>{{ s.plan.optionLabel }}</td><td>{{ d.plan.option }}</td></tr>
+      <tr><td>{{ s.plan.sponsorLabel }}</td><td>{{ d.plan.sponsor }}</td></tr>
+      <tr><td>{{ s.plan.groupLabel }}</td><td>{{ d.plan.groupNumber }}</td></tr>
+      <tr><td>{{ s.plan.processedLabel }}</td><td>{{ d.processed }}</td></tr>
+    </table>
+  </div>
+  <p class="small">{{ d._t.selfFunded }} {{ d._t.memberServices }}</p>
+{% endmacro %}
+
+{% macro terms(d, s) %}
+  <div class="box">
+    <div class="boxt">{{ s.terms.title }}</div>
+    <table class="grid">
+      <tr><th></th><th>{{ s.terms.inNetwork }}</th><th>{{ s.terms.outOfNetwork }}</th></tr>
+      <tr><td>{{ s.terms.deductible }}</td><td>{{ d.terms.deductibleIn }}</td><td>{{ d.terms.deductibleOut }}</td></tr>
+      <tr><td>{{ s.terms.coinsurance }}</td><td>{{ d.terms.coinsuranceIn }}</td><td>{{ d.terms.coinsuranceOut }}</td></tr>
+      <tr><td>{{ s.terms.copayPrimary }}</td><td>{{ d.terms.copayPrimary }}</td><td>{{ s.terms['none'] }}</td></tr>
+      <tr><td>{{ s.terms.copaySpecialist }}</td><td>{{ d.terms.copaySpecialist }}</td><td>{{ s.terms['none'] }}</td></tr>
+      <tr><td>{{ s.terms.copayEmergency }}</td><td>{{ d.terms.copayEmergency }}</td><td>{{ s.terms['none'] }}</td></tr>
+      <tr><td>{{ s.terms.outOfPocket }}</td><td>{{ d.terms.outOfPocketIn }}</td><td>{{ d.terms.outOfPocketOut }}</td></tr>
+    </table>
+    <div class="small">{{ s.terms.preventive }}</div>
+  </div>
+{% endmacro %}
+
+{% macro accumulators(d, s) %}
+  <div class="box">
+    <div class="boxt">{{ s.accumulators.title }}</div>
+    <table class="grid acc">
+      <tr><th></th><th>{{ s.accumulators.before }}</th><th>{{ s.accumulators.thisStatement }}</th><th>{{ s.accumulators.yearToDate }}</th><th>{{ s.accumulators.limit }}</th></tr>
+      {% for r in d.accumulators %}
+      {% if loop.first or r.who != d.accumulators[loop.index0 - 1].who %}<tr class="grp"><td colspan="5">{{ s.accumulators[r.who] }}</td></tr>{% endif %}
+      <tr><td>{{ r.label }}</td><td>{{ money(r.before) }}</td><td>{{ money(r.thisStatement) }}</td><td>{{ money(r.yearToDate) }}{% if r.met %} ({{ s.accumulators.metNote }}){% endif %}</td><td>{{ money(r.limit) }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+{% endmacro %}
+
+{% macro summary(d, s, title) %}
+  <div class="box">
+    <div class="boxt">{{ title }}</div>
+    <table class="grid">
+      <tr><td>{{ s.summary.claims }}</td><td class="num">{{ d.summary.claims }}</td></tr>
+      <tr><td>{{ s.summary.billed }}</td><td class="num">{{ money(d.summary.billed) }}</td></tr>
+      <tr><td>{{ s.summary.allowed }}</td><td class="num">{{ money(d.summary.allowed) }}</td></tr>
+      <tr><td>{{ s.summary.planPaid }}</td><td class="num">{{ money(d.summary.planPaid) }}</td></tr>
+      <tr class="strong"><td>{{ s.summary.youMayOwe }}</td><td class="num">{{ money(d.summary.youMayOwe) }}</td></tr>
+    </table>
+  </div>
+{% endmacro %}
+
+{% macro claimFacts(c, s) %}
+  <table class="kv facts">
+    <tr><td>{{ s.claim.number }}</td><td>{{ c.claimNumber }}</td><td>{{ s.claim.provider }}</td><td>{{ c.provider.name }}</td></tr>
+    <tr><td>{{ s.claim.specialty }}</td><td>{% if c.provider.specialty %}{{ s.specialties[c.provider.specialty] }}{% else %}{{ s.facilityTypes[c.provider.kind] }}{% endif %}</td><td>{{ s.claim.network }}</td><td>{% if c.provider.network == 'in' %}{{ s.claim.inNetwork }}{% else %}{{ s.claim.outOfNetwork }}{% endif %}</td></tr>
+    <tr><td>{{ s.claim.place }}</td><td>{% if c.place %}{{ c.place.name }}, {{ s.facilityTypes[c.place.type] }}, {% if c.place.network == 'in' %}{{ s.claim.inNetwork }}{% else %}{{ s.claim.outOfNetwork }}{% endif %}{% else %}{{ s.facilityTypes[c.placeKind] }}{% endif %}</td>
+        <td>{{ s.claim.emergency }}</td><td>{% if c.emergency %}{{ s.claim.yes }}{% else %}{{ s.claim.no }}{% endif %}</td></tr>
+  </table>
+{% endmacro %}
+
+{% macro lineHead(s) %}
+  <tr><th>{{ s.columns.date }}</th><th>{{ s.columns.service }}</th><th>{{ s.columns.code }}</th><th class="num">{{ s.columns.billed }}</th><th class="num">{{ s.columns.allowed }}</th><th class="num">{{ s.columns.planPaid }}</th>
+      <th class="num">{{ s.columns.deductible }}</th><th class="num">{{ s.columns.copay }}</th><th class="num">{{ s.columns.coinsurance }}</th><th class="num">{{ s.columns.notCovered }}</th><th class="num">{{ s.columns.youMayOwe }}</th><th>{{ s.columns.remark }}</th></tr>
+{% endmacro %}
+{% macro lineRow(l) %}
+  <tr><td>{{ l.date }}</td><td>{{ l.service }}</td><td>{{ l.code }}</td><td class="num">{{ money(l.billed) }}</td><td class="num">{{ money(l.allowed) }}</td><td class="num">{{ money(l.planPaid) }}</td>
+      <td class="num">{{ dash(l.deductible) }}</td><td class="num">{{ dash(l.copay) }}</td><td class="num">{{ dash(l.coinsurance) }}</td><td class="num">{{ dash(l.notCovered) }}</td><td class="num">{{ money(l.youMayOwe) }}</td><td>{{ l.remark or '' }}</td></tr>
+{% endmacro %}
+{% macro lineNotes(c) %}
+  {% for n in c.notes %}<div class="note">{{ n }}</div>{% endfor %}
+{% endmacro %}
+
+{% macro back(d, s) %}
+  <div class="box">
+    <div class="boxt">{{ s.columns.remark }}</div>
+    {% for r in d._remarksUsed %}<div class="small"><b>{{ r.code }}</b> {{ r.meaning }}</div>{% endfor %}
+  </div>
+  {% if d.hasProtected %}
+  <div class="box">
+    <div class="boxt">{{ s.nsa.title }}</div>
+    {% for p in s.nsa.body %}<p class="small">{{ p }}</p>{% endfor %}
+  </div>
+  {% endif %}
+  <div class="box">
+    {% if d.sections.appeal %}
+    <div class="boxt">{{ s.appeal.title }}</div>
+    <p class="small">{{ d._t.howToAppeal }}</p>
+    <p class="small">{{ s.appeal.externalReview }}</p>
+    <p class="small">{{ s.appeal.civilAction }}</p>
+    {% endif %}
+    <p class="small">{{ s.appeal.codes }}</p>
+    <p class="small">{{ s.appeal.rationale }}</p>
+    <p class="small">{{ s.appeal.helpIntro }}</p>
+    <p class="small">{{ d._t.memberServicesHelp }}</p>
+    <p class="small">{{ s.appeal.ebsa }}</p>
+  </div>
+{% endmacro %}

@@ -10,6 +10,9 @@ nowhere but that one folder, never reads a file a client names, and needs no net
 Node.js 22.13 or later. Rendering needs Chrome or Chromium (`CLAIMSEED_CHROME=/path/to/chrome`, or an install in a
 usual place); listing and `generate_data` do not.
 
+The server speaks MCP over standard input and output, and an MCP client starts it from its configuration, as below.
+Started by hand in a terminal, it prints one line saying whether it saves files, then waits for a client.
+
 To see documents in the chat and save no files:
 
 ```json
@@ -29,11 +32,17 @@ To also keep each PDF and its ground truth as files, give it a folder:
 }
 ```
 
-Or from a checkout: `node packages/mcp/src/cli.js` (add `--workspace ./out` for files). With Docker, using the published image
-`ghcr.io/claimseed/claimseed-mcp` (Chromium is inside it; `:latest`, or a version tag such as `:0.7.0`), or one you build from
-the `Dockerfile` at the repository root (`docker build -t claimseed-mcp .`, then use `claimseed-mcp` as the image name below):
+The folder given to `--workspace`, like the one mounted at `/work` below, must exist before the server starts: the
+server refuses to start (exit code 2) when it is missing, and on Linux, Docker creates a missing mount folder owned by
+root, which the container's user cannot write.
+
+Or from a checkout: `node packages/mcp/src/cli.js` (for files, run `mkdir -p out` first and add `--workspace ./out`).
+With Docker, using the published image `ghcr.io/claimseed/claimseed-mcp` (Chromium is inside it; `:latest`, or a
+version tag such as `:0.8.0`), or one you build from the `Dockerfile` at the repository root (`docker build -t
+claimseed-mcp .`, then use `claimseed-mcp` as the image name below):
 
 ```sh
+mkdir -p claimseed-out
 docker run -i --rm --network none --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
   --user "$(id -u):$(id -g)" -v "$PWD/claimseed-out:/work" ghcr.io/claimseed/claimseed-mcp
 ```
@@ -57,14 +66,14 @@ boundary, which is why the flags above take away its network, its capabilities a
 
 | Tool | What it does |
 | --- | --- |
-| `list_document_types` | The types (`msn`, `itemized-bill`, `ppo-eob`, `hmo-eob`), each with a description and its scenarios. |
-| `describe_document_type` | Every scenario of one type: description, period, claim count, the errors it injects (kind, severity, rule) and its public sources, plus the type's layout variant ids (an empty list for `msn`, which has one layout). |
+| `list_document_types` | The types (`msn`, `itemized-bill`, `ppo-eob`, `hmo-eob`, `commercial-eob`), each with a title, a description, its page orientation and its scenarios. |
+| `describe_document_type` | Every scenario of one type: description, period (none for `commercial-eob`, whose dates come from the seed), claim count, the expected findings (kind, severity, rule), which are the planted errors and any correct denials (`coverage-denial`, severity `info`), and its public sources, plus the type's layout variant ids (an empty list for `msn`, which has one layout, and for `commercial-eob`, whose insurer sets its layout). |
 | `generate_data` | The data and ground truth of one document, without rendering; nothing is written. Takes `layout_variant`. |
-| `render_document` | Renders one document and returns its pages as images, its ground truth, the PDF's SHA-256 and page count; with a workspace, also writes the PDF and its ground-truth JSON there and returns both paths. With `also: "835"`, also the X12 835 remittance of the same claims (Medicare Summary Notice and Medicare Advantage EOBs). With `layout_variant`, one of the type's layout variants. |
+| `render_document` | Renders one document and returns its pages as images, its ground truth, the PDF's SHA-256 and page count; with a workspace, also writes the PDF and its ground-truth JSON there and returns both paths. With `also: "835"`, also the X12 835 remittance of the same claims (Medicare Summary Notice, Medicare Advantage EOBs and commercial EOB). With `layout_variant`, one of the type's layout variants; with `insurer`, the commercial EOB's insurer (`a` or `b`). |
 | `degrade_document` | Like `render_document`, but for a scanned-looking copy of the document: a flatbed scan, a fax, a phone photo or a low-resolution copy (`preset`). The copy is an image-only PDF with the specimen band and watermark drawn on top of the degraded pages; its ground truth has the same fields, errors and decoys, plus `degradation` and the seeded settings in `degradationParams`. Its structured result names the preset in `degradation` (null in a `render_document` result). Takes `layout_variant` like `render_document`. |
-| `render_blind` | Renders a blind document, for testing a tool that must not see the answers: it is named by an opaque id, and its specimen band, PDF title, file names, page-image markers and 835 never carry the scenario, the planted errors or the seed. Takes the arguments of `render_document`, plus `preset` for a degraded copy, `also` (`"835"`, `"bill"` or a list of both) and `bill` (the statement variant); returns the id, the page images and the PDF's SHA-256, never the answer key, the scenario or the seed. |
+| `render_blind` | Renders a blind document, for testing a tool that must not see the answers: it is named by an opaque id, and its specimen band, PDF title, file names, page-image markers and 835 never carry the scenario, the planted errors or the seed. Takes the arguments of `render_document` except `insurer` (a blind commercial EOB's insurer comes from its own seed), plus `preset` for a degraded copy, `also` (`"835"`, `"bill"` or a list of both) and `bill` (the statement variant); returns the id, the page images and the PDF's SHA-256, never the answer key, the scenario or the seed. |
 | `get_answer_key` | The answer key of a blind document, by its id. Keys live only in the running server's memory, which holds the most recent 1,000, so save each key you need. |
-| `verify_document` | Scores what an extractor or bill auditor reported about one document against its answer key: field accuracy with the paths read wrong or missed, error recall and precision, false alarms and the decoys flagged. Nothing is rendered or written. With `layout_variant`, the key of that variant. |
+| `verify_document` | Scores what an extractor or bill auditor reported about one document against its answer key: field accuracy with the paths read wrong or missed, error recall and precision, false alarms and the decoys flagged. The result also gives `excludingInfo`, the error figures without the entries at severity `info` (the correct denials a reviewer surfaces). Nothing is rendered or written. With `layout_variant`, the key of that variant. |
 
 Arguments are a type, a scenario slug and a seed (letters, digits, `.`, `_`, `-`; up to 64 characters). The same
 type, scenario and seed always give the same data, and on Linux with the same Chrome build the same PDF bytes.
@@ -73,8 +82,16 @@ type, scenario and seed always give the same data, and on Linux with the same Ch
 `p01`-`p12`, `h01`-`h12`), or `seeded` to pick one from the seed. A variant prints the same data with another
 column order, header wording, style and way of marking a continued table; the ground truth names it
 (`documents[0].layoutVariant`, schema 1.4) and, with a workspace, the file names carry its id after the seed. Left
-out, the document keeps the standard layout, unchanged. `msn` takes no variant; a value for it, an unknown id, an
-id of another type and `all` are refused with an error that repeats nothing sent.
+out, the document keeps the standard layout, unchanged. `msn` and `commercial-eob` take no variant; a value for either, an unknown id, an id of another type and `all` are
+refused with an error that repeats nothing sent.
+
+`generate_data`, `render_document`, `degrade_document` and `verify_document` also take `insurer` for `commercial-eob`:
+`a` (Fernhollow Health Plans, portrait, one claim per page) or `b` (Quillmont Insurance Company, landscape, one table
+of all claims). Left out, it is drawn from the seed, and naming it changes nothing else in the document. The ground
+truth records it in `plan.insurer`. With a workspace, a named insurer adds `.a` or `.b` after the seed in the file
+names. An insurer for another type, or any other value, is refused with an error that repeats nothing sent.
+`render_blind` does not take it: a blind document's insurer comes from its own seed. To score a report with
+`verify_document`, pass the insurer the document was rendered with.
 
 `render_document` also takes:
 
@@ -87,14 +104,14 @@ id of another type and `all` are refused with an error that repeats nothing sent
 - `include_pdf`: also return the PDF itself, embedded in the result. It counts toward the same limit: when it fits,
   page images take the room left (none is forced in); when the PDF alone is over the limit it is left out, and the
   result says so (`pdfEmbedded: false`).
-- `also`: `835`, `bill`, or a list of both. `835` (for `msn`, `ppo-eob` and `hmo-eob`) adds the X12 835 of the
-  same claims: with a workspace it is saved beside the PDF under a name the server chooses, and without one its
-  text is embedded in the result. It is reported in the structured result's `remittance`, and the ground truth
-  refers to it in `documents[1]` and `x12Ref`; see "X12 835 remittances" in the core README. `bill` (for `ppo-eob`
-  and `hmo-eob` only) adds the provider's statement for one claim of the EOB: with a workspace its PDF and ground
-  truth are saved beside the EOB's files and their paths are in the structured result's `bill`; without one its
-  PDF is embedded in the result and its ground truth is in `bill`. See "Provider statements (Medicare Advantage
-  pairs)" in the core README.
+- `also`: `835`, `bill`, or a list of both. `835` (for `msn`, `ppo-eob`, `hmo-eob` and `commercial-eob`) adds the X12
+  835 of the same claims: with a workspace it is saved beside the PDF under a name the server chooses, and without one
+  its text is embedded in the result. It is reported in the structured result's `remittance`, and the ground truth
+  refers to it in `documents[1]` and `x12Ref`; see "X12 835 remittances" in the core README. `bill` (for `ppo-eob`,
+  `hmo-eob` and `commercial-eob`) adds the provider's statement for one claim of the EOB: with a workspace its PDF and
+  ground truth are saved beside the EOB's files and their paths are in the structured result's `bill`; without one its
+  PDF is embedded in the result and its ground truth is in `bill`. See "Provider statements (EOB pairs)" in the core
+  README.
 - `bill`: the provider's statement variant when `also` includes `bill`, default `clean`. `clean`: no error of its
   own. `over-owed`: the contractual adjustment is too small, so the balance due is more than the EOB's member
   share. `denied-line-billed`: a line the plan denied is billed to the patient. `payment-misposted`: Paid by Your
@@ -104,14 +121,15 @@ id of another type and `all` are refused with an error that repeats nothing sent
   applies only where the billed claim allows it; `denied-line-billed`, for example, needs a denied line on that
   claim.
 
-`degrade_document` takes the same arguments as `render_document` and `preset`: `scan`, `fax`, `photo` or `low-res`.
+`degrade_document` takes `type`, `scenario`, `seed`, `preset` (one of `scan`, `fax`, `photo` or `low-res`), `preview`,
+`from_page`, `include_pdf`, `layout_variant` and `insurer`. It makes no 835 and no provider's statement.
 The settings (rotation, blur, noise, resolution and the rest) come from the type, scenario, seed and preset, so the
 same request gives the same settings. The pixels can differ very slightly from one run to the next (antialiasing
 in the browser), and so can the copy's bytes; its ground truth records the SHA-256 of the copy it came with. `verify_document` scores a report on a
 degraded copy against the same answer key as the clean document.
 
-`render_blind` is for testing a tool that must not see the answers. It takes the arguments of `render_document`,
-plus `preset` for a degraded copy (`scan`, `fax`, `photo` or `low-res`, with its own id), `also` (`"835"`, `"bill"`
+`render_blind` is for testing a tool that must not see the answers. It takes the arguments of `render_document` except
+`insurer` (a blind commercial EOB's insurer comes from its own seed), plus `preset` for a degraded copy (`scan`, `fax`, `photo` or `low-res`, with its own id), `also` (`"835"`, `"bill"`
 or a list of both) and `bill` (the statement variant). Its result returns the opaque id, the page images and the
 PDF's SHA-256, never the answer key, the scenario or the seed. With a workspace the PDF (and 835) is written there,
 named by the id; without one, `include_pdf` returns the PDF in the result. `get_answer_key` takes the id and returns
@@ -141,14 +159,15 @@ Resources: `schema://ground-truth` (the ground-truth JSON Schema), `schema://ext
 ## Seeing documents in the chat
 
 A `render_document` result holds the page images as standard MCP image content, the ground truth as structured
-content, and names an [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) view
-(`_meta.ui.resourceUri = "ui://claimseed/preview"`) that shows the pages with a table of the injected errors and, when
-there are any, a table of the decoys. As in `describe_document_type`, only a document with neither errors nor decoys
-is labelled a clean control. What you see depends on the client:
+content, and names an [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) view (`_meta.ui.resourceUri =
+"ui://claimseed/preview"`) that shows the pages with a table of the expected findings (the planted errors and any
+correct denials a reviewer should surface) and, when there are any, a table of the decoys. As in
+`describe_document_type`, only a document with neither expected findings nor decoys is labelled a clean control. What
+you see depends on the client:
 
 | Client | What it shows |
 | --- | --- |
-| Clients with MCP Apps (ChatGPT, Claude, VS Code and others) | The view: every returned page, the injected errors and any decoys, in the conversation. |
+| Clients with MCP Apps (ChatGPT, Claude, VS Code and others) | The view: every returned page, the expected findings and any decoys, in the conversation. |
 | Clients that show image content (Claude Desktop, claude.ai, MCP Inspector) | The page images in the tool result. |
 | Clients that pass images to the model only (several command-line agents) | The text summary; the model sees the pages and can describe them. |
 

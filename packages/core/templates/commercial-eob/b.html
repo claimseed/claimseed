@@ -1,0 +1,38 @@
+{% extends "base-landscape.html" %}
+{# Insurer B: one statement table of every claim (continued over as many pages as it needs), the year's totals and the
+   summary in a side panel on page 1; then the remarks, the No Surprises Act notice when a protected line is present,
+   and the appeal rights. #}
+{% import "commercial-eob/parts.html" as p %}
+{% block extra_styles %}
+{% include "commercial-eob/style.css" %}
+{% endblock %}
+{% block body %}
+{% for pg in _d.tablePages %}
+<div class="page">
+  {% if loop.first %}{{ p.header(_d, stock) }}{% else %}
+  <div class="hdr slim"><div class="brand"><span class="mark">{{ _d._mark | safe }}</span><span class="iname">{{ _d.insurer.name }}</span> <span class="specimen-badge">SPECIMEN</span></div>
+    <div class="title"><div class="nb">{{ _d.patient.name }} &bull; {{ _d.plan.memberId }}</div></div></div>{% endif %}
+  <div class="{% if loop.first %}withpanel{% endif %}">
+    <div class="main">
+      {% for blk in pg %}
+      <div class="claimblock">
+        {{ p.claimFacts(blk.claim, stock) }}
+        <table class="lines">
+          {{ p.lineHead(stock) }}
+          {% for l in blk.lines %}{{ p.lineRow(l) }}{% endfor %}
+          {% if blk.last %}<tr class="strong"><td colspan="3"></td><td class="num">{{ p.money(blk.claim.totals.billed) }}</td><td class="num">{{ p.money(blk.claim.totals.allowed) }}</td><td class="num">{{ p.money(blk.claim.totals.planPaid) }}</td>
+            <td class="num">{{ p.dash(blk.claim.totals.deductible) }}</td><td class="num">{{ p.dash(blk.claim.totals.copay) }}</td><td class="num">{{ p.dash(blk.claim.totals.coinsurance) }}</td><td class="num">{{ p.dash(blk.claim.totals.notCovered) }}</td><td class="num">{{ p.money(blk.claim.totals.youMayOwe) }}</td><td></td></tr>{% endif %}
+        </table>
+        {% if blk.last %}{{ p.lineNotes(blk.claim) }}{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% if loop.first %}<div class="panel">{{ p.summary(_d, stock, stock.summary.titleA) }}{{ p.accumulators(_d, stock) }}</div>{% endif %}
+  </div>
+</div>
+{% endfor %}
+<div class="page">
+  <div class="cols"><div class="col">{{ p.terms(_d, stock) }}</div><div class="col"></div></div>
+  {{ p.back(_d, stock) }}
+</div>
+{% endblock %}

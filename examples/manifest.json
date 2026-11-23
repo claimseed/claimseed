@@ -263,13 +263,26 @@
       "type": "ppo-eob",
       "scenario": "baseline-clean",
       "seed": "example",
+      "bill": "over-owed",
       "file": "ppo-eob_baseline-clean_example.pdf",
       "pages": 4,
       "errors": [],
       "decoys": [],
       "textSha256": "bdf45f7963a1b3ab636e226942f7124eb9944b9b14d758e3910c6baac8732400",
-      "groundTruthSha256": "ee9dd6690938a842b4bd9d6b5db033462bf3ab3c408ada402ab027fc3b298f9c",
-      "remittanceSha256": "3c1efdfd4efcdf2b457c0a371b2fbe79f2bda6c4f1f39d6499dc017095749d7d"
+      "groundTruthSha256": "c6df304a6c9e96d0f097b3457505ae04cdb68a8fb0151e16327b39dcfe7ff762",
+      "remittanceSha256": "3c1efdfd4efcdf2b457c0a371b2fbe79f2bda6c4f1f39d6499dc017095749d7d",
+      "statement": {
+        "file": "ppo-eob_baseline-clean_example.bill.pdf",
+        "title": null,
+        "variant": "over-owed",
+        "pages": 1,
+        "errors": [
+          "bill-vs-eob-mismatch"
+        ],
+        "decoys": [],
+        "textSha256": "cf28ef705900d9d414377f959ad48b5731a03544ad884f8b2fc503ceea3c93c1",
+        "groundTruthSha256": "1c1047b282a811bc16eacbd1a8754437c4a58d6d438c9f83568d887112dbe212"
+      }
     },
     {
       "type": "ppo-eob",
@@ -378,13 +391,26 @@
       "type": "hmo-eob",
       "scenario": "baseline-clean",
       "seed": "example",
+      "bill": "over-owed",
       "file": "hmo-eob_baseline-clean_example.pdf",
       "pages": 5,
       "errors": [],
       "decoys": [],
       "textSha256": "f9751eae90bbf65af6a1db8442841b3b9f8d0125728bd324ee90df05fe570483",
-      "groundTruthSha256": "7791c6d045c45fc3f9fd780dcab1a5615585d15233aa574063510ca29242db89",
-      "remittanceSha256": "e87b017ca86d7e8c553a070283cd2ee59fa39ee14bc537bc857dcd6f80320262"
+      "groundTruthSha256": "a7d996029815b3b02c7dc8b65fb1f48f7d9bb54afd4d62d3c827004ecb403323",
+      "remittanceSha256": "e87b017ca86d7e8c553a070283cd2ee59fa39ee14bc537bc857dcd6f80320262",
+      "statement": {
+        "file": "hmo-eob_baseline-clean_example.bill.pdf",
+        "title": null,
+        "variant": "over-owed",
+        "pages": 1,
+        "errors": [
+          "bill-vs-eob-mismatch"
+        ],
+        "decoys": [],
+        "textSha256": "752bd6caf2f470c474c938264a02261f564e1346ce0893f443b984630c8eca79",
+        "groundTruthSha256": "bb1cc182109b015c0c6f42ab28884f836a702bea159ed43a6fcd2dcb4c724105"
+      }
     },
     {
       "type": "hmo-eob",
@@ -488,6 +514,429 @@
       "textSha256": "37e03ee0ccd1ee49c8b142257b17d55a399f9c3dd465efbb922f920983ccd1aa",
       "groundTruthSha256": "434ce4062f0f9a51ffd287e32b2e75e8dd4835f2e6e8ad0cd9945378bfb486a9",
       "remittanceSha256": "25ebb35baea57796852d203d8b8fda812f0ca1d44787815129a01133bc82e6bc"
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "accumulator-math-error",
+      "seed": "example",
+      "insurer": "a",
+      "file": "commercial-eob_accumulator-math-error_example.a.pdf",
+      "pages": 4,
+      "errors": [
+        "math-error"
+      ],
+      "decoys": [
+        "oop-excludes-non-covered"
+      ],
+      "textSha256": "d8f451741d0a0320e703bffcd522c04d5095cff79a4d6fba96fa3e0269450d52",
+      "groundTruthSha256": "d97de1981e9cebaad961000992f161889c60531f52fef79ceb3c9b0848f9d2b5",
+      "remittanceSha256": "f6a51871f9eb1b17888bac56e6e78452bad7bdaec92ce2d4a79f7ae7513043b4"
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "accumulator-math-error",
+      "seed": "example",
+      "insurer": "b",
+      "file": "commercial-eob_accumulator-math-error_example.b.pdf",
+      "pages": 2,
+      "errors": [
+        "math-error"
+      ],
+      "decoys": [
+        "oop-excludes-non-covered"
+      ],
+      "textSha256": "fac10d0eb581ac140da0106a1cc73e54402b18f023b84f3962ceb1ff4869500e",
+      "groundTruthSha256": "f97575ec6d9a8d88ac6ef2dc2c1bd360d9ddf6cc0e7bdfef8f8ae1e0fb6e48d7",
+      "remittanceSha256": "d490589617fdd4c3305a8ca4dec19f27498e4514edae351c29cba429c3aa3274"
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "baseline-clean",
+      "seed": "example",
+      "insurer": "a",
+      "bill": "over-owed",
+      "file": "commercial-eob_baseline-clean_example.a.pdf",
+      "pages": 4,
+      "errors": [],
+      "decoys": [],
+      "textSha256": "276bbc9d343047b76552802b01f13664f9ec92ab21ae0932dcfc2e563bcf5af4",
+      "groundTruthSha256": "b001d0bd3db1a3fe5efb619197ead56bdced45732a4c173d588a364608209434",
+      "remittanceSha256": "279eed694e3113bbc6296b33a04f33dca62cd1a1b302c515b7c9d4307ec9336c",
+      "statement": {
+        "file": "commercial-eob_baseline-clean_example.a.bill.pdf",
+        "title": "Medical Group Statement",
+        "variant": "over-owed",
+        "pages": 1,
+        "errors": [
+          "bill-vs-eob-mismatch"
+        ],
+        "decoys": [],
+        "textSha256": "3163e63e6b466d8c4a2849d4fe74b2b75ade13df6f5d734a2adcd09c351d2074",
+        "groundTruthSha256": "18bcdc7a00eae0868fdca7436d9aede94cdd149046b7ea9ae619a4ee552a0e4c"
+      }
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "baseline-clean",
+      "seed": "example",
+      "insurer": "b",
+      "bill": "over-owed",
+      "file": "commercial-eob_baseline-clean_example.b.pdf",
+      "pages": 3,
+      "errors": [],
+      "decoys": [],
+      "textSha256": "119091b9f193bb0eb5a7f8f4a11b29a3b36551c39334ab1225795778ab8714c5",
+      "groundTruthSha256": "3545f47b4d57afe83fda97e7223294226ef9f5bc19b2456f92799ca2454eace6",
+      "remittanceSha256": "b3f45491d91637d1cbf2ef7a0ca5bc3dfada94ba29fd682bb1c9560bc6e39758",
+      "statement": {
+        "file": "commercial-eob_baseline-clean_example.b.bill.pdf",
+        "title": "Medical Group Statement",
+        "variant": "over-owed",
+        "pages": 1,
+        "errors": [
+          "bill-vs-eob-mismatch"
+        ],
+        "decoys": [],
+        "textSha256": "3163e63e6b466d8c4a2849d4fe74b2b75ade13df6f5d734a2adcd09c351d2074",
+        "groundTruthSha256": "2a1e2f5695460ffb8cee1b27510847c155e4c5d22f2b50ee897f5e7a4b5e90b4"
+      }
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "care-settings-clean",
+      "seed": "example",
+      "insurer": "a",
+      "bill": "over-owed",
+      "file": "commercial-eob_care-settings-clean_example.a.pdf",
+      "pages": 6,
+      "errors": [],
+      "decoys": [],
+      "textSha256": "7935266177681dddfc6d4ddf81730c2631af29bc617ec765bd337ea2655c5a60",
+      "groundTruthSha256": "9651384c055280be56cb636947bc7ca01a2dccb2c29367d14e99496b16f33ded",
+      "remittanceSha256": "c6c6c38f7107fb73b77332efe006ddeba40d72e6df7332810cabbcc0830bca66",
+      "statement": {
+        "file": "commercial-eob_care-settings-clean_example.a.bill.pdf",
+        "title": "Urgent Care Statement",
+        "variant": "over-owed",
+        "pages": 1,
+        "errors": [
+          "bill-vs-eob-mismatch"
+        ],
+        "decoys": [],
+        "textSha256": "e6ecc35c71460fb8402b07eaaace94259b94205335b59367e5d9bc7e7ceeb24c",
+        "groundTruthSha256": "1772af50451748d3deaa376b199b0c64e3763e97e4ae735b24ed104d6a3e39ea"
+      }
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "care-settings-clean",
+      "seed": "example",
+      "insurer": "b",
+      "file": "commercial-eob_care-settings-clean_example.b.pdf",
+      "pages": 3,
+      "errors": [],
+      "decoys": [],
+      "textSha256": "12233e959c925a7f819f3d306ea39278f7ff508ac9413400b4122670dbd2cac1",
+      "groundTruthSha256": "727f1cb7ba6d347160c2b950da91b8645ae09960cce83bf03ec0d817b1fd243a",
+      "remittanceSha256": "8cdd722ad50ba45eaa10c2863817feaa2a339dfe76344e7f0f2c612329538df8"
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "combined-three-errors",
+      "seed": "example",
+      "insurer": "a",
+      "file": "commercial-eob_combined-three-errors_example.a.pdf",
+      "pages": 6,
+      "errors": [
+        "preventive-cost-sharing",
+        "emergency-authorization-denial",
+        "missing-required-section",
+        "coverage-denial"
+      ],
+      "decoys": [],
+      "textSha256": "82354da9f69bac162ab4a18defdc9fb780eb8e0415b0c27e1dde435ee746e42d",
+      "groundTruthSha256": "ad5c52bac4651ca93c2b51098c425b5e193d4df76863ec8b5995d7951744025e",
+      "remittanceSha256": "73d23d2e38d09af6bfceaa025cb940e69ec65b088446516d7812c7a60438f5ce"
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "combined-three-errors",
+      "seed": "example",
+      "insurer": "b",
+      "file": "commercial-eob_combined-three-errors_example.b.pdf",
+      "pages": 4,
+      "errors": [
+        "preventive-cost-sharing",
+        "emergency-authorization-denial",
+        "missing-required-section",
+        "coverage-denial"
+      ],
+      "decoys": [],
+      "textSha256": "026daf2bf924dcb0ad6302d196985db947463410459d56ed48b548d85220274d",
+      "groundTruthSha256": "f8e198f10b5d95927e2cc84264657c8bcb76a7dd3083af7d2d93cefd95285a70",
+      "remittanceSha256": "5af4a173145c70d177a6902b5fcd46185fdbf409ec5ad56e03c710178c5c8301"
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "decoys-only",
+      "seed": "example",
+      "insurer": "a",
+      "file": "commercial-eob_decoys-only_example.a.pdf",
+      "pages": 16,
+      "errors": [
+        "coverage-denial",
+        "coverage-denial"
+      ],
+      "decoys": [
+        "consented-balance",
+        "ground-ambulance-balance",
+        "problem-visit-beside-listed",
+        "out-of-network-balance",
+        "oop-excludes-non-covered",
+        "elective-authorization-denial",
+        "appeal-rights-by-section"
+      ],
+      "textSha256": "68856b80d8bb52688233fbdf85d3a3fa30b8fbbb9b3b7cf29017d843beb8046e",
+      "groundTruthSha256": "2d8c2bc68f866b632b3a4825d135d3b5a51050a96d828eda0b5a8bc7e1335d92",
+      "remittanceSha256": "a06ade0a26297f713034d0bb74749a34da407825ddd70bffb950c27862ceb7d6"
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "decoys-only",
+      "seed": "example",
+      "insurer": "b",
+      "file": "commercial-eob_decoys-only_example.b.pdf",
+      "pages": 7,
+      "errors": [
+        "coverage-denial",
+        "coverage-denial"
+      ],
+      "decoys": [
+        "consented-balance",
+        "ground-ambulance-balance",
+        "problem-visit-beside-listed",
+        "out-of-network-balance",
+        "oop-excludes-non-covered",
+        "elective-authorization-denial",
+        "appeal-rights-by-section"
+      ],
+      "textSha256": "d785f8f448eb80d1ac53617da4cd3207002712922ac7021d29fd33acbdd4f616",
+      "groundTruthSha256": "3840e2a705726352772a71d5649ed6ee0e445f309693685b9cc067bb809dbbd5",
+      "remittanceSha256": "a9e9508e7da4d22a0e6a7e3d0f65344651140c6663286d9f9bb3c58403b94e69"
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "denial-missing-content",
+      "seed": "example",
+      "insurer": "a",
+      "file": "commercial-eob_denial-missing-content_example.a.pdf",
+      "pages": 8,
+      "errors": [
+        "missing-required-section",
+        "coverage-denial",
+        "coverage-denial",
+        "coverage-denial"
+      ],
+      "decoys": [
+        "appeal-rights-by-section"
+      ],
+      "textSha256": "cd1d117e90f7139b7ad9ffa8009e2c9e69aad8dc11211fc2890b6a713a3915a0",
+      "groundTruthSha256": "4c2a8b7282ab2af2a6ce4de18eaa48be5149a078c97f238bd0b39029ff26e571",
+      "remittanceSha256": "7847b26aef68a9f58292dc9e508ad5c57cd31fef5bb13eea750c83fa0a9990cb"
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "denial-missing-content",
+      "seed": "example",
+      "insurer": "b",
+      "file": "commercial-eob_denial-missing-content_example.b.pdf",
+      "pages": 4,
+      "errors": [
+        "missing-required-section",
+        "coverage-denial",
+        "coverage-denial",
+        "coverage-denial"
+      ],
+      "decoys": [
+        "appeal-rights-by-section"
+      ],
+      "textSha256": "d33070e894d77d4c49612aee9a01cce77f2f6d6bbde63896de0aad45afa42569",
+      "groundTruthSha256": "162738f198cd46b1f853eefb84babf0ecfd2c17dcc95de3d767d41d3a93f0cfa",
+      "remittanceSha256": "7922200c2aaaefebafb9385fd1b8fb9706a0faf94f0493c3c4e87ba66dc94be9"
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "denial-without-appeal-rights",
+      "seed": "example",
+      "insurer": "a",
+      "file": "commercial-eob_denial-without-appeal-rights_example.a.pdf",
+      "pages": 4,
+      "errors": [
+        "missing-required-section",
+        "coverage-denial"
+      ],
+      "decoys": [],
+      "textSha256": "41d46ef520e0cfea7e477cf62ddbfe26fca8728e4aad6857832211b093ef71ec",
+      "groundTruthSha256": "dbe41a171656b0112c6c1068cfd1b724fbf39352a1e09d147fefe131837951d7",
+      "remittanceSha256": "1ba4cb49878bc48d783924bbcc7cdecade0993156eb507da1106ddc588e64b6b"
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "denial-without-appeal-rights",
+      "seed": "example",
+      "insurer": "b",
+      "file": "commercial-eob_denial-without-appeal-rights_example.b.pdf",
+      "pages": 3,
+      "errors": [
+        "missing-required-section",
+        "coverage-denial"
+      ],
+      "decoys": [],
+      "textSha256": "f45014cdac60d4ef0008e0e34d2392d39a7ee7342fb83735e32b9ffd6fb6da84",
+      "groundTruthSha256": "0e628b2a26b8d888a2701c754f5ac6b517934b7cb3791c010826a146f343c529",
+      "remittanceSha256": "ca088379939c1de515920b804a995f9453ad500f1f57253844bf8bcf94eda67b"
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "emergency-authorization-denial",
+      "seed": "example",
+      "insurer": "a",
+      "file": "commercial-eob_emergency-authorization-denial_example.a.pdf",
+      "pages": 9,
+      "errors": [
+        "emergency-authorization-denial",
+        "coverage-denial",
+        "coverage-denial"
+      ],
+      "decoys": [
+        "elective-authorization-denial"
+      ],
+      "textSha256": "f2bc6a8939519b474b419590cbe1f50e130e91c9c9becfcfabe848c5518a6524",
+      "groundTruthSha256": "a28820250e927bd39522aa426dd26090cc6b9466695b1252065ee41deaadcb23",
+      "remittanceSha256": "214bb5ec62fcddad7157c97204b23aaed3e6b3574914dcf4794383d1104d5544"
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "emergency-authorization-denial",
+      "seed": "example",
+      "insurer": "b",
+      "file": "commercial-eob_emergency-authorization-denial_example.b.pdf",
+      "pages": 4,
+      "errors": [
+        "emergency-authorization-denial",
+        "coverage-denial",
+        "coverage-denial"
+      ],
+      "decoys": [
+        "elective-authorization-denial"
+      ],
+      "textSha256": "d659f385e884fa76bbab5130e05d5bec1d9b2e6a543d9e8eb80f2c09e3266477",
+      "groundTruthSha256": "d69e4998e200fdf9bdc55be90c6297f5c2ae4093cf69d2256793883b41030a00",
+      "remittanceSha256": "598bf8e724be5a931f90fc8b2d77965ae0f768fef4e48749d131b2a681b6a123"
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "in-network-balance-bill",
+      "seed": "example",
+      "insurer": "a",
+      "file": "commercial-eob_in-network-balance-bill_example.a.pdf",
+      "pages": 4,
+      "errors": [
+        "in-network-balance-bill"
+      ],
+      "decoys": [
+        "out-of-network-balance"
+      ],
+      "textSha256": "015a85aa4ee8bdda7198a5f06e73ac6a7098ab7ce2ab95710b23d4357d629895",
+      "groundTruthSha256": "7a04d8967b8bf2e52d0227fa256fc93a9153f31cf9c114c7204300ade8d43038",
+      "remittanceSha256": "a29821cfad68d181757054f811a5db05081758226dd5703422f63e724c4e9f68"
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "in-network-balance-bill",
+      "seed": "example",
+      "insurer": "b",
+      "file": "commercial-eob_in-network-balance-bill_example.b.pdf",
+      "pages": 2,
+      "errors": [
+        "in-network-balance-bill"
+      ],
+      "decoys": [
+        "out-of-network-balance"
+      ],
+      "textSha256": "52e466404686ef1c207551d8939c26744e64f917e7276cbf1974b63d1641f930",
+      "groundTruthSha256": "fb072043d3a6586b280c2aaa4094592530bf6d585380ff79e79e959b6280e7f1",
+      "remittanceSha256": "ba878585c7310edde2cdc4cd35813cdc6f65a4a3cfc47447ba73296fe901c541"
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "preventive-cost-sharing",
+      "seed": "example",
+      "insurer": "a",
+      "file": "commercial-eob_preventive-cost-sharing_example.a.pdf",
+      "pages": 4,
+      "errors": [
+        "preventive-cost-sharing"
+      ],
+      "decoys": [
+        "problem-visit-beside-listed"
+      ],
+      "textSha256": "828c59a0e751b165ffa92836b072fd9f3a40e615245b370bc596aa09ca734c25",
+      "groundTruthSha256": "b5a0e95d9100b014cf3ca27251dba55cc468d316cac845c2acc0f544d1caaba8",
+      "remittanceSha256": "d882bfafd03d7f6b3c76a5a6086d202f4c65604546de60a611c047cb863ae142"
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "preventive-cost-sharing",
+      "seed": "example",
+      "insurer": "b",
+      "file": "commercial-eob_preventive-cost-sharing_example.b.pdf",
+      "pages": 3,
+      "errors": [
+        "preventive-cost-sharing"
+      ],
+      "decoys": [
+        "problem-visit-beside-listed"
+      ],
+      "textSha256": "2c8c9a51f101969c39fd2c35faeefa598f95013d63a84f08788b49781a79c323",
+      "groundTruthSha256": "46fd45680b1c1be354716b07f0f1a893235d67cf650fee64bb5b1dd7a5f48633",
+      "remittanceSha256": "9cfa878805f9d07035a27149ced4911f7bbb3681f93ee39cf12a15e2c17aba85"
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "surprise-balance-bill",
+      "seed": "example",
+      "insurer": "a",
+      "file": "commercial-eob_surprise-balance-bill_example.a.pdf",
+      "pages": 8,
+      "errors": [
+        "surprise-balance-bill"
+      ],
+      "decoys": [
+        "consented-balance",
+        "ground-ambulance-balance"
+      ],
+      "textSha256": "82480509366d34b9fcd7e4f919d06fc2883174253ef011a3c4c808133daf8a56",
+      "groundTruthSha256": "2421315417e09c643dfb55404dc4105871bf529b1bb2bcc28ecb4008a90cda28",
+      "remittanceSha256": "a7cda6cd67040bd5712f899774de3936b7304c302c3e7fe0bd7cf30579d2513e"
+    },
+    {
+      "type": "commercial-eob",
+      "scenario": "surprise-balance-bill",
+      "seed": "example",
+      "insurer": "b",
+      "file": "commercial-eob_surprise-balance-bill_example.b.pdf",
+      "pages": 4,
+      "errors": [
+        "surprise-balance-bill"
+      ],
+      "decoys": [
+        "consented-balance",
+        "ground-ambulance-balance"
+      ],
+      "textSha256": "12632368c09e5c96aea050156706adaf9a2871d373fd978c1dade0e3e779627a",
+      "groundTruthSha256": "c4b7d01f1f68ae908df85213e63b82dbb6911dc6ff291b33486302ef05ecfc1a",
+      "remittanceSha256": "e231e5c5c39336bfcc5670954cb8af19cabd49d12253d509c278e4dd242f8e41"
     },
     {
       "type": "itemized-bill",

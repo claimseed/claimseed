@@ -10,11 +10,14 @@ import { PDFDocument } from 'pdf-lib';
 import { makeRng } from './generate/rng.js';
 import { scalarText } from './scalar-text.js';
 import { blindCopyId, blindMessage, blindSalt } from './blind.js';
-import { finalizePdf, watermarkCells } from './render.js';
+import { finalizePdfAt, markHeights, watermarkCells } from './render.js';
 import { withPdfPage, degradePage, drawPage } from './pdf-raster.js';
 import { markImage } from './image-markers.js';
 import { PRESETS } from './presets.js';
 export { PRESETS };
+// The low-resolution copy's lowest resolution: its page images keep enough plain paper around the watermark's letters
+// for the marks' floors at every resolution from here to 90 dpi.
+export const LOW_RES_MIN_DPI = 75;
 
 const r2 = (v) => Math.round(v * 100) / 100; const r3 = (v) => Math.round(v * 1000) / 1000;
 const between = (rng, lo, hi) => lo + rng() * (hi - lo);
@@ -45,20 +48,28 @@ export function degradationParams(preset, { type, scenario, seed }) {
       shade: r2(between(rng, 0.08, 0.28)), vignette: r2(between(rng, 0.15, 0.4)), blur: rng() < 0.4 ? 1 : 2, noise: r3(between(rng, 0.015, 0.04)),
       quality: r2(between(rng, 0.6, 0.8)) };
   }
-  return { ...base, dpi: Math.round(between(rng, 60, 90)), quality: r2(between(rng, 0.35, 0.55)) };
+  return { ...base, dpi: Math.round(between(rng, LOW_RES_MIN_DPI, 90)), quality: r2(between(rng, 0.35, 0.55)) };
 }
 
+// Where a copy's stamped watermark goes on each page: where the original's went (`heights`, from markHeights). A photo's
+// page is the sheet with table around it, so there the share is of the sheet's place on the larger page.
+export function copyMarks(preset, params, heights) {
+  return preset === 'photo' ? heights.map((h) => ({ fy: (params.margin + h.fy) / (1 + 2 * params.margin) })) : heights;
+}
 // Degrade a stamped PDF. Returns { pdf: Buffer, images: [{ page, mimeType, data: Buffer }] }: the image-only PDF,
 // stamped and with the specimen metadata, and (with pageImages) one marked image per page drawn from it at the
 // recipe's resolution. `label` names the document in the band and in the image markers. keepPictures (for tests)
 // also returns the degraded pictures as they were before stamping, base64, unmarked.
 export async function degradePdf(browser, bytes, { preset, params, label = null, title = null, pageImages = true, keepPictures = false }) {
   if (!PRESETS.includes(preset)) throw new Error(`degrade: no such preset; presets: ${PRESETS.join(', ')}`);
+  // the stamped PDF's watermark heights: the copy's goes where the original's went (a PDF pdf-lib cannot read fails below,
+  // where the browser reads it)
+  let heights = []; try { heights = await markHeights(bytes); } catch { heights = []; }
   const pictures = await withPdfPage(browser, bytes, async (page, sizes) => {
     const out = [];
     for (let n = 1; n <= sizes.length; n++) {
       const [w, h] = sizes[n - 1];
-      const mark = preset === 'fax' ? { width: w, height: h, cells: watermarkCells(w, h) } : null;
+      const mark = preset === 'fax' ? { width: w, height: h, cells: watermarkCells(w, h, heights[n - 1]) } : null;
       out.push({ ...(await degradePage(page, n, preset, params, mark)), size: sizes[n - 1] });
     }
     return out;
@@ -76,7 +87,7 @@ export async function degradePdf(browser, bytes, { preset, params, label = null,
   try {
     const p = path.join(work, 'degraded.pdf');
     fs.writeFileSync(p, await doc.save());
-    await finalizePdf(p, { band: label ? `${label} / ${preset}` : preset, title: title || undefined, degraded: true });
+    await finalizePdfAt(p, { band: label ? `${label} / ${preset}` : preset, title: title || undefined, degraded: true }, copyMarks(preset, params, heights));
     pdf = fs.readFileSync(p);
   } finally { fs.rmSync(work, { recursive: true, force: true }); }
   let images = [];
@@ -118,34 +129,52 @@ export async function degradeRendered(browser, { type, scenario, seed, preset, c
 // Render a document and a degraded copy of it. Returns { pdf, groundTruth, bytes, images, files }. With outDir, writes
 // <type>_<scenario>_<seed>_<preset>.pdf, its .ground-truth.json and one image per page (_p<N>.jpg, or .png for a
 // fax), each created exclusively.
-export async function renderDegraded({ type, scenario, seed = 'claimseed', preset, outDir = null, browser = null, pageImages = true, also = null, bill = null, layoutVariant = null, blind = false, keysDir = null }) {
+export async function renderDegraded({ type, scenario, seed = 'claimseed', preset, outDir = null, browser = null, pageImages = true, also = null, bill = null, billParams = null, layoutVariant = null, blind = false, keysDir = null, insurer = null }) {
   if (!PRESETS.includes(preset)) throw new Error(`degrade: no such preset; presets: ${PRESETS.join(', ')}`);
-  const { render, checkRender, keysApart, alsoList } = await import('./index.js');
+  const { render, checkRender, checkStatementOptions, keysApart } = await import('./index.js');
+  const { STATEMENT_TYPE } = await import('./generate/provider-statement.js');
   const { launchBrowser } = await import('./browser.js');
   // everything render would refuse, and the blind option, is refused before any folder is made
-  checkRender({ type, scenario, seed, also, bill, layoutVariant, outDir, keysDir }, 'degrade');
-  // a provider's statement is not made as a degraded copy (yet)
-  if (alsoList(also, 'degrade').includes('bill')) { const { pairMessage } = await import('./generate/provider-statement.js'); throw new Error(pairMessage('billDegraded', 'degrade')); }
-  if (blind !== false) blindSalt(blind);
+  checkRender({ type, scenario, seed, also, bill, billParams, layoutVariant, outDir, keysDir }, 'degrade');
+  const { checkInsurer } = await import('./generate/commercial-eob.js'); checkInsurer({ type, insurer, blind }, 'degrade');
+  // the salt is drawn once, so the statement's options are checked with the seed render generates from
+  const salted = blind !== false ? { salt: blindSalt(blind) } : false;
   if (blind !== false && outDir && !keysDir) throw new Error(blindMessage('needKeys', 'degrade'));
   if (keysDir !== null && (blind === false || !outDir)) throw new Error(blindMessage('keysOnlyBlind', 'degrade'));
+  checkStatementOptions({ type, scenario, seed, also, bill, billParams, layoutVariant, blind: salted, insurer }, 'degrade');
   if (blind !== false && outDir) keysApart(outDir, keysDir, 'degrade');
   const own = !browser; const b = browser || await launchBrowser();
   try {
-    const clean = await render({ type, scenario, seed, browser: b, also, layoutVariant, blind });
+    const clean = await render({ type, scenario, seed, browser: b, also, bill, billParams, layoutVariant, blind: salted, insurer });
     const id = clean.groundTruth.documents[0].layoutVariant?.id;   // a variant names its files: <stem>.<id>_<preset>
     const { bytes, groundTruth, images } = await degradeRendered(b, { type, scenario, seed, preset, clean, pageImages });
-    const files = [];
     const copyId = groundTruth.blind?.id || null;   // a blind copy is named by its id, its key written to keysDir
+    const stem = `${type}_${scenario}_${seed}${id ? `.${id}` : ''}${insurer ? `.${insurer}` : ''}`;   // a named insurer names the copy as render names the document
+    const name = copyId || `${stem}_${preset}`;
+    // the statement beside an EOB gets its own copy, same preset, settings from its own type: <stem>.bill_<preset>
+    let stCopy = null;
+    if (clean.bill) {
+      const st = await degradeRendered(b, { type: STATEMENT_TYPE, scenario, seed, preset, clean: clean.bill, pageImages });
+      const stName = st.groundTruth.blind?.id || `${stem}.bill_${preset}`;
+      groundTruth.pair = { ...groundTruth.pair, with: stName }; st.groundTruth.pair = { ...st.groundTruth.pair, with: name };
+      stCopy = { ...st, name: stName, ...(st.groundTruth.blind ? { id: stName } : {}) };
+    }
+    const files = []; let billFiles = [];
+    const write = (n, doc, remittance) => {
+      const out = []; const base = path.join(outDir, n);
+      fs.writeFileSync(base + '.pdf', doc.bytes, { flag: 'wx' }); out.push(base + '.pdf');
+      const key = doc.groundTruth.blind ? path.join(keysDir, `${n}.ground-truth.json`) : base + '.ground-truth.json';
+      fs.writeFileSync(key, JSON.stringify(doc.groundTruth, null, 2), { flag: 'wx' }); out.push(key);
+      for (const i of doc.images) { const f = `${base}_p${i.page}.${i.mimeType === 'image/png' ? 'png' : 'jpg'}`; fs.writeFileSync(f, i.data, { flag: 'wx' }); out.push(f); }
+      if (remittance !== null) { fs.writeFileSync(base + '.835', remittance, { flag: 'wx' }); out.push(base + '.835'); }
+      return out;
+    };
     if (outDir) {
       fs.mkdirSync(outDir, { recursive: true });
-      const base = path.join(outDir, copyId || `${type}_${scenario}_${seed}${id ? `.${id}` : ''}_${preset}`);
-      fs.writeFileSync(base + '.pdf', bytes, { flag: 'wx' }); files.push(base + '.pdf');
-      const key = copyId ? path.join(keysDir, `${copyId}.ground-truth.json`) : base + '.ground-truth.json';
-      fs.writeFileSync(key, JSON.stringify(groundTruth, null, 2), { flag: 'wx' }); files.push(key);
-      for (const i of images) { const f = `${base}_p${i.page}.${i.mimeType === 'image/png' ? 'png' : 'jpg'}`; fs.writeFileSync(f, i.data, { flag: 'wx' }); files.push(f); }
-      if (clean.remittance !== null) { fs.writeFileSync(base + '.835', clean.remittance, { flag: 'wx' }); files.push(base + '.835'); }
+      files.push(...write(name, { bytes, groundTruth, images }, clean.remittance));
+      if (stCopy) billFiles = write(stCopy.name, stCopy, null);
     }
-    return { pdf: outDir ? files[0] : null, groundTruth, bytes, images, files, remittance: clean.remittance, ...(copyId ? { id: copyId } : {}) };
+    const billOut = stCopy ? { pdf: outDir ? billFiles[0] : null, groundTruth: stCopy.groundTruth, bytes: stCopy.bytes, images: stCopy.images, files: billFiles, ...(stCopy.id ? { id: stCopy.id } : {}) } : null;
+    return { pdf: outDir ? files[0] : null, groundTruth, bytes, images, files, remittance: clean.remittance, ...(copyId ? { id: copyId } : {}), ...(billOut ? { bill: billOut } : {}) };
   } finally { if (own) await b.close(); }
 }

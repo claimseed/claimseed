@@ -14,8 +14,11 @@ import { scalarText } from './scalar-text.js';
 import { DATA_DIR, hardenHtml, renderHtmlToPdf, finalizePdf, mergePdfs, templateContext, BAND_TEXT, WATERMARK_TEXT, SPECIMEN_SUBJECT } from './render.js';
 import { launchBrowser, findChrome } from './browser.js';
 import { blindSalt, blindSeed, blindId, blindRecord, blindMessage, checkFolders, BLIND_SCHEMA_VERSION } from './blind.js';
-import { checkVariantOption } from './variants.js';
+import { checkVariantOption, variantIds } from './variants.js';
+import { PRESETS } from './presets.js';
 import { generatePair } from './generate/index.js';
+import { checkInsurer, COMMERCIAL_TYPE } from './generate/commercial-eob.js';
+export { checkInsurer, COMMERCIAL_TEXT, INSURER_IDS } from './generate/commercial-eob.js';
 import { PAIR_STRINGS, pairMessage, PAIRED_TYPES, STATEMENT_TYPE } from './generate/provider-statement.js';
 import { renderStatement } from './render.js';
 export { PAIR_STRINGS, BILL_VARIANTS, PAIRED_TYPES } from './generate/provider-statement.js';
@@ -43,10 +46,10 @@ export const SEED = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 // `blind: true` (or { salt }) makes a blind document (blind.js): generated from a seed derived from the salt, its band
 // and title naming only an opaque id, written as <id>.pdf (and <id>.835) in outDir and its answer key as
 // <id>.ground-truth.json in keysDir, a folder apart from outDir. The result's `id` is that id.
-// `also` may also hold `bill` (a ppo-eob or hmo-eob only), alone or with `835` as a list of the two: then the
+// `also` may also hold `bill` (a ppo-eob, hmo-eob or commercial-eob only), alone or with `835` as a list of the two: then the
 // provider's statement for one claim of the EOB (generatePair; `bill` names its variant, `billParams` its amounts) is
 // rendered too, written as <base>.bill.pdf and <base>.bill.ground-truth.json, or, blind, as <statement id>.pdf with its
-// key in keysDir. Both keys are then schema 1.6 and name each other in `pair.with` (the other's file name without its
+// key in keysDir. The statement's key is then schema 1.6, the EOB's 1.6 (1.7 for a commercial EOB), and they name each other in `pair.with` (the other's file name without its
 // extension, or its blind id). The EOB is the same with or without its statement. The result's `bill` holds the
 // statement's { pdf, groundTruth, bytes, id?, answerKey? }.
 export const ALSO = ['835', 'bill'];
@@ -109,8 +112,15 @@ function danglingLinkOn(p) {
 // What a render refuses in the values a caller gave, checked before any of them is converted, hashed into a blind id
 // or seed, or used to make a folder: the type, scenario and seed, the 835, the layout variant, the scenario's file
 // and the two folder options. renderDegraded checks the same before it makes any folder.
+const seedSuffixes = (type) => [...PRESETS.map((p) => `_${p}`), ...(PAIRED_TYPES.includes(type) ? ['.bill'] : []), ...(type === COMMERCIAL_TYPE ? ['.a', '.b'] : []),
+  ...variantIds(type).map((id) => `.${id}`.toLowerCase())];
 export function checkRender({ type, scenario, seed = 'claimseed', also = null, bill = null, billParams = null, layoutVariant = null, outDir = null, keysDir = null }, who) {
   if (!SLUG.test(scalarText(type)) || !SLUG.test(scalarText(scenario)) || !SEED.test(scalarText(seed))) throw new Error('render: invalid type, scenario or seed');
+  // a seed ending in a suffix the namer adds for this type (any case, for case-insensitive file systems) would name the
+  // same files as another document's: a statement (<base>.bill), a named insurer (.a, .b), a layout variant (.<id>) or a
+  // degraded copy (_<preset>)
+  const s = scalarText(seed).toLowerCase();
+  if (seedSuffixes(type).some((x) => s.endsWith(x))) throw new Error(pairMessage('seedSuffix', who));
   const list = alsoList(also, 'render');
   if (list.includes('835') && !REMITTANCE_TYPES.includes(type)) throw new Error(`render: an 835 is written for ${REMITTANCE_TYPES.join(', ')} only`);
   if (((bill !== null && bill !== undefined) || (billParams !== null && billParams !== undefined)) && !list.includes('bill')) throw new Error(pairMessage('billNeedsAlso', who));
@@ -121,8 +131,17 @@ export function checkRender({ type, scenario, seed = 'claimseed', also = null, b
   loadScenario(type, scenario);
 }
 
-export async function render({ type, scenario, seed = 'claimseed', outDir = null, browser = null, also = null, bill = null, billParams = null, layoutVariant = null, blind = false, keysDir = null, billOrClean = false }) {
+// A render's statement options, checked as render checks them (with the seed a blind render generates from), for a
+// caller that makes folders before it renders (renderDegraded), so that it refuses them before any folder is made.
+export function checkStatementOptions({ type, scenario, seed = 'claimseed', also = null, bill = null, billParams = null, layoutVariant = null, blind = false, insurer = null }, who) {
+  if (!alsoList(also, who).includes('bill')) return;
+  const ins = checkInsurer({ type, insurer, blind }, who);
+  const genSeed = blind !== false ? blindSeed(blindSalt(blind), { type, scenario, seed: scalarText(seed), layoutVariant }) : seed;
+  generatePair({ type, scenario, seed: genSeed, layoutVariant, ...(ins ? { overrides: { insurer: ins } } : {}), bill: bill ?? 'clean', billParams, who });
+}
+export async function render({ type, scenario, seed = 'claimseed', outDir = null, browser = null, also = null, bill = null, billParams = null, layoutVariant = null, blind = false, keysDir = null, billOrClean = false, insurer = null }) {
   checkRender({ type, scenario, seed, also, bill, billParams, layoutVariant, outDir, keysDir }, 'render');
+  const ins = checkInsurer({ type, insurer, blind }, 'render');
   const list = alsoList(also, 'render');
   const fn = RENDERERS[type];
   let b = null;
@@ -134,11 +153,12 @@ export async function render({ type, scenario, seed = 'claimseed', outDir = null
   if (keysDir !== null && (!b || !outDir)) throw new Error(blindMessage('keysOnlyBlind', 'render'));
   const genSeed = b ? b.seed : seed;
   // generated before any folder is made, so that nothing the generator refuses leaves one behind
-  const generated = generateData({ type, scenario, seed: genSeed, layoutVariant }); const { data, groundTruth } = generated;
+  const generated = generateData({ type, scenario, seed: genSeed, layoutVariant, ...(ins ? { overrides: { insurer: ins } } : {}) }); const { data, groundTruth } = generated;
   // the statement is drawn from a stream of its own, so the EOB above is the one generatePair makes too
-  const statement = list.includes('bill') ? generatePair({ type, scenario, seed: genSeed, layoutVariant, bill: bill ?? 'clean', billParams, orClean: billOrClean === true, who: 'render' }).statement : null;
+  const statement = list.includes('bill') ? generatePair({ type, scenario, seed: genSeed, layoutVariant, ...(ins ? { overrides: { insurer: ins } } : {}), bill: bill ?? 'clean', billParams, orClean: billOrClean === true, who: 'render' }).statement : null;
   if (b && outDir) keysApart(outDir, keysDir, 'render');
-  if (b) { groundTruth.schemaVersion = BLIND_SCHEMA_VERSION; groundTruth.blind = blindRecord(b.salt, b.job, b.id); }
+  // a blind commercial EOB keeps answer key 1.7, which allows the blind object
+  if (b) { if (type !== COMMERCIAL_TYPE) groundTruth.schemaVersion = BLIND_SCHEMA_VERSION; groundTruth.blind = blindRecord(b.salt, b.job, b.id); }
   const variant = data._variant || null;   // a layout variant names the file, the band and the title (0.5.0)
   const label = variant ? variant.layout : type;
   // a blind document's band and title name its id only
@@ -159,7 +179,8 @@ export async function render({ type, scenario, seed = 'claimseed', outDir = null
     const r = buildRemittance({ type, scenario, seed: genSeed, generated });
     remittance = r.text; groundTruth.documents.push(r.document); groundTruth.errors.forEach((e, i) => { e.x12Ref = r.x12Refs[i]; });
   }
-  const name = b ? b.id : `${type}_${scenario}_${seed}${variant ? `.${variant.id}` : ''}`;
+  // a named insurer (commercial EOB) names the files as a layout variant does
+  const name = b ? b.id : `${type}_${scenario}_${seed}${variant ? `.${variant.id}` : ''}${ins ? `.${ins}` : ''}`;
   let billOut = null;
   if (statement) {
     const st = statement.groundTruth; const stId = b ? blindPairId(b.salt, b.id, st.pair.variant, st.pair.params) : null; const stName = b ? stId : `${name}.bill`;
@@ -171,8 +192,9 @@ export async function render({ type, scenario, seed = 'claimseed', outDir = null
     finally { fs.rmSync(stWork, { recursive: true, force: true }); }
     st.documents[0].sha256 = crypto.createHash('sha256').update(stBytes).digest('hex');
     st.documents[0].pages = (await (await import('pdf-lib')).PDFDocument.load(stBytes, { updateMetadata: false })).getPageCount();
+    st.documents[0].fields['metadata.pageCount'] = st.documents[0].pages;
     st.pair.with = name;
-    groundTruth.schemaVersion = '1.6';
+    if (type !== COMMERCIAL_TYPE) groundTruth.schemaVersion = '1.6';   // a commercial EOB's key is 1.7, which allows the pair
     groundTruth.pair = { role: 'eob', with: stName, claim: st.pair.claim, variant: st.pair.variant, params: st.pair.params };
     if (b) st.blind = { ...blindRecord(b.salt, b.job, stId) };
     billOut = { pdf: null, groundTruth: st, bytes: stBytes, ...(b ? { id: stId } : {}), stName };

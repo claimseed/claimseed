@@ -2,7 +2,7 @@
   "type": "hmo-eob",
   "slug": "combined-three-errors",
   "status": "published",
-  "description": "This statement has three errors. Claim 1 prints the same physical therapy visit twice on one date, charging the $25 copay twice; claim 2 charges the member 20% for a lab test although note L1 says labs are covered in full; and claim 3's X-ray of the chest is dated two days after the statement date. A careful reviewer should flag the duplicate line, the lab charge and the impossible service date.",
+  "description": "This statement has three errors. Claim 1 prints the same physical therapy visit twice on one date, charging the $25 copay twice; claim 2 charges the member 20% for a lab test although note L1 says labs are covered in full; and claim 3's X-ray of the chest is dated two days after the statement date. The duplicate line, the lab charge and the impossible service date should all be flagged.",
   "period": {
     "start": "2026-03-01",
     "end": "2026-03-31"

@@ -3,6 +3,7 @@
  "messages": {
   "variantUnknown": "That layout variant is not published for this document type; use an id from its published list",
   "variantMsn": "The Medicare Summary Notice has a single layout, so it does not take a layout variant",
+  "variantCommercial": "The commercial EOB's layout comes from its fictional insurer (`--insurer`), so it takes no layout variant",
   "variantSeededAll": "The layout variants seeded and all cannot be used in a batch that includes the Medicare Summary Notice",
   "variantRepeated": "The layout-variant option was given more than once; give it only once",
   "variantEmpty": "The layout-variant option needs a value",

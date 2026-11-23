@@ -60,13 +60,14 @@ test('the blind option, seeds, ids and order are drawn from the salt and refuse 
   assert.notDeepEqual(a, jobs);
 });
 
-test('the schema describes the blind record in the clean side\'s words, in both copies of the schema', () => {
+const SCHEMA17 = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../data/commercial-eob/schema.json'), 'utf-8')).schema17;
+test('the schema describes the blind record in its reviewed words, in both copies of the schema', () => {
   const S = BLIND_STRINGS.schema;
   for (const file of ['../../../schemas/ground-truth.schema.json', '../../mcp/resources/ground-truth.schema.json']) {
     const sc = JSON.parse(fs.readFileSync(path.join(here, file), 'utf-8'));
-    // 1.5's sentence, verbatim, then 1.6's and the one on decoys that repeat a line (the clean side's, in
-    // data/pair.json), and nothing after them
-    assert.ok(sc.properties.schemaVersion.description.endsWith(` ${S.schema15} ${PAIR_STRINGS.schema.schema16} ${PAIR_STRINGS.schema.schemaDecoyRefs}`), file);
+    // 1.5's sentence, verbatim, then 1.6's and the one on decoys that repeat a line (in
+    // data/pair.json), then 1.7's (data/commercial-eob/schema.json), and nothing after them
+    assert.ok(sc.properties.schemaVersion.description.endsWith(` ${S.schema15} ${PAIR_STRINGS.schema.schema16} ${PAIR_STRINGS.schema.schemaDecoyRefs} ${SCHEMA17}`), file);
     assert.equal(sc.properties.blind.description, S.blind, file);
     for (const k of ['id', 'salt', 'seed', 'layoutVariant', 'copyOf']) assert.equal(sc.properties.blind.properties[k].description, S[`blind.${k}`], `${file} blind.${k}`);
   }

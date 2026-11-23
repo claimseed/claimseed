@@ -14,13 +14,14 @@ does not make it synthetic: the physicians, dates and charges still identify a p
 | --- | --- |
 | Patient and provider names | From the curated lists in `src/generate/lexicon.js`. One reference patient keeps the surname "Specimen". Every individual provider is printed with the middle name "Specimen" (first name, Specimen, last name, credential). `verify-synthetic-npi.js --nppes`, run monthly in CI and on demand, looks up each first and last name the lists can produce in each state where providers are placed: it fails only when a real individual provider registered in that state has the full printed name, counts a real provider who shares only the first and last name as a warning (the job still passes), retries the public registry, and reports the names it could not check instead of treating them as clear. |
 | Addresses | Real city, state and ZIP so the format is right; street names from a fictional list. |
-| Phone numbers | Geographic area code + `555-01xx`, the only 555 block reserved for fiction. Never toll-free. The only exceptions are the public federal lines the CMS model notices themselves print: 1-800-MEDICARE and its TTY, Social Security and its TTY, and the HHS Office for Civil Rights voice and TDD lines, portal URL and mailing address exactly as printed in the public nondiscrimination-notice texts the layouts quote (45 CFR 92 Appendix A for the PPO layout; the HHS 2024 sample policy for the HMO layout). No other real organization's contact details appear in any rendered document or stock file. The repository also keeps verbatim snapshots of the public-domain federal source documents (`packages/core/data/public-sources/`) as the reference for the stock-text provenance check; they contain whatever federal contact lines those documents print, are never rendered, and are not part of the npm package. |
+| Insurer, employer, plan and facility names | The commercial EOB's two insurers, four employers and their plan names are fictional, with claimseed's own marks and colors (`packages/core/data/commercial-eob/insurers.json`). Facility, lab, ambulance and group-practice names are built from a word no licensed facility can carry, from `src/generate/lexicon.js` (`FACILITY_PARTS`, for example "Specimen", "Placeholder", "Sandbox"). |
+| Phone numbers | Geographic area code + `555-01xx`, the only 555 block reserved for fiction. Never toll-free. The only exceptions are the public federal lines the CMS model notices themselves print: 1-800-MEDICARE and its TTY, Social Security and its TTY, and the HHS Office for Civil Rights voice and TDD lines, portal URL and mailing address exactly as printed in the public nondiscrimination-notice texts the layouts quote (45 CFR 92 Appendix A for the PPO layout; the HHS 2024 sample policy for the HMO layout). The commercial EOB also prints two public federal lines: the U.S. Department of Labor's Employee Benefits Security Administration (1-866-444-3272) and the federal No Surprises Help Desk (1-800-985-3059). No other real organization's contact details appear in any rendered document or stock file. The repository also keeps verbatim snapshots of the public-domain federal source documents (`packages/core/data/public-sources/`) as the reference for the stock-text provenance check; they contain whatever federal contact lines those documents print, are never rendered, and are not part of the npm package. |
 | NPIs | 10 digits, Luhn-valid over the 80840 prefix, first digit **9**. NPPES issues only NPIs starting with 1 (2 is reserved), so a 9-prefixed NPI can never collide. |
 | Medicare numbers (MBI) | 11 characters in the CMS shape with **S** in position 2 — a letter CMS never uses — so a specimen MBI is recognizable and can never be real. Strict MBI validators will reject it by design. |
 | Member IDs, claim numbers, account numbers | Generated from the seed. |
 | Dates | Relative to the scenario's processing period. |
-| Amounts | Computed by the rules engine from catalog allowed amounts (public CMS fee schedules, cited per code) and a seeded provider markup. |
-| Service mix | From `reference-data/service-catalog.json` with editorial weights, to be fitted to public CMS utilization aggregates — never to any document. |
+| Amounts | Computed by the rules engine from catalog allowed amounts (public CMS fee schedules, cited per code) and a seeded provider markup. On the commercial EOB, the plan's in-network rate is the 2026 Medicare national amount (CMS files, cited per service in `reference-data/commercial/service-catalog.json`) times the average ratio of commercial to Medicare prices for its setting from a January 2022 Congressional Budget Office report (2.23 hospital, 1.29 physician); the provider's charge adds a seeded markup; the out-of-network allowance (1.1 times the Medicare amount) and the qualifying payment amount (0.95 times the in-network rate) are fictional factors; the plan designs are fictional amounts within the federal limits cited beside them (`reference-data/commercial/plan-designs.json`). |
+| Service mix | From `reference-data/service-catalog.json` with editorial weights, to be fitted to public CMS utilization aggregates, never to any document. The commercial EOB's services come from `reference-data/commercial/service-catalog.json`, in the claim shapes each scenario names. |
 | Error scenarios | Each cites the public rule it violates (`docs/error-taxonomy.md`) and the public source of its structure (`sources[]`, required). |
 
 ## What contributors must never do
@@ -42,12 +43,17 @@ resolution) are stamped after degradation: the degraded pages become an image-on
 and metadata are drawn like on any other output, so no recipe can blur, threshold or crop the markers away, and
 their page images carry the same file markers (tests check the band and watermark pixels of every preset). A fax also
 prints the watermark as a dot pattern after thresholding, so it stays visible if the page is made black and white
-again (a test re-thresholds every fax page). An X12 835 remittance written beside a document is marked as test data
-(`ISA15` `T`), names a specimen sender, receiver, payer and technical contact (strings written without access to any
-real document, in `packages/core/data/x12/specimen-strings.json`), carries no bank data, and uses identifiers that
-cannot be real or are recognisable sentinels (the core README lists which). The layout variants of the
-itemized bill and the Medicare Advantage EOBs print claimseed's own wording (`data/<type>/labels.json`) in claimseed's
-own colors and the bundled fonts, and carry the same band, watermark and metadata as every other document.
+again (a test re-thresholds every fax page). An X12 835 remittance written beside a document is marked as test data (`ISA15` `T`), names a specimen sender,
+receiver, payer and technical contact (strings written without access to any real document, in
+`packages/core/data/x12/specimen-strings.json`; on the commercial EOB the payer is its fictional insurer followed by
+`SPECIMEN - TEST ONLY`), carries no bank data, and uses identifiers that cannot be real or are recognisable sentinels
+(the core README lists which). The layout variants of the itemized bill and the Medicare Advantage EOBs, and the
+commercial EOB's two layouts, print claimseed's own wording (`data/<type>/labels.json`,
+`data/commercial-eob/stock-content.json`) in claimseed's or the fictional insurers' own colors
+(`data/commercial-eob/insurers.json`) and the bundled fonts, and carry the same band, watermark and metadata as every
+other document. The watermark is drawn at 7% opacity, the lightest readable on every output with a margin; tests hold
+it and the band to contrast and reach floors on every document type, both insurers, the provider's statements and
+every degraded preset.
 
 ## Public sources we build from
 Printed text: the CMS sample Part B MSN, 45 CFR 92 Appendices A and B, the HHS 2024 sample nondiscrimination policy,
@@ -59,8 +65,15 @@ Act and 42 CFR provisions cited per scenario in `scenarios/*/*.json` and `docs/e
 remittance: its structure and Medicare usage from CMS's 835 companion guide and the Medicare Claims Processing Manual,
 chapter 22; its claim adjustment group and reason code values from X12's code lists (x12.org/codes), as values only,
 never their descriptions, by the maintainers' decision (X12 holds the copyright in its code lists and has not stated
-whether the values alone need permission). Nothing else is used; a new source must be public-domain federal material
-and must be added to this list and to SOURCES.md.
+whether the values alone need permission). The commercial EOB's text and layouts are claimseed's own; `packages/core/templates/commercial-eob/LINEAGE.md` records
+what they follow. Content rules: 29 CFR 2560.503-1(g) and 29 CFR 2590.715-2719(b)(2)(ii)(E) (notices of denied or
+reduced claims), 45 CFR 147.130 (preventive care), 45 CFR 149.110, 149.120, 149.410 and 149.420 and PHS Act 2799A-5(c)
+(No Surprises Act protections and notice), and the CMS Uniform Glossary of Coverage and Medical Terms. Amounts and
+limits: 2026 Medicare national amounts (CMS files); the Congressional Budget Office's January 2022 report on
+commercial and Medicare prices; 45 CFR 156.130 and PHS Act 2707(b) (out-of-pocket limit); IRC 223(c)(2), Rev. Proc.
+2025-19 and IRS Publication 969 (HSA-qualified plans); 45 CFR 147.126 (visit limits). Places: the Department of
+Labor's November 2023 CLAS county data (no member's county is listed, so no language tagline is required). Nothing
+else is used; a new source must be public-domain federal material and must be added to this list and to SOURCES.md.
 
 ## Codes and descriptions
 Service lines carry CPT and HCPCS Level II code numbers with claimseed's own plain-language descriptions. Contributors

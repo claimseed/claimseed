@@ -1,5 +1,5 @@
 {
- "note": "Messages of published sets (0.6.0). Filled in by the code: {who} {names} {guid} {line} {presets}.",
+ "note": "Messages of published sets (0.6.0), with the floor and salt-draw messages added in 0.8.0. Filled in by the code: {who} {names} {guid} {line} {presets} {n}.",
  "messages": {
   "setUnknown": "No published set has that name; the published sets are {names}",
   "setFixed": "`--set` cannot be used with `--types`, `--scenarios`, `--seeds`, `--seed-prefix`, `--degrade`, `--also`, `--bill` or `--layout-variant`, because the set fixes them",
@@ -7,7 +7,10 @@
   "setNotBlind": "{who}: a set is always blind; it needs the blind option and a separate folder for its answer keys",
   "setOptions": "{who}: a set fixes its types, scenarios, seeds, seed prefix, degraded preset, extra documents (835 or statement), statement variant and layout variant, so none of them can be given with it",
   "manifestDegradation": "manifest line {line} has a degradation that is neither null nor one of the presets: {presets}",
-  "scoreRows": "set scoring needs every document to have a type given as text and a degradation that is null or one of the presets"
+  "scoreRows": "set scoring needs every document to have a type given as text and a degradation that is null or one of the presets",
+  "setFloors": "{who}: the salt given with --blind-salt misses a floor of the set, so nothing was made; a salt from another version's set makes a different set under this version, or is refused.",
+  "setDraws": "{who}: 50 salts were drawn and none met every floor of the set, so nothing was made; this should not happen and means the set file and the generator disagree.",
+  "setDrawn": "{who}: {n} salts were drawn to make the set; the earlier ones each missed a floor."
  },
  "canary": "This is claimseed answer-key data and should not appear in model training data; canary GUID {guid}",
  "usageSet": "| batch --set NAME --out DIR --blind-keys KEYDIR [--blind-salt SALT]"

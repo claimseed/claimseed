@@ -1,0 +1,22 @@
+{
+  "type": "commercial-eob",
+  "slug": "care-settings-clean",
+  "status": "published",
+  "description": "An EOB from a fictional self-funded employer plan for three in-network visits, one claim per billing provider: urgent care, an X-ray at a hospital outpatient department (hospital charge and radiologist's reading) and in-network lab work. The seed sets plan option (PPO or HSA-qualified), coverage tier and insurer. Nothing is wrong, so a review should find it correct: a clean control for statements from an urgent care center, hospital, lab and clinician's practice.",
+  "claims": [
+    "urgent-care",
+    "imaging",
+    "lab"
+  ],
+  "mutations": [],
+  "sources": [
+    {
+      "what": "Content of a notice of adverse benefit determination (every EOB that pays less than billed)",
+      "source": "29 CFR 2560.503-1(g); 29 CFR 2590.715-2719(b)(2)(ii)(E); DOL claims procedure FAQ C-12, https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XXV/subchapter-G/part-2560/section-2560.503-1"
+    },
+    {
+      "what": "Cost sharing on the allowed amount; no balance billing in network",
+      "source": "Uniform Glossary of Coverage and Medical Terms, https://www.cms.gov/files/document/uniform-glossary-english-060723.pdf"
+    }
+  ]
+}

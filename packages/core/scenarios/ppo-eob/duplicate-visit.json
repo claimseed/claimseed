@@ -2,7 +2,7 @@
   "type": "ppo-eob",
   "slug": "duplicate-visit",
   "status": "published",
-  "description": "This Corvane Medicare Advantage Choice (PPO) statement for March 2026 has three claims. Claim 1 prints the same eye exam twice, with the same date and code, so the member is charged the $40 eye-exam copay two times. Claim 2 (lab tests) and the third claim are processed correctly. A careful reviewer should treat the second eye-exam line as a duplicate and conclude the member owes one copay, not two.",
+  "description": "This Corvane Medicare Advantage Choice (PPO) statement for March 2026 has three claims. Claim 1 prints the same eye exam twice, with the same date and code, so the member is charged the $40 eye-exam copay two times. Claim 2 (lab tests) and the third claim are processed correctly. The second eye-exam line should be treated as a duplicate, leaving the member one copay, not two.",
   "period": {
     "start": "2026-03-01",
     "end": "2026-03-31"

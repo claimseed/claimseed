@@ -56,6 +56,9 @@ test('every 835 of every scenario: valid envelope, balanced claims unless an err
     const key = (f) => `${f.check}@${f.ref}`;
     assert.deepEqual(balance.map(key).sort(), expected.map(key).sort(), `${where}: findings differ from the planted errors`);
     errorsCaught += expected.length;
+    // every service line's procedure code and modifier (SVC01) as the key's lines give them
+    const svc01 = parse835(text).filter((s) => s[0] === 'SVC').map((s) => s[1]).sort();
+    assert.deepEqual(svc01, g.claims.flatMap((c) => c.lines.map((l) => `HC>${l.code}${l.modifier ? `>${l.modifier}` : ''}`)).sort(), `${where}: SVC01`);
     // the answer key's 835 entry matches the file
     const d = g.documents[1]; assert.equal(d.type, 'x12-835'); assert.equal(d.sha256, crypto.createHash('sha256').update(text).digest('hex'));
     assert.deepEqual(d.transactions.map((t) => [t.controlNumber, t.handlingCode, t.paymentMethod, Math.round(t.paymentAmount * 100)]), transactions.map((t) => [t.st02, t.handling, t.method, t.payment]));
@@ -117,7 +120,7 @@ test('the specimen checks refuse real-format identifiers and free text off the a
 
 test('no 835 for the itemized bill', () => {
   const generated = generateData({ type: 'itemized-bill', scenario: 'baseline-clean', seed: 'x' });
-  assert.throws(() => buildRemittance({ type: 'itemized-bill', scenario: 'baseline-clean', seed: 'x', generated }), (e) => e.message === 'remittance: an 835 is written for msn, ppo-eob, hmo-eob only');
+  assert.throws(() => buildRemittance({ type: 'itemized-bill', scenario: 'baseline-clean', seed: 'x', generated }), (e) => e.message === 'remittance: an 835 is written for msn, ppo-eob, hmo-eob, commercial-eob only');
 });
 
 test('parse835 reads only claimseed delimiters', () => {
@@ -296,7 +299,7 @@ test('every service has one date of service, as DTM*472: a missing date, another
 });
 
 test('no segment can drop out of check835 unseen: a segment id changed, a segment where it cannot stand, or a transaction with no claim is a finding', async () => {
-  for (const type of REMITTANCE_TYPES) for (const scenario of ['baseline-clean', type === 'msn' ? 'denied-not-reasonable-necessary' : 'denied-service']) {
+  for (const type of REMITTANCE_TYPES) for (const scenario of type === 'commercial-eob' ? listScenarios(type) : ['baseline-clean', type === 'msn' ? 'denied-not-reasonable-necessary' : 'denied-service']) {
     const { text } = await remittanceFor({ type, scenario, seed: 'seg-ids' });
     assert.deepEqual(check835(text).findings, [], `${type}/${scenario}`);
     const segs = text.split('~\n'); let tx = null; let n = 0;
@@ -371,4 +374,17 @@ test('no input makes either checker throw: every cut-short copy of each 835, del
     }
   }
   assert.ok(cuts > 3000, `${cuts} cut-short copies`);
+});
+
+test('the commercial 835 carries the modifier the EOB prints: the key\'s line has it, SVC01 holds it, and check835 takes only a 2-character one', async () => {
+  const { text, groundTruth: g } = await remittanceFor({ type: 'commercial-eob', scenario: 'care-settings-clean', seed: 'example' });
+  const lines = g.claims.flatMap((c) => c.lines);
+  assert.ok(lines.every((l) => l.modifier === null || /^[0-9A-Z]{2}$/.test(l.modifier)), 'every line has a modifier or null');
+  const pro = lines.find((l) => l.modifier === '26'); assert.ok(pro, 'a professional component line');
+  assert.ok(text.includes(`SVC*HC>${pro.code}>26*`), 'SVC01 with the modifier');
+  assert.deepEqual(check835(text).findings.filter((f) => f.check === 'element'), []);
+  const long = text.replace(`SVC*HC>${pro.code}>26*`, `SVC*HC>${pro.code}>263*`);
+  assert.ok(check835(long).findings.some((f) => f.check === 'element' && /SVC/.test(f.ref)), 'a 3-character modifier is refused');
+  const lost = text.replace(`SVC*HC>${pro.code}>26*`, `SVC*HC>${pro.code}*`);
+  assert.notDeepEqual(parse835(lost).filter((s) => s[0] === 'SVC').map((s) => s[1]).sort(), lines.map((l) => `HC>${l.code}${l.modifier ? `>${l.modifier}` : ''}`).sort(), 'an 835 without the modifier fails the cross-check');
 });

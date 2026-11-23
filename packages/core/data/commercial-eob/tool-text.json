@@ -1,0 +1,12 @@
+{
+  "typeTitle": "Commercial explanation of benefits from an employer plan",
+  "typeOrientation": "portrait for insurer a, landscape for insurer b",
+  "typeDescription": "An explanation of benefits from a fictional self-funded employer health plan (PPO or HSA-qualified) administered by insurer a or b, with each claim's lines, network status, deductible and out-of-pocket amounts, appeal rights and any No Surprises Act notice.",
+  "insurerOption": "Fictional insurer that administers the plan: a (portrait, one claim per page) or b (landscape, one table of all claims); commercial-eob only, not for a blind render, drawn from the seed if omitted.",
+  "insurerHelp": "--insurer a|b  insurer for commercial-eob: a portrait, b landscape (default: drawn from the seed)",
+  "messages": {
+    "insurerType": "{who}: the insurer option applies only to the commercial-eob document type.",
+    "insurerValue": "{who}: insurer must be a or b.",
+    "insurerBlind": "{who}: insurer cannot be set for a blind render; a blind document's insurer comes from its own seed."
+  }
+}

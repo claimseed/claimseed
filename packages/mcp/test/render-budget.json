@@ -3,13 +3,14 @@
  "reference": "2 x Intel(R) Xeon(R) Processor @ 2.10GHz, node 22",
  "files": {
   "blind.test.js": { "render": 5, "degraded": 1, "single": 0, "seconds": 21 },
+  "commercial.test.js": { "render": 0, "degraded": 0, "single": 0, "seconds": 5 },
   "limits.test.js": { "render": 0, "degraded": 0, "single": 0, "seconds": 1 },
-  "pair.test.js": { "render": 6, "degraded": 0, "single": 0, "seconds": 30 },
-  "preview.test.js": { "render": 6, "degraded": 0, "single": 0, "seconds": 25 },
+  "pair.test.js": { "render": 6, "degraded": 0, "single": 0, "seconds": 13 },
+  "preview.test.js": { "render": 9, "degraded": 0, "single": 25, "seconds": 64 },
   "resources.test.js": { "render": 0, "degraded": 0, "single": 0, "seconds": 1 },
-  "server.test.js": { "render": 21, "degraded": 1, "single": 0, "seconds": 78 },
+  "server.test.js": { "render": 22, "degraded": 1, "single": 0, "seconds": 78 },
   "variants.test.js": { "render": 2, "degraded": 1, "single": 0, "seconds": 9 },
-  "view.test.js": { "render": 2, "degraded": 0, "single": 0, "seconds": 9 },
+  "view.test.js": { "render": 3, "degraded": 0, "single": 0, "seconds": 9 },
   "workspace.test.js": { "render": 0, "degraded": 0, "single": 0, "seconds": 1 }
  }
 }

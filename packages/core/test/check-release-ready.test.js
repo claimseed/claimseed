@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'fs'; import path from 'path'; import os from 'os';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
-import { packagingProblems, dataFilesNamed } from '../scripts/check-release-ready.js';
+import { packagingProblems, dataFilesNamed, commercialDataProblems } from '../scripts/check-release-ready.js';
 import { RENDERERS } from '../src/layouts.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -36,6 +36,21 @@ test('a layout folder, a data file or a shipped entry left out of either list is
     const p = packagingProblems({ files: pkg.files, dockerignore, types, dataFiles, ...change });
     assert.ok(p.some((m) => msg.test(m)), `${msg}: ${p.join('; ')}`);
   }
+});
+
+test('the commercial data passes as it stands; an unverified price, date or county, or a place on the CLAS list, is refused', () => {
+  const src = path.join(core, 'reference-data/commercial');
+  assert.deepEqual(commercialDataProblems(src), []);
+  const plant = (file, edit) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cs-rr-com-')); fs.cpSync(src, dir, { recursive: true });
+    const f = path.join(dir, file); const j = JSON.parse(fs.readFileSync(f, 'utf-8')); edit(j); fs.writeFileSync(f, JSON.stringify(j));
+    try { return commercialDataProblems(dir).join('; '); } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  };
+  assert.match(plant('service-catalog.json', (j) => { j.services[0].medicare.verified = false; }), /unverified commercial data: .* price/);
+  assert.match(plant('service-catalog.json', (j) => { j.services.find((x) => (x.preventive || []).some((b) => b.list)).preventive.find((b) => b.list).verified = false; }), /unverified commercial data: .* date/);
+  assert.match(plant('places.json', (j) => { j.places[0].countyVerified = false; }), /unverified commercial data: .* county/);
+  assert.match(plant('places.json', (j) => { j.places[3].countyFips = '53077'; }), /commercial places the plans may not use: Spokane, WA: county 53077 CLAS-listed/);
+  assert.match(plant('places.json', (j) => { delete j.clas.listedFips.OH; }), /Columbus, OH: CLAS list not stored/);
 });
 
 test('latest moves only to the highest release: is-highest-version on planted tag lists', async () => {

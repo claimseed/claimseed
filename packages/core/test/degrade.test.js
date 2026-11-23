@@ -6,18 +6,13 @@ import assert from 'node:assert/strict';
 import fs from 'fs'; import os from 'os'; import path from 'path'; import crypto from 'crypto';
 import { execFileSync, spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { PDFDocument } from 'pdf-lib';
 import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
-import { launchBrowser, findChrome, render, renderDegraded, degradePdf, degradationParams, DEGRADE_PRESETS, withPdfPage, finalizePdf, BAND_TEXT, SPECIMEN_SUBJECT } from '../src/index.js';
-import { readMarkers } from './markers-read.js';
-import { measureWatermark } from './watermark-measure.js';
-import { pdfWords } from '../scripts/lib/provenance.js';
+import { launchBrowser, findChrome, render, renderDegraded, degradationParams, DEGRADE_PRESETS } from '../src/index.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const CLI = path.join(here, '../src/cli.js');
 const skip = !findChrome() && !process.env.CI && 'no Chrome (set CLAIMSEED_CHROME); never skipped in CI';
-const TYPES = [['msn', 'combined-three-errors'], ['itemized-bill', 'duplicate-charge'], ['ppo-eob', 'baseline-clean'], ['hmo-eob', 'baseline-clean']];
 const schema = JSON.parse(fs.readFileSync(path.join(here, '../../../schemas/ground-truth.schema.json'), 'utf-8'));
 const ajv = new Ajv2020({ allErrors: true, strict: false }); addFormats(ajv); const validate = ajv.compile(schema);
 
@@ -31,7 +26,7 @@ test('the settings come from the seed: the same document and preset give the sam
     const a = degradationParams(preset, doc); const b = degradationParams(preset, doc);
     assert.deepEqual(a, b, preset);
     assert.notDeepEqual(a, degradationParams(preset, { ...doc, seed: 'p-2' }), `${preset}: another seed, other settings`);
-    assert.ok(Number.isInteger(a.dpi) && a.dpi >= 60 && a.dpi <= 200, `${preset}: dpi ${a.dpi}`);
+    assert.ok(Number.isInteger(a.dpi) && a.dpi >= (preset === 'low-res' ? 75 : 60) && a.dpi <= 200, `${preset}: dpi ${a.dpi}`);
   }
   const s = degradationParams('scan', doc); assert.ok(Math.abs(s.rotate) <= 0.8 && s.quality >= 0.72 && s.quality <= 0.88);
   const f = degradationParams('fax', doc); assert.ok(f.threshold >= 0.5 && f.threshold <= 0.66 && Array.isArray(f.streaks));
@@ -39,81 +34,7 @@ test('the settings come from the seed: the same document and preset give the sam
   assert.throws(() => degradationParams('blur', doc), (e) => e.message === 'degrade: no such preset; presets: scan, fax, photo, low-res');
 });
 
-// On one page of a degraded PDF: the tint the watermark adds inside its own shapes and elsewhere, and how the band strip
-// looks (test/watermark-measure.js, shared with the layout-variant renders).
-const measure = (pdf, picture, n, label) => measureWatermark(browser, pdf, picture, n, label);
-
-// On one fax page image, threshold it again at the preset's own threshold (as a fax reader would) and compare the black
-// share inside the watermark's letters with the ring around them (the letters grown by 6 pixels, minus the letters,
-// above the band). The letters come from a blank page stamped the same way, drawn at the image's resolution.
-async function faxPattern(pdf, image, n, label, params) {
-  const [w, h] = await withPdfPage(browser, pdf, async (page, sizes) => sizes[n - 1]);
-  const ref = await PDFDocument.create(); ref.addPage([w, h]);
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cs-fax-')); const refPath = path.join(dir, 'ref.pdf');
-  fs.writeFileSync(refPath, await ref.save()); await finalizePdf(refPath, { band: label });
-  return withPdfPage(browser, fs.readFileSync(refPath), async (page) => {
-    await page.evaluate((s) => window.claimseedCanvas(1, s), params.dpi / 72);
-    return page.evaluate(async (imgUrl, threshold, bandPt, s) => {
-      const R = window.claimseedLast; const W = R.width, H = R.height; const r = R.getContext('2d').getImageData(0, 0, W, H).data;
-      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = imgUrl; });
-      const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); g.drawImage(img, 0, 0, W, H);
-      const a = g.getImageData(0, 0, W, H).data;
-      const mask = new Uint8Array(W * H); for (let k = 0; k < W * H; k++) mask[k] = r[k * 4] - r[k * 4 + 2] > 12 ? 1 : 0;
-      // grow the mask by 6 pixels (a 13 x 13 square), rows then columns
-      const grow = (m) => { const o = new Uint8Array(W * H); const t = new Uint8Array(W * H);
-        for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { let v = 0; for (let k = Math.max(0, x - 6); k <= Math.min(W - 1, x + 6) && !v; k++) v = m[y * W + k]; t[y * W + x] = v; }
-        for (let x = 0; x < W; x++) for (let y = 0; y < H; y++) { let v = 0; for (let k = Math.max(0, y - 6); k <= Math.min(H - 1, y + 6) && !v; k++) v = t[k * W + x]; o[y * W + x] = v; }
-        return o; };
-      const big = grow(mask); const bandTop = H - Math.round(bandPt * s) - 2;
-      let inB = 0, inN = 0, ringB = 0, ringN = 0;
-      for (let y = 0; y < bandTop; y++) for (let x = 0; x < W; x++) {
-        const k = y * W + x; const i = k * 4; const black = 0.299 * a[i] + 0.587 * a[i + 1] + 0.114 * a[i + 2] < threshold * 255;
-        if (mask[k]) { inN++; if (black) inB++; } else if (big[k]) { ringN++; if (black) ringB++; }
-      }
-      return { inside: inB / inN, ring: ringB / ringN, maskPixels: inN };
-    }, `data:${image.mimeType};base64,${image.data.toString('base64')}`, params.threshold, 11, params.dpi / 72);
-  });
-}
-
-test('every preset of every layout: the band and the watermark are drawn on top of the degraded pages, and every file carries the markers', { skip, timeout: 600000 }, async () => {
-  for (const [type, scenario] of TYPES) {
-    const clean = await render({ type, scenario, seed: 'deg-t', browser });
-    for (const preset of DEGRADE_PRESETS) {
-      const params = degradationParams(preset, { type, scenario, seed: 'deg-t' }); const label = `${type} / ${scenario} / seed deg-t`;
-      const { pdf, images, pictures } = await degradePdf(browser, clean.bytes, { preset, params, label, keepPictures: true });
-      const what = `${type} ${preset}`;
-      const doc = await PDFDocument.load(pdf, { updateMetadata: false });
-      assert.equal(doc.getPageCount(), clean.groundTruth.documents[0].pages, `${what}: page count`);
-      assert.equal(doc.getSubject(), SPECIMEN_SUBJECT, `${what}: PDF metadata`); assert.equal(doc.getProducer(), 'claimseed');
-      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cs-deg-')); fs.writeFileSync(path.join(dir, 'd.pdf'), pdf);
-      // a second, independent reader of the metadata (Poppler); it must be installed, so its absence fails the test
-      const info = spawnSync('pdfinfo', [path.join(dir, 'd.pdf')], { encoding: 'utf-8' });
-      assert.equal(info.status, 0, `${what}: pdfinfo did not run (${info.error?.code || info.stderr})`);
-      assert.equal((info.stdout.split('\n').find((l) => l.startsWith('Subject:')) || '').replace(/^Subject:\s+/, ''), SPECIMEN_SUBJECT, `${what}: pdfinfo Subject`);
-      const words = pdfWords(path.join(dir, 'd.pdf'));
-      assert.ok(words.every((ws) => ws.map((w) => w.t).join(' ').includes('SYNTHETIC SPECIMEN')), `${what}: a page without the band text`);
-      assert.equal(images.length, doc.getPageCount());
-      for (const i of images) {
-        assert.equal(i.mimeType, preset === 'fax' ? 'image/png' : 'image/jpeg');
-        const m = readMarkers(i.mimeType, i.data.toString('base64'));
-        assert.equal(m.description, BAND_TEXT, `${what} page ${i.page}: image without its marker`); assert.ok(String(m.label ?? m.comment).includes(`${type} / ${scenario} / seed deg-t / ${preset}`), `${what}: image label`);
-      }
-      // the fax pattern on every page (portrait and landscape pages differ); the tint and band on the first and last
-      const pages = preset === 'fax' ? Array.from({ length: doc.getPageCount() }, (_, k) => k + 1) : [1, doc.getPageCount()];
-      for (const n of pages) {
-        const m = await measure(pdf, pictures[n - 1], n, `${label} / ${preset}`);
-        assert.ok(m.maskPixels > 500, `${what} p${n}: watermark mask ${m.maskPixels}`);
-        assert.ok(m.tintIn > 8, `${what} p${n}: the watermark adds ${m.tintIn.toFixed(1)} of tint inside its shapes`);
-        assert.ok(Math.abs(m.tintOut) < 3, `${what} p${n}: ${m.tintOut.toFixed(1)} of tint outside them`);
-        assert.ok(m.bandBackground > 0.6 && m.bandDark > 40, `${what} p${n}: band ${JSON.stringify(m)}`);
-        if (preset === 'fax') {
-          const f = await faxPattern(pdf, images[n - 1], n, `${label} / ${preset}`, params);
-          assert.ok(f.maskPixels > 500 && f.inside - f.ring >= 0.3, `${what} p${n}: after thresholding the watermark is ${f.inside.toFixed(2)} black inside its letters, ${f.ring.toFixed(2)} beside them`);
-        }
-      }
-    }
-  }
-});
+// The band and the watermark on every page of every preset of every layout, above their floors: test/degrade-floors-*.test.js.
 
 test('the same seed gives the same settings and pictures within a small tolerance, and the answer key records them', { skip, timeout: 600000 }, async () => {
   for (const preset of DEGRADE_PRESETS) {
@@ -166,7 +87,7 @@ test('the command line refuses an empty, missing, blank or unknown preset or fol
   const more = [
     [['--degrade=fax'], () => /^--degrade takes its value in the next argument, not after an equals sign\n$/],
     [['--degrade=canary'], () => /^--degrade takes its value in the next argument, not after an equals sign\n$/],
-    [['--degrad', 'fax'], (c) => (c === 'render' ? /^render: unknown option; the options are --seed, --out, --degrade, --also, --bill, --layout-variant, --blind-keys, --blind-salt\n$/
+    [['--degrad', 'fax'], (c) => (c === 'render' ? /^render: unknown option; the options are --seed, --out, --degrade, --also, --bill, --layout-variant, --blind-keys, --blind-salt, --insurer\n$/
       : /^batch: unknown option; the options are --types, --scenarios, --seeds, --seed-prefix, --degrade, --also, --bill, --out, --layout-variant, --blind-keys, --blind-salt, --set\n$/)],
     [['--canary=1'], (c) => new RegExp(`^${c}: unknown option; the options are --`)],
     [['--degrade', 'fax', '--degrade', 'scan'], () => /^--degrade may be given only once\n$/],

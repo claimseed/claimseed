@@ -6,10 +6,12 @@
 // Returns one message per difference. When every part of a split check returns none, the whole check would too: every
 // part compares the manifest's keys with the whole plan and the README with the manifest, and each part compares its
 // own results with their entries, every field.
-export const exampleKey = (e) => `${e.type}/${e.scenario}/${e.seed}${e.layoutVariant ? `.${e.layoutVariant}` : ''}`;
+export const exampleKey = (e) => `${e.type}/${e.scenario}/${e.seed}${e.layoutVariant ? `.${e.layoutVariant}` : ''}${e.insurer ? `.${e.insurer}` : ''}`;
 export function compareExamples({ examples, results, recorded, readmeNow, readme, whole }) {
   const bad = []; const byKey = new Map(recorded.map((e) => [exampleKey(e), e]));
   const planned = new Set(examples.map(exampleKey));
+  // two entries under one key would be compared with each other's output: each key names exactly one example
+  for (const list of [recorded, examples]) { const seen = new Set(); for (const e of list) { const k = exampleKey(e); if (seen.has(k)) bad.push(`${k}: two examples share this key`); seen.add(k); } }
   for (const k of planned) if (!byKey.has(k)) bad.push(`${k}: not in the manifest`);
   for (const k of byKey.keys()) if (!planned.has(k)) bad.push(`${k}: in the manifest but no longer published`);
   const show = (v) => { const t = JSON.stringify(v ?? null); return t.length > 80 ? `${t.slice(0, 77)}...` : t; };

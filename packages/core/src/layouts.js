@@ -5,10 +5,12 @@
 // data/<type>/stock-content.json, its templates under templates/<type>/, and one line here.
 import { renderMsn, renderItemizedBill } from './render.js';
 import { renderPpoEob, renderHmoEob } from './render-ma.js';
+import { renderCommercialEob } from './render-commercial.js';
 
 export const RENDERERS = {
   'msn': renderMsn,
   'itemized-bill': renderItemizedBill,
   'ppo-eob': renderPpoEob,
   'hmo-eob': renderHmoEob,
+  'commercial-eob': renderCommercialEob,
 };

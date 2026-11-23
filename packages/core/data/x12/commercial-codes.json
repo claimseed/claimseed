@@ -1,0 +1,19 @@
+{
+  "note": "The claim adjustment group and reason codes the commercial EOB's 835 uses, each with what it records and its public source. Code values only: no code description is written into any file.",
+  "groups": [
+    { "code": "CO", "use": "contractual obligation: an amount the provider may not bill the patient", "source": "https://x12.org/codes/claim-adjustment-group-codes" },
+    { "code": "PR", "use": "patient responsibility", "source": "https://x12.org/codes/claim-adjustment-group-codes" }
+  ],
+  "reasons": [
+    { "code": "1", "group": "PR", "use": "deductible", "source": "https://x12.org/codes/claim-adjustment-reason-codes" },
+    { "code": "2", "group": "PR", "use": "coinsurance", "source": "https://x12.org/codes/claim-adjustment-reason-codes" },
+    { "code": "3", "group": "PR", "use": "copay", "source": "https://x12.org/codes/claim-adjustment-reason-codes" },
+    { "code": "45", "group": "CO", "use": "the charge above the allowed amount: in network, on a No Surprises Act protected line, and the part of a visit-limit charge above the network rate", "source": "https://x12.org/codes/claim-adjustment-reason-codes" },
+    { "code": "45", "group": "PR", "use": "the charge above the allowed amount an out-of-network provider without protection may bill the patient", "source": "https://x12.org/codes/claim-adjustment-reason-codes" },
+    { "code": "119", "group": "PR", "use": "the plan's yearly visit limit reached: what the patient owes", "source": "https://x12.org/codes/claim-adjustment-reason-codes" },
+    { "code": "197", "group": "CO", "use": "no prior authorization, in network: the provider may not bill the patient", "source": "https://x12.org/codes/claim-adjustment-reason-codes" },
+    { "code": "197", "group": "PR", "use": "no prior authorization, out of network: the patient may owe the charge", "source": "https://x12.org/codes/claim-adjustment-reason-codes" }
+  ],
+  "claimFiling": { "code": "CI", "use": "commercial insurance (CLP06)", "source": "X12 005010X221A1, CLP06 claim filing indicator code list" },
+  "read": "2026-11-20"
+}

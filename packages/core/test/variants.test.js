@@ -145,6 +145,7 @@ test('every refusal of a layout variant stops before anything is made and repeat
     assert.equal(checkVariantOption(type, 'all', { allowAll: true }), 'all');
   }
   for (const v of ['p01', 'seeded', 'all']) refuse('msn', v, 'variantMsn');
+  for (const v of ['p01', 'seeded', 'all']) refuse('commercial-eob', v, 'variantCommercial');
   for (const k of Object.keys(M)) assert.ok(typeof M[k] === 'string' && M[k].length <= 110 && !/\.$/.test(M[k]), k);
 });
 

@@ -31,7 +31,7 @@ export function checkVariantOption(type, value, { allowAll = false } = {}) {
   if (value === undefined || value === null) return null;
   if (typeof value !== 'string') throw new VariantError('variantUnknown');
   if (value === '') throw new VariantError('variantEmpty');
-  if (!own(FAMILY, type)) throw new VariantError('variantMsn');
+  if (!own(FAMILY, type)) throw new VariantError(type === 'commercial-eob' ? 'variantCommercial' : 'variantMsn');
   if (value === 'all') { if (allowAll) return value; throw new VariantError('variantAllHere'); }
   if (value === 'seeded') return value;
   if (value.length > 64 || !own(FAMILY[type].ids, value)) throw new VariantError('variantUnknown');
