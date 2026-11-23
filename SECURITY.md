@@ -9,8 +9,8 @@ that lets caller-supplied data reach the filesystem, the network, or JavaScript 
 code; a malicious layout is out of scope, a malicious *data* object is in scope.
 
 What the MCP server (`packages/mcp`) adds to the renderer guarantees below (`packages/mcp/test/` exercises it): a client
-supplies only a type, a scenario slug and a seed, each checked against a fixed pattern, and optionally a layout
-variant, checked against the type's closed list of ids, plus, for `verify_document`, an extractor's report; no tool
+supplies only a type, a scenario slug and a seed, each checked against a fixed pattern, and optionally a layout variant, checked against the type's closed list of ids, or an insurer (`a` or `b`, for
+`commercial-eob` only), checked against that closed list, plus, for `verify_document`, an extractor's report; no tool
 reads a file a client names. Every tool refuses an argument it does not declare, with a message that names no
 argument (a misspelt argument used to be ignored). Known limit: the MCP SDK drops an argument (a top-level key of a
 call's arguments) literally named `__proto__` before claimseed's check can see it, so that one is discarded rather
@@ -97,8 +97,11 @@ cell cannot overprint its neighbours) and hidden-overflow containers are all mea
 box before the PDF is written, and the ground truth can never describe text that is absent from the page.
 A way to make the renderer silently drop or hide data it also reports in the ground truth is a vulnerability.
 Text may not run into a positioned running header or footer either. On a caller-supplied PDF (`finalizePdf`,
-`mergePdfs`) the markers are drawn inside the visible page — the CropBox clipped to the MediaBox — and a page
-whose visible area is under 3 in on a side, or not a finite rectangle, is refused. 
+`mergePdfs`) the markers are drawn inside the visible page (the CropBox clipped to the MediaBox), and a page whose
+visible area is narrower than 3.6 in (259.2 pt) or shorter than 3 in (216 pt), or not a finite rectangle, is refused,
+because the fixed band text must print at 6 pt or larger. The watermark is sized and set at an angle of 10 to 60 degrees
+to reach at least 70% of the visible page's width and 35% of its height; a page so long and narrow, or so wide and
+short, that no such size and angle does both inside the page is also refused.
 
 Degraded copies (`render --degrade`, `batch --degrade`, `degradePdf`, `src/degrade.js`) and page images
 (`src/pdf-raster.js`) are drawn by PDF.js in a page that runs script, unlike the printing pages: it lives in a
@@ -135,7 +138,7 @@ Limits. Rendering behaviour was measured in poppler, PDFium and Chrome only; oth
 Acrobat) were not tested, in particular for state left open inside nested Form XObjects. Inline images that are
 well formed but use a compression filter (Flate, DCT, LZW, RunLength, CCITT, JBIG2) or a named colour space are
 refused; use an image XObject instead. Content using operators outside the PDF operator set, even inside a `BX`/`EX`
-compatibility section, is refused. The watermark is drawn at 14% opacity: over a dark or saturated page it remains
+compatibility section, is refused. The watermark is drawn at 7% opacity: over a dark or saturated page it remains
 visible as a tint, at lower contrast; the band is opaque. `mergePdfs` does not carry an input's catalog, so the
 optional-content configuration of a merged input is not kept (its hidden layers become visible) and its structure
 tree is dropped. Content drawn by the page can still cover the page's own content; it cannot cover the markers,
@@ -262,7 +265,7 @@ Further limits:
 Acrobat) were not tested, in particular for state left open inside nested Form XObjects. Inline images that are
 well formed but use a compression filter (Flate, DCT, LZW, RunLength, CCITT, JBIG2) or a named colour space are
 refused; use an image XObject instead. Content using operators outside the PDF operator set, even inside a `BX`/`EX`
-compatibility section, is refused. The watermark is drawn at 14% opacity: over a dark or saturated page it remains
+compatibility section, is refused. The watermark is drawn at 7% opacity: over a dark or saturated page it remains
 visible as a tint, at lower contrast; the band is opaque. `mergePdfs` does not carry an input's catalog, so the
 optional-content configuration of a merged input is not kept (its hidden layers become visible) and its structure
 tree is dropped. Content drawn by the page can still cover the page's own content; it cannot cover the markers,

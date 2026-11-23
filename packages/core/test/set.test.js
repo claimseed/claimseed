@@ -12,7 +12,9 @@ import addFormats from 'ajv-formats';
 import { launchBrowser, findChrome, renderBatch, readManifest, REMITTANCE_TYPES } from '../src/index.js';
 import { listScenarios } from '../src/generate/index.js';
 import { variantIds } from '../src/variants.js';
-import { SET_NAMES, SET_STRINGS, SetError, loadSet, planSet, checkSet, canaryOf } from '../src/set.js';
+import { SET_NAMES, SET_STRINGS, SetError, loadSet, planSet, planWithCounts, floorsMissed, drawSalt, drawnMessage, checkSet, canaryOf } from '../src/set.js';
+import { generatePair } from '../src/generate/index.js';
+import { blindSeed } from '../src/blind.js';
 import { writeJobs } from '../src/batch.js';
 import { summarizeSet, scoreExtraction } from '../src/verify.js';
 import { generateData } from '../src/generate/index.js';
@@ -32,26 +34,111 @@ before(async () => { if (!skip) browser = await launchBrowser(); });
 after(async () => { if (browser) await browser.close(); });
 
 const spec = loadSet('standard');
-const jobs = planSet(spec, { remittanceTypes: REMITTANCE_TYPES });
+const jobs = planSet(spec, { remittanceTypes: REMITTANCE_TYPES, salt: SALT });
+const PAIRED = ['ppo-eob', 'hmo-eob', 'commercial-eob'];
+const index = (j) => Number(j.seed.split('-').pop());
+// salts found by search, the same every run: the first that meets every floor and the first that misses one
+const probe = (i) => crypto.createHash('sha256').update(`set-floor-probe-${i}`).digest('hex').slice(0, 32);
+const found = (want) => { for (let i = 0; i < 40; i++) { const s = probe(i); const { counts } = planWithCounts(spec, { remittanceTypes: REMITTANCE_TYPES, salt: s }); if ((floorsMissed(spec, counts).length === 0) === want) return s; } throw new Error('no salt found'); };
 
-test('the standard set: 1,022 documents, balanced by type, every scenario, one in five a degraded copy, 835s where a type has one', () => {
+test('the standard set: 1,887 documents, balanced by type, every scenario, a statement beside each EOB of an even or degraded seed, 835s where a type has one', () => {
   assert.deepEqual(SET_NAMES, ['standard']);
-  assert.equal(jobs.length, 1022);
-  const want = { msn: 20, 'itemized-bill': 50, 'ppo-eob': 32, 'hmo-eob': 32 };
+  // the published values, written out, so the set file cannot change them unseen
+  assert.deepEqual(spec.statements, { every: 2 });
+  assert.deepEqual(spec.floors, { errorKind: 20, decoy: 20, statementKind: 20, statementClean: 20, statementVariant: 5, statementProvider: 2, insurerShare: 0.4 });
+  assert.equal(jobs.length, 1887);
+  const want = { msn: 20, 'itemized-bill': 50, 'ppo-eob': 32, 'hmo-eob': 32, 'commercial-eob': 32 };
+  assert.deepEqual(spec.types.map((t) => [t.type, t.seeds]), Object.entries(want));
+  const docs = jobs.filter((j) => j.part !== 'bill');
   for (const [type, seeds] of Object.entries(want)) {
-    const mine = jobs.filter((j) => j.type === type);
+    const mine = docs.filter((j) => j.type === type);
     assert.equal(mine.length, listScenarios(type).length * seeds, type);
     assert.deepEqual([...new Set(mine.map((j) => j.scenario))].sort(), [...listScenarios(type)].sort(), `${type}: every scenario`);
     assert.equal(new Set(mine.map((j) => `${j.scenario}/${j.seed}`)).size, mine.length, `${type}: no document twice`);
-    assert.equal(mine.filter((j) => j.degrade).length, listScenarios(type).length * Math.floor(seeds / 5), `${type}: one in five degraded`);
+    assert.equal(mine.filter((j) => j.degrade).length, listScenarios(type).length * Math.floor(seeds / 5), `${type}: every fifth seed degraded`);
     for (const j of mine) {
-      assert.equal(j.also, REMITTANCE_TYPES.includes(type) ? '835' : null, `${type}: 835`);
+      const statement = PAIRED.includes(type) && (index(j) % 2 === 0 || j.degrade !== null);
+      assert.equal(j.part === 'eob', statement, `${type} ${j.seed}: a statement exactly on an even or degraded seed`);
+      const extra = REMITTANCE_TYPES.includes(type) ? ['835'] : [];
+      assert.deepEqual(j.also, statement ? [...extra, 'bill'] : (extra[0] ?? null), `${type}: 835 and statement`);
       if (j.layoutVariant !== undefined) assert.ok(variantIds(type).includes(j.layoutVariant), `${type}: a published variant`);
     }
-    // every layout of a type with variants is used, the base included
     if (variantIds(type).length) assert.equal(new Set(mine.map((j) => j.layoutVariant ?? 'base')).size, variantIds(type).length + 1, `${type}: every layout`);
   }
-  for (const p of spec.presets) assert.ok(jobs.some((j) => j.degrade === p), `preset ${p} used`);
+  // each statement right after its EOB, with the same job and variant; 152 + 152 + 209, every preset among the copies
+  const bills = jobs.filter((j) => j.part === 'bill');
+  assert.deepEqual(Object.fromEntries(PAIRED.map((t) => [t, bills.filter((j) => j.type === t).length])), { 'ppo-eob': 152, 'hmo-eob': 152, 'commercial-eob': 209 });
+  for (const [i, j] of jobs.entries()) if (j.part === 'bill') { const { part: _a, ...a } = jobs[i - 1]; const { part: _b, ...b } = j; assert.equal(jobs[i - 1].part, 'eob'); assert.deepEqual(a, b); }
+  const byPreset = {}; for (const j of bills) if (j.degrade) byPreset[j.degrade] = (byPreset[j.degrade] || 0) + 1;
+  assert.deepEqual(byPreset, { scan: 54, fax: 54, photo: 27, 'low-res': 27 });
+  for (const p of spec.presets) assert.ok(docs.some((j) => j.degrade === p), `preset ${p} used`);
+});
+
+test('the statement variant: assigned from the salt alone, always one that applies, quotas and floors, a held-harmless statement kept clean', () => {
+  assert.deepEqual(planSet(spec, { remittanceTypes: REMITTANCE_TYPES, salt: SALT }), jobs, 'the same salt, the same plan');
+  const other = planSet(spec, { remittanceTypes: REMITTANCE_TYPES, salt: probe(99) });
+  assert.notDeepEqual(other.map((j) => j.bill ?? null), jobs.map((j) => j.bill ?? null), 'another salt, other variants');
+  assert.deepEqual(other.map(({ bill: _b, ...j }) => j), jobs.map(({ bill: _b, ...j }) => j), 'another salt, the same documents');
+  assert.throws(() => planSet(spec, { remittanceTypes: REMITTANCE_TYPES }), /planned from the salt/);
+  for (const type of PAIRED) {
+    const mine = jobs.filter((j) => j.part === 'bill' && j.type === type);
+    const quota = Math.floor(mine.length / 6); const n = {};
+    let heldClean = false;
+    for (const j of mine) {
+      const g = { type, scenario: j.scenario, seed: blindSeed(SALT, j), layoutVariant: j.layoutVariant ?? null };
+      assert.equal(generatePair({ ...g, bill: j.bill, orClean: true }).statement.groundTruth.pair.variant, j.bill, `${type} ${j.scenario} ${j.seed}: the variant applies`);
+      n[j.bill] = (n[j.bill] || 0) + 1;
+      if (j.bill === 'clean' && generatePair({ ...g, bill: 'denied-line-billed', orClean: true }).statement.groundTruth.pair.variant === 'denied-line-billed') heldClean = true;
+    }
+    for (const [v, k] of Object.entries(n)) if (v !== 'clean') assert.ok(k <= quota, `${type} ${v}: at most the quota`);
+    assert.ok(heldClean, `${type}: a statement on a held-harmless denied line kept clean`);
+  }
+  // the rule's result for the test salt, written out: rarest first in the salt's order, round robin to a sixth each
+  const variants = (t) => Object.fromEntries(['clean', 'over-owed', 'denied-line-billed', 'payment-misposted', 'paid-at-visit', 'over-owed-with-payment'].map((v) => [v, jobs.filter((j) => j.part === 'bill' && j.type === t && j.bill === v).length]));
+  assert.deepEqual(variants('ppo-eob'), { clean: 45, 'over-owed': 25, 'denied-line-billed': 7, 'payment-misposted': 25, 'paid-at-visit': 25, 'over-owed-with-payment': 25 });
+  assert.deepEqual(variants('hmo-eob'), { clean: 43, 'over-owed': 25, 'denied-line-billed': 9, 'payment-misposted': 25, 'paid-at-visit': 25, 'over-owed-with-payment': 25 });
+  assert.deepEqual(variants('commercial-eob'), { clean: 73, 'over-owed': 34, 'denied-line-billed': 17, 'payment-misposted': 34, 'paid-at-visit': 25, 'over-owed-with-payment': 26 });
+  // the kinds the floors hold the set to: every kind and decoy the published scenarios plant, written out
+  assert.deepEqual(planWithCounts(spec, { remittanceTypes: REMITTANCE_TYPES, salt: SALT }).counts.expected, {"errorKind":{"msn":["cost-sharing-error","coverage-denial","deductible-misapplied","duplicate-charge","fee-schedule-overcharge","math-error","preventive-cost-sharing","service-date-anomaly"],"itemized-bill":["assignment-violation","duplicate-charge","subtotals-mismatch"],"ppo-eob":["coverage-denial","deductible-misapplied","duplicate-charge","math-error","preventive-cost-sharing"],"hmo-eob":["cost-sharing-error","coverage-denial","duplicate-charge","math-error","oop-max-exceeded","service-date-anomaly"],"commercial-eob":["coverage-denial","emergency-authorization-denial","in-network-balance-bill","math-error","missing-required-section","preventive-cost-sharing","surprise-balance-bill"]},"decoy":{"msn":["charge-above-approved","repeat-service-different-date"],"itemized-bill":["charge-above-approved","repeat-service-different-date"],"ppo-eob":["approved-below-copay","charge-above-approved","partial-deductible","repeat-service-different-date"],"hmo-eob":["approved-below-copay","charge-above-approved","oop-cap-partial-share","repeat-service-different-date"],"commercial-eob":["appeal-rights-by-section","consented-balance","elective-authorization-denial","ground-ambulance-balance","oop-excludes-non-covered","out-of-network-balance","problem-visit-beside-listed"]}});
+  const pass = found(true);
+  assert.deepEqual(floorsMissed(spec, planWithCounts(spec, { remittanceTypes: REMITTANCE_TYPES, salt: pass }).counts), []);
+});
+
+test('each floor, one at a time: counts written by hand at every floor pass, and one below a floor misses exactly that floor', () => {
+  const titles = ['Hospital Patient Statement', 'Medical Group Statement', 'Urgent Care Statement', 'Laboratory Statement', 'Ambulance Statement'];
+  const statements = () => ({ total: 100, variant: { clean: 20, 'over-owed': 5, 'denied-line-billed': 5, 'payment-misposted': 5, 'paid-at-visit': 5, 'over-owed-with-payment': 5 }, errorKind: { 'bill-vs-eob-mismatch': 20, 'bill-payment-mismatch': 20 }, decoy: { 'paid-at-visit': 20 } });
+  const at = () => ({ errorKind: { msn: { 'math-error': 20 } }, decoy: { msn: { 'charge-above-approved': 20 } }, expected: { errorKind: { msn: ['math-error', 'duplicate-charge'] }, decoy: { msn: ['charge-above-approved'] } },
+    statements: { 'ppo-eob': statements(), 'commercial-eob': statements() }, statementProvider: Object.fromEntries(titles.map((t) => [t, 2])), insurer: { total: 10, a: 4, b: 6 } });
+  const base = at(); base.errorKind.msn['duplicate-charge'] = 20;
+  assert.deepEqual(floorsMissed(spec, base), [], 'every count at its floor');
+  const cases = [
+    [(c) => { c.errorKind.msn['math-error'] = 19; }, 'errorKind msn math-error'],
+    [(c) => { delete c.errorKind.msn['duplicate-charge']; }, 'errorKind msn duplicate-charge'],
+    [(c) => { c.decoy.msn['charge-above-approved'] = 19; }, 'decoy msn charge-above-approved'],
+    [(c) => { c.statements['ppo-eob'].errorKind['bill-vs-eob-mismatch'] = 19; }, 'statementKind ppo-eob bill-vs-eob-mismatch'],
+    [(c) => { c.statements['ppo-eob'].errorKind['bill-payment-mismatch'] = 19; }, 'statementKind ppo-eob bill-payment-mismatch'],
+    [(c) => { c.statements['commercial-eob'].decoy['paid-at-visit'] = 19; }, 'statementKind commercial-eob paid-at-visit'],
+    [(c) => { c.statements['ppo-eob'].variant.clean = 19; }, 'statementClean ppo-eob'],
+    [(c) => { c.statements['commercial-eob'].variant['denied-line-billed'] = 4; }, 'statementVariant commercial-eob denied-line-billed'],
+    [(c) => { c.statementProvider['Ambulance Statement'] = 1; }, 'statementProvider Ambulance Statement'],
+    [(c) => { c.insurer.a = 3; c.insurer.b = 7; }, 'insurerShare a'],
+  ];
+  for (const [change, name] of cases) { const c = structuredClone(base); change(c); assert.deepEqual(floorsMissed(spec, c), [name], name); }
+  assert.equal(drawnMessage(3), M.setDrawn.replace('{who}', 'batch').replace('{n}', '3'));
+});
+
+test('the floors: a given salt that misses one is refused before anything is made, a drawn salt meets every floor, and 50 misses are refused', async () => {
+  const miss = found(false);
+  const dir = tmp('cs-set-floor-'); const who = (k) => M[k].replace('{who}', 'batch');
+  await assert.rejects(renderBatch({ set: 'standard', outDir: path.join(dir, 'd'), blind: { salt: miss }, keysDir: path.join(dir, 'k') }), (e) => e instanceof SetError && e.message === who('setFloors') && !e.message.includes(miss));
+  assert.deepEqual(fs.readdirSync(dir), [], 'nothing made');
+  const d = drawSalt(spec, true, { remittanceTypes: REMITTANCE_TYPES });
+  assert.deepEqual(floorsMissed(spec, d.plan.counts), []); assert.equal(d.missed.length, d.draws - 1);
+  for (const m of d.missed) for (const name of m) assert.match(name, /^[a-zA-Z]+ [a-z-]+( [a-z-]+)?$|^statementProvider [A-Za-z ]+$|^insurerShare [ab]$/);
+  // floors no salt can meet: refused after 50 draws (a one-type set file, so the plans are quick)
+  const tiny = { ...structuredClone(spec), types: [{ type: 'ppo-eob', seeds: 2 }], floors: { ...spec.floors, statementClean: 1000 } };
+  assert.throws(() => drawSalt(tiny, true, { remittanceTypes: REMITTANCE_TYPES }), (e) => e instanceof SetError && e.message === who('setDraws'));
+  assert.equal(M.setDrawn.includes('{n}'), true);
 });
 
 test('the set file takes exactly the degraded presets degrade.js publishes', async () => {
@@ -60,10 +147,10 @@ test('the set file takes exactly the degraded presets degrade.js publishes', asy
   assert.throws(() => checkSet({ ...structuredClone(spec), presets: [...PRESETS, 'blur'] }), /presets/);
 });
 
-test('layout, preset and 835 turn the same way for every scenario of a type, so none of them tells the scenario', () => {
+test('layout, preset, 835 and statement turn the same way for every scenario of a type, so none of them tells the scenario', () => {
   for (const type of new Set(jobs.map((j) => j.type))) {
     const profile = (scenario) => jobs.filter((j) => j.type === type && j.scenario === scenario)
-      .map((j) => `${j.layoutVariant ?? 'base'}|${j.degrade ?? 'clean'}|${j.also ?? '-'}`).sort().join(',');
+      .map((j) => `${j.seed}|${j.layoutVariant ?? 'base'}|${j.degrade ?? 'clean'}|${[j.also ?? '-'].flat().join('+')}|${j.part ?? '-'}`).sort().join(',');
     const profiles = new Set(listScenarios(type).map(profile));
     assert.equal(profiles.size, 1, `${type}: one profile for all scenarios`);
   }
@@ -74,7 +161,10 @@ test('a set file outside its shape is refused, and an unknown set name is refuse
   bad({ extra: 1 }); bad({ name: 'other' }); bad({ canaryGuid: 'x' }); bad({ seedPrefix: '-x' }); bad({ types: [] });
   bad({ types: [{ type: 'msn', seeds: 1 }, { type: 'msn', seeds: 2 }] }); bad({ types: [{ type: 'nope', seeds: 1 }] }); bad({ types: [{ type: 'msn', seeds: 0 }] });
   bad({ types: [{ type: 'msn', seeds: 1, more: 1 }] }); bad({ degradeEvery: 1 }); bad({ presets: ['scan', 'scan'] }); bad({ presets: ['blur'] }); bad({ remittance: 'yes' });
-  assert.throws(() => planSet({ ...structuredClone(spec), types: [{ type: 'msn', seeds: 1000 }] }), /over the limit/);
+  bad({ statements: { every: 0 } }); bad({ statements: { every: 2, more: 1 } }); bad({ statements: 2 }); bad({ types: [{ type: 'msn', seeds: 1 }] });
+  bad({ floors: { ...spec.floors, more: 1 } }); bad({ floors: { ...spec.floors, decoy: 0 } }); bad({ floors: { ...spec.floors, insurerShare: 1 } });
+  const { decoy: _d, ...fewer } = spec.floors; bad({ floors: fewer });
+  assert.throws(() => planSet({ ...structuredClone(spec), types: [{ type: 'msn', seeds: 1000 }, { type: 'ppo-eob', seeds: 1 }] }), /over the limit/);
   const probe = 'zz-probe-name-91';
   assert.throws(() => loadSet(probe), (e) => e instanceof SetError && e.message === M.setUnknown.replace('{names}', 'standard') && !e.message.includes(probe));
   assert.equal(canaryOf(spec), SET_STRINGS.canary.replace('{guid}', spec.canaryGuid));
@@ -104,14 +194,20 @@ test('the library refuses a set with other options or without blind and a keys f
   assert.deepEqual(fs.readdirSync(dir), [], 'nothing made');
 });
 
-// four documents of the standard set's plan: a degraded MSN with its 835, a PPO EOB in a variant with its 835, an
-// itemized bill in its base layout, a degraded HMO EOB in a variant with its 835
-const pick = () => [
-  jobs.find((j) => j.type === 'msn' && j.degrade === 'scan'),
-  jobs.find((j) => j.type === 'ppo-eob' && j.layoutVariant && !j.degrade),
-  jobs.find((j) => j.type === 'itemized-bill' && !j.layoutVariant && !j.degrade),
-  jobs.find((j) => j.type === 'hmo-eob' && j.layoutVariant && j.degrade === 'fax'),
-];
+// seven documents of the standard set's plan: a degraded MSN with its 835, a PPO EOB in a variant with its 835, an
+// itemized bill in its base layout, a degraded HMO EOB in a variant with its 835 and its statement's degraded copy, a
+// degraded commercial EOB with its 835s and its statement's copy (a variant other than clean)
+const pick = () => {
+  const i = jobs.findIndex((j) => j.type === 'commercial-eob' && j.part === 'eob' && j.degrade === 'photo' && j.bill !== 'clean');
+  return [
+    jobs.find((j) => j.type === 'msn' && j.degrade === 'scan'),
+    jobs.find((j) => j.type === 'ppo-eob' && j.layoutVariant && !j.degrade && !j.part),
+    jobs.find((j) => j.type === 'itemized-bill' && !j.layoutVariant && !j.degrade),
+    jobs.find((j) => j.type === 'hmo-eob' && j.layoutVariant && j.degrade === 'fax' && j.part === 'eob'),
+    jobs.find((j) => j.type === 'hmo-eob' && j.layoutVariant && j.degrade === 'fax' && j.part === 'bill'),
+    jobs[i], jobs[i + 1],
+  ];
+};
 
 test('a set\'s documents are named by id with their 835s, keys apart name the set and carry its canary, nothing leaks, and the salt makes the same bytes', { skip, timeout: 600000 }, async () => {
   const dir = tmp('cs-set-render-'); const set = { name: spec.name, canary: canaryOf(spec) };
@@ -119,8 +215,13 @@ test('a set\'s documents are named by id with their 835s, keys apart name the se
   await make('a');
   const docs = path.join(dir, 'a', 'docs'); const keys = path.join(dir, 'a', 'keys');
   const entries = readManifest(path.join(keys, 'manifest.jsonl'));
-  assert.equal(entries.length, 4);
-  assert.deepEqual(fs.readdirSync(docs).sort(), entries.flatMap((e) => [e.pdf, ...(e.remittance ? [e.remittance] : [])]).sort(), 'documents and 835s only');
+  assert.equal(entries.length, 7);
+  assert.deepEqual(fs.readdirSync(docs).sort(), [...entries.flatMap((e) => [e.pdf, ...(e.remittance ? [e.remittance] : [])]), 'pairs.jsonl'].sort(), 'documents, 835s and pairs.jsonl only');
+  // the pairs by id only, each naming a statement and its EOB of the set; no line or key name carries the variant
+  const pairs = fs.readFileSync(path.join(docs, 'pairs.jsonl'), 'utf-8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.equal(pairs.length, 2);
+  for (const p of pairs) { assert.deepEqual(Object.keys(p), ['eob', 'bill']); for (const id of [p.eob, p.bill]) assert.ok(entries.some((e) => e.id === id), id); }
+  for (const e of entries) for (const v of ['bill', 'variant']) assert.ok(!Object.hasOwn(e, v), `${e.pdf}: no ${v} in the manifest line`);
   for (const e of entries) {
     assert.equal(e.set, 'standard'); assert.equal(e.canary, set.canary); assert.match(e.pdf, /^doc-[0-9a-f]{16}\.pdf$/);
     assert.equal(Boolean(e.remittance), REMITTANCE_TYPES.includes(e.type), `${e.type}: 835`);
@@ -128,6 +229,10 @@ test('a set\'s documents are named by id with their 835s, keys apart name the se
     assert.ok(validate(key), JSON.stringify(validate.errors));
     assert.equal(key.blind.set, 'standard'); assert.equal(key.blind.canary, set.canary); assert.equal(key.blind.salt, SALT);
     assert.equal(e.degradation !== null, Boolean(key.blind.copyOf), 'a degraded copy names the document it was copied from');
+    if (e.type === 'provider-statement') {
+      assert.ok(pairs.some((p) => p.bill === e.id && p.eob === e.pairOf) && key.pair.with === e.pairOf, 'the statement names its EOB');
+      assert.equal(key.pair.variant, pick().find((j) => j.part === 'bill' && j.scenario === e.scenario && j.seed === e.seed).bill, 'the planned variant');
+    }
     // nothing a tool can read names the scenario, an error, a decoy, the seed or the canary
     const files = [path.join(docs, e.pdf), ...(e.remittance ? [path.join(docs, e.remittance)] : [])];
     assert.deepEqual(leaksIn({ files }, [...tokensOf(key), spec.canaryGuid]), [], e.pdf);
@@ -136,7 +241,9 @@ test('a set\'s documents are named by id with their 835s, keys apart name the se
   const one = JSON.parse(fs.readFileSync(path.join(keys, entries[0].groundTruth), 'utf-8'));
   const { canary: _c, ...noCanary } = one.blind; assert.equal(validate({ ...one, blind: noCanary }), false);
   const { set: _s, ...noSet } = one.blind; assert.equal(validate({ ...one, blind: noSet }), false);
-  // the same plan and salt, again on this machine: the same files, byte for byte
+  // the same plan and salt, again on this machine: the same files, byte for byte. Run alone: under heavy parallel render
+  // work a degraded copy's pixels can shift (the glyph edges of one heading in an MSN scan copy, about 2,000 pixels by
+  // more than 40 levels), so a set is built with nothing else rendering
   await make('b');
   for (const f of filesUnder(path.join(dir, 'a'))) {
     const rel = path.relative(path.join(dir, 'a'), f);

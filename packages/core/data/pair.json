@@ -1,5 +1,5 @@
 {
- "note": "Printed labels of the provider statement paired with a Medicare Advantage EOB, the rules of its errors and decoys, and its refusal messages (0.7.0). Filled in by the code: {who} {variants} {billingPhone}.",
+ "note": "Printed labels of the provider statement that goes beside a Medicare Advantage EOB (0.7.0) or the commercial EOB (0.8.0), the rules of its errors and decoys, and its refusal messages. Filled in by the code: {who} {variants} {billingPhone}.",
  "labels": {
   "title": "Patient Statement",
   "statementDate": "Statement Date",
@@ -24,13 +24,14 @@
   "paymentsReceived": "Payments Received",
   "balanceDue": "Balance Due",
   "howToPay": "How to Pay",
-  "payOnline": "Pay Online",
   "payByPhone": "Pay by Phone",
   "payByMail": "Pay by Mail",
   "payableTo": "Make Checks Payable To",
   "intro": "This statement lists the charges for your visit and what your plan paid. Please compare it with the Explanation of Benefits your plan sent you; you owe only the balance due.",
   "questions": "If you have questions about this bill, call our billing office at {billingPhone}.",
-  "financialHelp": "If you cannot pay the balance in full, call us to ask about a payment plan or financial help."
+  "financialHelp": "If you cannot pay the balance in full, call us to ask about a payment plan or financial help.",
+  "adjustmentNoSurprises": "No Surprises Act Adjustment",
+  "treatingProvider": "Treating Clinician"
  },
  "rules": {
   "overOwed": "The statement's balance due is more than the EOB says the member owes for this claim, because the contractual adjustment is too small. A Medicare Advantage organization's contracts must bar its providers from holding an enrollee liable for fees that are the organization's legal obligation (42 CFR 422.504(g)(1)(i), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-K/section-422.504), and the plan's EOB states the enrollee's share of each claim (42 CFR 422.111(k)(1), https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-422/subpart-C/section-422.111).",
@@ -42,28 +43,45 @@
   "paidAtVisitWithError": "A payment the patient made at the visit, such as a copay, is credited against what the patient owes. That credit is correct (internal consistency of the statement)."
  },
  "messages": {
-  "pairTypes": "{who}: a provider's statement is made only for a ppo-eob or hmo-eob.",
+  "pairTypes": "{who}: a provider's statement is made only for a ppo-eob, hmo-eob or commercial-eob.",
   "alsoList": "{who}: `also` must be `835`, `bill` or both, each given once.",
   "billNeedsAlso": "{who}: a statement variant can be given only when `also` includes `bill`.",
   "billVariant": "{who}: no statement variant has that name; the variants are {variants}",
   "billNotHere": "{who}: that statement variant does not apply to the claim this statement bills.",
   "billAmount": "{who}: a statement amount must be a whole number of cents in the range the variant allows for this claim.",
-  "billDegraded": "{who}: a provider's statement is not made as a degraded copy yet.",
-  "billLayout": "{who}: a provider's statement has no layout variants of its own; the EOB's layout variant still applies.",
-  "verifyDocument": "{who}: document must be eob or bill."
+  "billDegraded": "{who}: this tool does not make a degraded copy of a provider's statement; the CLI and the library do, with `render --degrade` or `batch --degrade` and `--also bill`.",
+  "verifyDocument": "{who}: document must be eob or bill.",
+  "seedSuffix": "{who}: this seed ends in a suffix that claimseed adds to file names for this document type, so its files could take another document's file names; use a seed without that ending."
  },
  "schema": {
   "schema16": "Version 1.6 adds the `pair` object and, on the errors and decoys of a provider's statement, `relatedDocumentFieldRef`, and claimseed 0.7.0 writes 1.6 for both documents of a pair, blind or not, with or without a layout variant on the EOB, and never for any other document.",
   "schemaDecoyRefs": "In every version it writes (1.3 to 1.6), claimseed 0.7.0 also writes relatedLineRef and relatedFieldRef on a decoy that repeats another line; keys written by 0.6.0 and earlier never have them."
  },
  "mcp": {
-  "alsoRender": "Other documents to render with this one: 835 for the X12 835 of the same claims (msn, ppo-eob and hmo-eob), bill for the provider's statement for one claim of the EOB (ppo-eob and hmo-eob only), or a list of both.",
-  "alsoBlind": "Other documents to render with this one, with files named by ids: 835 for the X12 835 of the same claims (msn, ppo-eob and hmo-eob), bill for the provider's statement for one claim of the EOB (ppo-eob and hmo-eob only), or a list of both.",
+  "alsoRender": "Other documents to render with this one: \"835\" for an X12 835 of the same claims (msn, ppo-eob, hmo-eob, commercial-eob), \"bill\" for the provider's statement for one claim of the EOB (ppo-eob, hmo-eob, commercial-eob), or a list of both.",
+  "alsoBlind": "Other documents to render blind with this one: \"835\" for an X12 835 of the same claims (msn, ppo-eob, hmo-eob, commercial-eob), \"bill\" for the provider's statement for one claim of the EOB (ppo-eob, hmo-eob, commercial-eob), or a list of both; each file is named by an id.",
   "bill": "Provider's statement variant when also includes bill, default clean: clean (no error of its own), over-owed (the contractual adjustment is too small, so the balance due is more than the EOB's member share), denied-line-billed (a line the plan denied is billed to the patient), payment-misposted (Paid by Your Plan differs from what the EOB says the plan paid, but the balance due is still right), paid-at-visit (a decoy: the copay paid at the visit shows as received, so the balance due is correctly less than the member share) or over-owed-with-payment (that decoy and the over-owed error together). A variant applies only where the billed claim allows it.",
   "statementSaved": "Provider's statement: {pdf}; ground truth: {key}",
   "statementEmbedded": "Provider's statement: PDF embedded in this result; ground truth in the structured result's bill",
   "statementBlind": "Provider's statement: {id} ({bytes} bytes); get_answer_key returns its key by this id",
   "verifyDocument": "Which document the report is on: eob (the default) for the EOB, or bill for the provider's statement rendered with it.",
   "verifyBill": "When document is bill, the variant the provider's statement was rendered with (default clean)."
+ },
+ "commercialRules": {
+  "overOwed": "The balance due is more than the EOB says the member may owe for this claim because the adjustment is too small. An in-network provider has agreed with the plan to accept the allowed amount as payment in full, so it may bill the member only for the member's share the EOB states.",
+  "overOwedProtected": "The balance due is more than the EOB says the member may owe for this claim because the adjustment is too small. The No Surprises Act protects this care, so the provider may not bill the member more than the in-network cost sharing the EOB states (45 CFR 149.410 for emergency care, 45 CFR 149.420 for care at an in-network facility).",
+  "deniedLineBilled": "The balance due includes a line the plan denied because no prior authorization was obtained, and the EOB says the member owes nothing for that line. Under the plan's network terms the in-network provider, not the member, bears that denial, so the line may not be billed to the member.",
+  "paymentMisposted": "The plan payment the statement credits differs from the plan paid amount the EOB states for this claim, even though the balance due is still right. The statement must credit the plan's payment exactly as the EOB states it.",
+  "overOwedWithPayment": "The adjustment is too small, so the balance due plus the payment credited from the visit is more than the EOB says the member may owe for this claim. An in-network provider accepts the allowed amount as payment in full, so the member's total for this claim may not exceed the share the EOB states."
+ },
+ "commercialStatement": {
+  "titles": {
+   "hospital": "Hospital Patient Statement",
+   "physician-group": "Medical Group Statement",
+   "urgent-care": "Urgent Care Statement",
+   "lab": "Laboratory Statement",
+   "ambulance": "Ambulance Statement"
+  },
+  "groupWord": "Health Associates"
  }
 }

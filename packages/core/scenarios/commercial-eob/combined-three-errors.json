@@ -1,0 +1,70 @@
+{
+  "type": "commercial-eob",
+  "slug": "combined-three-errors",
+  "status": "published",
+  "description": "This EOB holds an adult preventive visit with a flu shot, an emergency room visit with an out-of-network physician, and an acupuncture visit past the visit limit. It carries three errors: cost sharing on the preventive visit, the emergency physician denied for no prior authorization, and the acupuncture denial note without its plan section. Each of the three should be flagged.",
+  "before": {},
+  "visitsUsed": {
+    "acupuncture": 12
+  },
+  "claims": [
+    {
+      "shape": "preventive-adult",
+      "flu": true
+    },
+    {
+      "shape": "emergency",
+      "facilityNetwork": "in",
+      "network": "out",
+      "xray": false
+    },
+    "acupuncture"
+  ],
+  "mutations": [
+    {
+      "op": "ce-preventive-cost-share",
+      "args": {
+        "claim": 0,
+        "line": "well-visit"
+      }
+    },
+    {
+      "op": "ce-deny-emergency-for-auth",
+      "args": {
+        "claim": 1,
+        "line": "er-physician"
+      }
+    },
+    {
+      "op": "ce-drop-denial-element",
+      "args": {
+        "claim": 2,
+        "line": "acupuncture",
+        "element": "provision"
+      }
+    }
+  ],
+  "decoys": [],
+  "sources": [
+    {
+      "what": "Content of a notice of adverse benefit determination (every EOB that pays less than billed)",
+      "source": "29 CFR 2560.503-1(g); 29 CFR 2590.715-2719(b)(2)(ii)(E); DOL claims procedure FAQ C-12, https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XXV/subchapter-G/part-2560/section-2560.503-1"
+    },
+    {
+      "what": "Preventive care without cost sharing",
+      "source": "45 CFR 147.130; 29 CFR 2590.715-2713, https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.130"
+    },
+    {
+      "what": "Cost sharing on the allowed amount; no balance billing in network",
+      "source": "Uniform Glossary of Coverage and Medical Terms, https://www.cms.gov/files/document/uniform-glossary-english-060723.pdf"
+    },
+    {
+      "what": "Out-of-network emergency care with in-network cost sharing; no balance billing or prior authorization",
+      "source": "45 CFR 149.110, https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-149/subpart-B/section-149.110"
+    },
+    {
+      "what": "No lifetime or annual dollar limits on essential health benefits; visit limits outside them not barred",
+      "source": "45 CFR 147.126, https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.126"
+    }
+  ]
+}

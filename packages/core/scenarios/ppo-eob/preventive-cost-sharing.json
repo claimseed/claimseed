@@ -2,7 +2,7 @@
   "type": "ppo-eob",
   "slug": "preventive-cost-sharing",
   "status": "published",
-  "description": "Claim 1 is an annual wellness visit with a preventive screening, both covered preventive services. The wellness visit line charges the member the $20 office-visit copay, even though its own note P1 says no copayment, coinsurance or deductible applies. Claim 2, an office visit with lab tests, is correct. A careful reviewer should conclude the member owes $0 for the wellness visit, because Medicare Advantage plans may not charge cost sharing for in-network Medicare-covered preventive services.",
+  "description": "Claim 1 is an annual wellness visit with a preventive screening, both covered preventive services. The wellness visit line charges the member the $20 office-visit copay, even though its own note P1 says no copayment, coinsurance or deductible applies. Claim 2, an office visit with lab tests, is correct. The wellness visit should cost the member $0, because Medicare Advantage plans may not charge cost sharing for in-network Medicare-covered preventive services.",
   "period": {
     "start": "2026-03-01",
     "end": "2026-03-31"

@@ -1,0 +1,123 @@
+{
+  "description": "The two fictional 2026 plan designs of the commercial employer-plan EOB: a self-funded, non-grandfathered ERISA plan with a PPO design and an HSA-qualified high-deductible design. Every number is fictional and sits within the limit stored beside it; each limit carries its citation and the date it was read. Amounts are dollars per plan year (calendar 2026).",
+  "year": 2026,
+  "limits": {
+    "acaOutOfPocket": {
+      "self": 10600,
+      "family": 21200,
+      "rule": "the 2026 maximum annual limitation on cost sharing; the self-only amount applies to each person, family coverage included",
+      "citations": ["PHS Act 2707(b), applied to self-funded group health plans (DOL ACA FAQs Part XXVII)", "45 CFR 156.130(a)", "2025 Marketplace Integrity and Affordability final rule (published June 25, 2025)"],
+      "sources": ["https://www.federalregister.gov/documents/2025/06/25/2025-11606/patient-protection-and-affordable-care-act-marketplace-integrity-and-affordability", "https://www.cms.gov/files/document/2027-papi-parameters-guidance-2026-01-29.pdf", "https://www.dol.gov/agencies/ebsa/about-ebsa/our-activities/resource-center/faqs/aca-part-27"],
+      "read": "2026-11-03"
+    },
+    "hdhp": {
+      "minimumDeductible": {
+        "self": 1700,
+        "family": 3400
+      },
+      "maximumOutOfPocket": {
+        "self": 8500,
+        "family": 17000
+      },
+      "rule": "an HSA-qualified plan's deductible is at least the minimum (under family coverage each person's embedded deductible too) and its out-of-pocket at most the maximum; no benefit before the deductible except preventive care",
+      "citations": ["IRC 223(c)(2)", "Rev. Proc. 2025-19", "IRS Publication 969"],
+      "sources": ["https://www.irs.gov/pub/irs-drop/rp-25-19.pdf"],
+      "read": "2026-11-03"
+    },
+    "outOfNetworkCostSharing": {
+      "rule": "out-of-network cost sharing need not count toward the annual limitation, except for care the No Surprises Act protects",
+      "citations": ["45 CFR 156.130(c)", "reaching self-funded plans through DOL ACA FAQs Part XVIII Q4 and Part 60", "45 CFR 149.110(b)(3)(v); 29 CFR 2590.716-4"],
+      "read": "2026-11-03"
+    },
+    "essentialBenefits": {
+      "rule": "no annual or lifetime dollar limit on essential health benefits",
+      "citations": ["PHS Act 2711; 29 CFR 2590.715-2711(a)", "45 CFR 147.126(a)"],
+      "read": "2026-11-03"
+    },
+    "nsaFacilities": {
+      "types": ["hospital-emergency-department", "hospital-outpatient", "critical-access-hospital", "ambulatory-surgical-center"],
+      "rule": "for non-emergency services, a health care facility is a hospital, a hospital outpatient department, a critical access hospital or an ambulatory surgical center; emergency care is protected wherever it is given",
+      "citations": ["45 CFR 149.30 (health care facility)", "29 CFR 2590.716-3"],
+      "read": "2026-11-03",
+      "note": "follows the definition of a health care facility for non-emergency services in 45 CFR 149.30"
+    }
+  },
+  "designs": {
+    "ppo": {
+      "kind": "ppo",
+      "combinedAccumulators": false,
+      "inNetwork": {
+        "deductible": {
+          "self": 1500,
+          "family": 3000,
+          "perPerson": 1500
+        },
+        "outOfPocket": {
+          "self": 10600,
+          "family": 21200,
+          "perPerson": 10600,
+          "limit": "acaOutOfPocket"
+        },
+        "coinsurance": 0.2,
+        "copay": {
+          "primary": 30,
+          "specialist": 60,
+          "emergencyRoom": 300
+        },
+        "copayRules": "office visits: the copay only, no deductible; the emergency-room facility line: the $300 copay, then the deductible and coinsurance on the rest; every other line: the deductible, then coinsurance; copays count toward and stop at the out-of-pocket maximum"
+      },
+      "outOfNetwork": {
+        "deductible": {
+          "self": 3000,
+          "family": 6000,
+          "perPerson": 3000
+        },
+        "outOfPocket": {
+          "self": 13000,
+          "family": 26000,
+          "perPerson": 13000,
+          "limit": "outOfNetworkCostSharing"
+        },
+        "coinsurance": 0.4,
+        "copay": null
+      },
+      "visitLimit": {
+        "service": "acupuncture",
+        "visits": 12,
+        "rule": "a service outside the plan's stored benchmark of essential health benefits; past the limit it is not covered",
+        "limit": "essentialBenefits"
+      }
+    },
+    "hsa": {
+      "kind": "hsa",
+      "combinedAccumulators": true,
+      "inNetwork": {
+        "deductible": {
+          "self": 3400,
+          "family": 6800,
+          "perPerson": 3400,
+          "limit": "hdhp"
+        },
+        "outOfPocket": {
+          "self": 8000,
+          "family": 16000,
+          "perPerson": 8000,
+          "limit": "hdhp"
+        },
+        "coinsurance": 0.2,
+        "copay": null
+      },
+      "outOfNetwork": {
+        "coinsurance": 0.4
+      },
+      "visitLimit": {
+        "service": "acupuncture",
+        "visits": 12,
+        "rule": "as the ppo",
+        "limit": "essentialBenefits"
+      },
+      "telehealth": "the HDHP telehealth safe harbor is recorded and not exercised: no telehealth code is in the catalog"
+    }
+  },
+  "notModelled": ["nsa-consent-exception-no-in-network-provider", "nsa-consent-exception-unforeseen-urgent-need", "post-stabilization-care", "maternity"]
+}

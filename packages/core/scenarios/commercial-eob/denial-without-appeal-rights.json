@@ -1,0 +1,36 @@
+{
+  "type": "commercial-eob",
+  "slug": "denial-without-appeal-rights",
+  "status": "published",
+  "description": "This EOB holds an office visit and an acupuncture visit past the yearly visit limit. The acupuncture line is correctly denied, but the EOB prints no appeal rights section, which a denial requires. An auditor should conclude that the EOB must describe the plan's review procedures and their time limits.",
+  "visitsUsed": {
+    "acupuncture": 12
+  },
+  "claims": [
+    "office-primary",
+    "acupuncture"
+  ],
+  "mutations": [
+    {
+      "op": "ce-drop-denial-element",
+      "args": {
+        "element": "appeal"
+      }
+    }
+  ],
+  "decoys": [],
+  "sources": [
+    {
+      "what": "Content of a notice of adverse benefit determination (every EOB that pays less than billed)",
+      "source": "29 CFR 2560.503-1(g); 29 CFR 2590.715-2719(b)(2)(ii)(E); DOL claims procedure FAQ C-12, https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XXV/subchapter-G/part-2560/section-2560.503-1"
+    },
+    {
+      "what": "Cost sharing on the allowed amount; no balance billing in network",
+      "source": "Uniform Glossary of Coverage and Medical Terms, https://www.cms.gov/files/document/uniform-glossary-english-060723.pdf"
+    },
+    {
+      "what": "No lifetime or annual dollar limits on essential health benefits; visit limits outside them not barred",
+      "source": "45 CFR 147.126, https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.126"
+    }
+  ]
+}

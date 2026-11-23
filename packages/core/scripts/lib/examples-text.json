@@ -1,0 +1,4 @@
+{
+ "note": "Text of examples/README.md that examples.js prints (0.8.0).",
+ "statementsIntro": "Five examples also carry the provider's statement for one claim: each Medicare Advantage EOB's `baseline-clean`, the\ncommercial EOB's `baseline-clean` under each insurer and its `care-settings-clean` under insurer `a`, in variant\n`over-owed` where it applies to the billed claim, else `clean`. Each is written as `<name>.bill.pdf` beside the EOB\n(render one with `--also bill --bill over-owed`), compared in CI by its page words and ground truth; the Statement\ncolumn gives a commercial statement's printed title."
+}

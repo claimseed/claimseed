@@ -2,12 +2,15 @@
 // Smoke test of a running server command (a checkout, an installed package or the Docker image):
 //   node packages/mcp/scripts/smoke.js --host-dir DIR [--container-dir /work] -- <command> [args...]
 // Starts the command as an MCP server over stdio, lists its tools, renders one document with its 835 and a degraded
-// copy, and checks that the result carries a page image and that the PDF, its ground truth and its 835 arrived in DIR
-// (the folder the server writes to, seen from this machine; for a container, the host side of its /work mount).
+// copy, and an EOB with its provider's statement, and checks that the result carries a page image and that the PDF,
+// its ground truth, its 835 and the statement arrived in DIR (the folder the server writes to, seen from this machine;
+// for a container, the host side of its /work mount).
 // Exit 0 on success.
 import fs from 'fs'; import path from 'path'; import crypto from 'crypto';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { PDFDocument, PDFArray, decodePDFRawStream } from 'pdf-lib';
+import { watermarkCells, WATERMARK_COLOR } from '../../core/src/render.js';
 
 const argv = process.argv.slice(2);
 const sep = argv.indexOf('--');
@@ -40,5 +43,21 @@ try {
   const d = await client.callTool({ name: 'degrade_document', arguments: { type: 'msn', scenario: 'duplicate-office-visit', seed: 'smoke-1', preset: 'low-res', preview: 'none' } }, undefined, { timeout: 180000 });
   if (d.isError) throw new Error(`degrade_document failed: ${d.content?.[0]?.text}`);
   if (d.structuredContent.degradation !== 'low-res' || !fs.existsSync(local(d.structuredContent.pdf))) throw new Error('the degraded copy is missing');
-  console.log(`smoke: ok — ${tools.length} tools; rendered ${path.basename(out.pdf)} (${out.pages} pages, ${pdf.length} bytes), its 835 and a low-res copy into ${hostDir}`);
+  // a provider's statement beside an EOB: its PDF and key arrive beside the EOB's, and the PDF matches its SHA-256
+  const p = await client.callTool({ name: 'render_document', arguments: { type: 'ppo-eob', scenario: 'baseline-clean', seed: 'smoke-1', also: ['835', 'bill'], preview: 'none' } }, undefined, { timeout: 180000 });
+  if (p.isError) throw new Error(`render_document with a statement failed: ${p.content?.[0]?.text}`);
+  const bill = p.structuredContent.bill;
+  if (!bill || !bill.pdf || !bill.groundTruthFile) throw new Error('the statement is missing');
+  const billPdf = fs.readFileSync(local(bill.pdf));
+  if (crypto.createHash('sha256').update(billPdf).digest('hex') !== bill.sha256) throw new Error('the statement on disk does not match the reported SHA-256');
+  if (JSON.parse(fs.readFileSync(local(bill.groundTruthFile), 'utf-8')).documents[0].type !== 'provider-statement') throw new Error('unexpected statement key');
+  // insurer a prints one claim in the top of each later page: the watermark is drawn up there, over it, not in the middle
+  const c = await client.callTool({ name: 'render_document', arguments: { type: 'commercial-eob', scenario: 'surprise-balance-bill', seed: 'example', insurer: 'a', preview: 'none' } }, undefined, { timeout: 180000 });
+  if (c.isError) throw new Error(`render_document of a commercial EOB failed: ${c.content?.[0]?.text}`);
+  const doc = await PDFDocument.load(fs.readFileSync(local(c.structuredContent.pdf)), { updateMetadata: false }); const page2 = doc.getPage(1);
+  const k = page2.node.Contents(); const streams = (k instanceof PDFArray ? k.asArray() : [k]).map((r) => Buffer.from(decodePDFRawStream(doc.context.lookup(r)).decode()).toString('latin1')).join('\n');
+  const w = WATERMARK_COLOR; const at = new RegExp(`${w.red} ${w.green} ${w.blue} rg\\n0 w\\n\\[\\] 0 d\\n1 0 0 1 (-?[\\d.]+) (-?[\\d.]+) cm`).exec(streams);
+  const middle = watermarkCells(page2.getWidth(), page2.getHeight(), { fy: 0.5 })[0][0];
+  if (!at || !(Number(at[2]) > middle[1] + 36)) throw new Error(`the commercial EOB's page 2 watermark is not over its claim (${at ? at[2] : 'none'} against the middle's ${middle[1].toFixed(1)})`);
+  console.log(`smoke: ok — ${tools.length} tools; rendered ${path.basename(out.pdf)} (${out.pages} pages, ${pdf.length} bytes), its 835, a low-res copy and a provider's statement into ${hostDir}`);
 } finally { await client.close(); }

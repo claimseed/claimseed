@@ -1,0 +1,45 @@
+{
+  "type": "commercial-eob",
+  "slug": "accumulator-math-error",
+  "status": "published",
+  "description": "This EOB, for PPO self-only coverage, holds an in-network office visit and an out-of-network specialist visit. The in-network deductible row's year-to-date figure does not equal the amount before plus this statement, while the out-of-network difference is correctly left out of the out-of-pocket total (a decoy). The correct reading is that the year to date should be the amount before plus this statement's amount.",
+  "design": "ppo",
+  "tier": "self",
+  "claims": [
+    "office-primary",
+    {
+      "shape": "office-specialist",
+      "network": "out"
+    }
+  ],
+  "mutations": [
+    {
+      "op": "ce-accumulator-off",
+      "args": {
+        "group": "person",
+        "network": "in",
+        "kind": "deductible",
+        "by": 50
+      }
+    }
+  ],
+  "decoys": [
+    {
+      "op": "ce-decoy-oop-excludes",
+      "args": {
+        "claim": 1,
+        "line": "office-specialist"
+      }
+    }
+  ],
+  "sources": [
+    {
+      "what": "Content of a notice of adverse benefit determination (every EOB that pays less than billed)",
+      "source": "29 CFR 2560.503-1(g); 29 CFR 2590.715-2719(b)(2)(ii)(E); DOL claims procedure FAQ C-12, https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XXV/subchapter-G/part-2560/section-2560.503-1"
+    },
+    {
+      "what": "Cost sharing on the allowed amount; no balance billing in network",
+      "source": "Uniform Glossary of Coverage and Medical Terms, https://www.cms.gov/files/document/uniform-glossary-english-060723.pdf"
+    }
+  ]
+}

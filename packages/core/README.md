@@ -1,52 +1,62 @@
 # @claimseed/core
 
-`@claimseed/core` renders fully synthetic US medical-billing specimen documents (Medicare Summary Notices,
-itemized provider bills, Medicare Advantage explanations of benefits and, over time, other notices) as PDFs with a
-machine-readable ground truth beside each one. Every value on a page is derived from a seed by a small rules engine
-(fictional people and facilities, public fee-schedule amounts, Original Medicare Part B adjudication or a fictional
-Medicare Advantage plan's), and a scenario file decides which error, if any, is deliberately injected and which
-public rule it breaks. The output exists to test extractors, bill-review tools and training pipelines; nothing in
-it is, or is derived from, a real document.
+`@claimseed/core` renders synthetic US medical-billing specimen documents (Medicare Summary Notices, itemized provider
+bills, EOBs from fictional Medicare Advantage plans and a fictional self-funded employer plan, and the provider's
+statement for one EOB claim) as PDFs, each with machine-readable ground truth, and on request a notice's or EOB's X12
+835. A rules engine generates the names, identifiers, addresses, fictional phone numbers, dates, services and amounts
+from a seed (fictional people and facilities, public fee-schedule amounts, and Original Medicare Part B adjudication,
+a fictional Medicare Advantage plan's, or a fictional employer plan's, priced at 2026 Medicare amounts times published
+average commercial price ratios). The standard wording, the federal help lines the documents print and the fictional
+insurers' names are fixed. A scenario file decides which error, if any, is injected and which public rule it breaks.
+It is for testing extractors, bill-review tools and training pipelines; nothing in it is, or is derived from, a real
+document. The code is licensed under Apache-2.0, and the documents and answer keys it generates are released to the
+public domain under CC0 1.0. Sample documents with their answer keys are in
+[`claimseed-0.8.0-samples.zip`](https://github.com/claimseed/claimseed/releases/download/v0.8.0/claimseed-0.8.0-samples.zip),
+attached to the GitHub release v0.8.0.
 
 ## CLI
 
+The commands below run as `npx @claimseed/core <command>` from any folder outside a checkout of this repository, with
+Node.js 22.13 or later. In a checkout, after `npm ci`, `node src/cli.js <command>` in `packages/core` runs the same
+commands.
 
 ```sh
 # what can be rendered
-node src/cli.js list                 # every type/scenario
-node src/cli.js list msn             # one type
+npx @claimseed/core list                 # every type/scenario
+npx @claimseed/core list msn             # one type
 
 # data + ground truth as JSON on stdout, no browser needed
-node src/cli.js generate msn baseline-clean --seed demo
+npx @claimseed/core generate msn baseline-clean --seed demo
 
 # PDF + <name>.ground-truth.json in DIR
-node src/cli.js render msn baseline-clean --seed demo --out ./output
-node src/cli.js render msn baseline-clean --seed demo --out ./output --degrade scan   # also fax, photo, low-res
-node src/cli.js render msn baseline-clean --seed demo --out ./output --also 835       # also the X12 835 of the same claims
-node src/cli.js render itemized-bill balance-billing --seed demo --out ./output
-node src/cli.js render ppo-eob baseline-clean --seed demo --out ./output   # also hmo-eob
-node src/cli.js render ppo-eob baseline-clean --seed demo --out ./output --layout-variant p07   # also seeded, all; not msn
+npx @claimseed/core render msn baseline-clean --seed demo --out ./output
+npx @claimseed/core render msn baseline-clean --seed demo --out ./output --degrade scan   # also fax, photo, low-res
+npx @claimseed/core render msn baseline-clean --seed demo --out ./output --also 835       # also the X12 835 of the same claims
+npx @claimseed/core render itemized-bill balance-billing --seed demo --out ./output
+npx @claimseed/core render ppo-eob baseline-clean --seed demo --out ./output   # also hmo-eob
+npx @claimseed/core render commercial-eob baseline-clean --seed demo --out ./output --insurer a   # or b; left out: from the seed
+npx @claimseed/core render ppo-eob baseline-clean --seed demo --out ./output --layout-variant p07   # not msn or commercial-eob
 # also a provider's statement for one claim, with a balance due above the EOB's member share (.bill.pdf and its key)
-node src/cli.js render ppo-eob baseline-clean --seed demo --out ./output --also bill --bill over-owed
+npx @claimseed/core render ppo-eob baseline-clean --seed demo --out ./output --also bill --bill over-owed
 
 # a set: PDFs, answer keys and manifest.jsonl (SHA-256 of each file, the degradation preset or null, claimseed and Chrome versions) in a new DIR;
-# with --also 835 (types msn, ppo-eob and hmo-eob only), each document also gets its .835, listed in the manifest with its SHA-256
-node src/cli.js batch --types msn,itemized-bill --seeds 50 --out ./set          # --scenarios all|S1,S2  --seed-prefix P  --degrade PRESET
-node src/cli.js batch --types ppo-eob,hmo-eob --seeds 20 --layout-variant seeded --out ./set   # or an id, or all; never with msn
+# with --also 835 (msn, ppo-eob, hmo-eob and commercial-eob), each document also gets its .835, listed in the manifest with its SHA-256
+npx @claimseed/core batch --types msn,itemized-bill --seeds 50 --out ./set          # --scenarios all|S1,S2  --seed-prefix P  --degrade PRESET
+npx @claimseed/core batch --types ppo-eob,hmo-eob --seeds 20 --layout-variant seeded --out ./set   # or an id, or all; never with msn or commercial-eob
 # blind: documents named by an opaque id, never the scenario, errors or seed; answer keys (and a batch's manifest) in a folder apart
-node src/cli.js render msn baseline-clean --seed demo --out ./output --blind-keys ./keys   # not ./output or a folder inside it
-node src/cli.js batch --types msn,itemized-bill --seeds 50 --out ./set --blind-keys ./keys
-node src/cli.js batch --types msn,itemized-bill --seeds 50 --out ./set --blind-keys ./keys --blind-salt SALT   # a key's salt: the same set
+npx @claimseed/core render msn baseline-clean --seed demo --out ./output --blind-keys ./keys   # not ./output or a folder inside it
+npx @claimseed/core batch --types msn,itemized-bill --seeds 50 --out ./set --blind-keys ./keys
+npx @claimseed/core batch --types msn,itemized-bill --seeds 50 --out ./set --blind-keys ./keys --blind-salt SALT   # a key's salt: the same set
 # plus a provider's statement per EOB as its own blind document (over-owed where allowed, else clean); see pairs.jsonl
-node src/cli.js batch --types ppo-eob,hmo-eob --seeds 20 --out ./set --blind-keys ./keys --also bill --bill over-owed
-# the published set "standard": 1,022 blind documents fixed by the set file (no type, scenario, seed, degrade, 835 or layout options)
-node src/cli.js batch --set standard --out ./documents --blind-keys ./keys   # --blind-salt SALT (from set.json): the same content again
+npx @claimseed/core batch --types ppo-eob,hmo-eob --seeds 20 --out ./set --blind-keys ./keys --also bill --bill over-owed
+# the published set "standard": 1,887 blind documents fixed by its file (no type, scenario, seed, degrade, 835, statement or layout options)
+npx @claimseed/core batch --set standard --out ./documents --blind-keys ./keys   # --blind-salt SALT (from set.json): the same content again
 
 # score an extractor's report (see "Scoring an extractor" below)
-node src/cli.js verify --manifest ./set/manifest.jsonl --outputs ./reports     # one <pdf name>.json per document
-node src/cli.js verify --answer-key ./set/X.ground-truth.json --output report.json
-node src/cli.js verify msn duplicate-office-visit --seed demo --output report.json   # rebuilds the key from the seed
-node src/cli.js verify ppo-eob duplicate-visit --seed demo --layout-variant p07 --output report.json   # a variant's key
+npx @claimseed/core verify --manifest ./set/manifest.jsonl --outputs ./reports     # one per PDF, named as the PDF with .json for .pdf
+npx @claimseed/core verify --answer-key ./set/X.ground-truth.json --output report.json
+npx @claimseed/core verify msn duplicate-office-visit --seed demo --output report.json   # rebuilds the key from the seed
+npx @claimseed/core verify ppo-eob duplicate-visit --seed demo --layout-variant p07 --output report.json   # a variant's key
 ```
 
 Rendering needs a Chrome or Chromium binary. The engine looks at `$CLAIMSEED_CHROME`, then
@@ -57,6 +67,17 @@ scenario, same package version → byte-identical data. Every PDF carries `Subje
 document` in its metadata, a specimen band at the foot of every page and a diagonal watermark drawn as shapes
 (so text extraction never sees stray letters); the markers are stamped into the finished PDF inside `mergePdfs`,
 which every render function goes through, whether it is reached from the CLI or from the library.
+
+`render` (with or without `--degrade`), the library's `render()` and `renderDegraded()`, and the rendering MCP tools
+refuse a seed that ends, in any letter case, in a suffix claimseed adds to that type's file names, because its files
+could take another document's names: `_scan`, `_fax`, `_photo` or `_low-res` for every type; `.bill` for `ppo-eob`,
+`hmo-eob` and `commercial-eob`; `.a` or `.b` for `commercial-eob`; and `.` plus one of the type's layout variant ids
+(such as `.b01` on the itemized bill, `.p07` on the PPO EOB). The refusal repeats nothing typed. `generate` and
+`verify` do not check it.
+
+Text read from claimseed's PDFs with `pdftotext` from poppler 26.01.0 in its `-raw` mode can run two words together
+where a font's space is narrow, as in some headings and before one-letter words. The default and `-layout` modes of
+poppler 26.01.0, and poppler 25.03.0 and earlier, read the same PDFs with their spaces.
 
 ## Library
 
@@ -88,7 +109,7 @@ make a scanned-looking copy of a document:
 | `scan` | 200 dpi; off-white paper, a turn under 1 degree and a small shift, softening, grain and dust; JPEG |
 | `fax` | 200 dpi black and white after a threshold, standard (half vertical resolution) or fine, a turn, speckle and line streaks, the watermark printed again as a dot pattern; PNG |
 | `photo` | 150 dpi; the page on a table, the far edge narrower, a turn of up to 4 degrees, uneven light, blur and grain; JPEG |
-| `low-res` | 60 to 90 dpi, heavy JPEG compression |
+| `low-res` | 75 to 90 dpi, heavy JPEG compression |
 
 Any other preset, or an empty value such as `--degrade ''`, is refused with exit code 2 before anything is rendered or
 written, and the error message does not repeat the value. Every option of the command line refuses an empty value the
@@ -129,7 +150,9 @@ a set of header and title wording from `data/<type>/labels.json` (`base` is the 
 "continued" line). `seeded` picks an id from the seed alone, not from the type or scenario, so one seed takes the
 same position in every type's list (`p04`, `h04` and `b04` together) and a batch over several types is
 correlated; pass explicit ids to spread layouts across types. `all` (render and batch only) writes one document
-per id. The Medicare Summary Notice has one national format and takes no variant.
+per id. The Medicare Summary Notice has one national format and takes no variant. The commercial EOB takes none
+either: any value for it (`seeded` and `all` included) is refused, also in a batch that includes it; its insurer sets
+its layout (see "The commercial EOB (`commercial-eob`)" below).
 
 A variant never changes the data, any amount, any required item, the order of the EOBs' money columns (amount
 billed, approved, plan's share, your share), the bill's charge column (always last), the date and money formats
@@ -146,24 +169,151 @@ An unknown id, an id of another type, an empty or over-long value, `seeded` or `
 `render` and `batch`, a batch that mixes the MSN with `seeded` or `all`, and the option given twice are refused
 (exit code 2 on the command line, an error from the library) with a message that does not repeat the value.
 
+## The commercial EOB (`commercial-eob`)
+
+`commercial-eob` is an explanation of benefits from a fictional self-funded employer health plan for one patient (the
+subscriber, a spouse or a child) on self-only or family coverage, under the plan option "Standard PPO Option" or "HSA
+Qualified Option" (an HSA-qualified high-deductible design whose deductible and out-of-pocket maximum count in- and
+out-of-network care together). One of four fictional employers (plan sponsors) pays the claims; a fictional insurer
+processes them. Each visit is one claim per billing provider: the facility, and each clinician, lab, ambulance service
+or urgent care center. The scenario sets the plan option and coverage tier, or else the seed does. A service's
+in-network rate is its 2026 Medicare national amount times the average commercial-to-Medicare price ratio for its
+setting (2.23 hospital, 1.29 physician; January 2022 CBO report); the provider's charge is that rate times a seeded
+markup. Cost sharing is figured on the allowed amount; preventive care on the plan's list costs nothing in network.
+
+### Insurers and layouts
+
+Each insurer has its own mark and colors, and its own layout:
+
+| Insurer | Name | Pages | Layout |
+| --- | --- | --- | --- |
+| `a` | Fernhollow Health Plans | portrait | Page 1 holds the summary, the plan's terms and the year's deductible and out-of-pocket totals; each claim has a page of its own; a closing page has the remark codes, the No Surprises Act notice when a line is protected, and the appeal rights. |
+| `b` | Quillmont Insurance Company | landscape | One table lists every claim, with the summary and the year's totals in a side panel on page 1, continued on as many pages as it needs; a closing page has the plan's terms, the remark codes, the notice and the appeal rights. |
+
+Choose one with `--insurer a|b` on `generate`, `render` (also with `--degrade`) and `verify`; with `insurer` on
+`render()`, `renderDegraded()` and `verifyFromSeed()`; or with `overrides: { insurer }` on `generateData()`. Left out,
+the insurer is drawn from the seed in a stream of its own, so naming one changes nothing else: the same seed gives the
+same claims, amounts, errors and decoys under either insurer.
+
+```sh
+npx @claimseed/core render commercial-eob surprise-balance-bill --seed demo --out ./output --insurer b --also 835,bill
+npx @claimseed/core generate commercial-eob baseline-clean --seed demo --insurer a
+```
+
+```js
+await render({ type: 'commercial-eob', scenario: 'baseline-clean', seed: 'demo', outDir: './out', insurer: 'a' });
+generateData({ type: 'commercial-eob', scenario: 'baseline-clean', seed: 'demo', overrides: { insurer: 'a' } });
+```
+
+A named insurer adds `.a` or `.b` after the seed in the file names: `commercial-eob_<scenario>_<seed>.a.pdf` with its
+`.ground-truth.json` and, with `--also 835`, its `.835` (one file, one transaction per payee); a degraded copy
+`commercial-eob_<scenario>_<seed>.a_<preset>.pdf`; the statement `<name>.bill.pdf`, where `<name>` is the EOB's file
+name without `.pdf`. A drawn insurer adds nothing.
+
+These are refused with a message that repeats nothing typed: `--insurer` for another type, a value other than `a` or
+`b`, and an insurer on a blind render (a blind document's insurer comes from its own seed). `batch` takes no
+`--insurer`: each document's insurer comes from its seed. The commercial EOB takes no `--layout-variant`.
+
+### What the page prints
+
+- Header: the insurer's name and mark, a SPECIMEN badge, "Explanation of Benefits", "This is not a bill.", the mailing
+  address, patient, member ID, plan, plan option, employer (plan sponsor), group number, date processed, a sentence
+  that the employer pays the claims and the insurer processes them, and the member help line.
+- Summary: claims, amount billed, amount allowed, plan paid, you may owe.
+- "Your share of costs under this option": deductible, coinsurance, copays (primary care, specialist and emergency
+  room visits) and out-of-pocket maximum, in and out of network, individual and family; preventive care on the plan's
+  list costs $0 in network.
+- "Deductible and out-of-pocket totals": each deductible and out-of-pocket row, for the patient and (on family
+  coverage) the family, with the amount before this statement, this statement's amount, the year to date ("Met" at the
+  limit) and the plan limit.
+- Claims: claim number, provider, specialty, network status, place of service, emergency care or not. Lines: date of
+  service, service, service code, billed, allowed, plan paid, deductible, copay, coinsurance, not covered, you may
+  owe, remark code. Notes: a denial's reason, denial code, plan section and pointer to the appeal section; a line the
+  No Surprises Act protects; a signed consent; amounts left out of the out-of-pocket total.
+- Closing page: the remark codes used; "Your protections from surprise bills" (the No Surprises Act notice, printed
+  only when a line is protected, ending with the federal No Surprises Help Desk, 1-800-985-3059); "Your right to
+  appeal" (internal appeal to the insurer within 180 days, independent review, civil action under ERISA section
+  502(a)); the diagnosis and treatment codes and any rule used, offered at no cost; help contacts: the plan's member
+  services line (a fictional 555-01xx number) and the U.S. Department of Labor, Employee Benefits Security
+  Administration, 1-866-444-3272. No language tagline is printed.
+
+### Answer key
+
+The answer key is version 1.7, blind or not, with or without a statement, and adds a top-level `plan` object:
+
+| Field | Holds |
+| --- | --- |
+| `design` | `ppo` or `hsa` |
+| `tier` | `self` or `family` |
+| `insurer` | `a` or `b` |
+| `sponsor` | the employer (plan sponsor) |
+| `before`, `after` | the deductible and out-of-pocket amounts met before and after these claims, per person and per family, in and out of network, in dollars |
+| `stateLaw` | always `"none"` |
+| `providerNotices` | one No Surprises Act notice per payee of a protected line |
+
+Each claim adds `payee` (its key, NPI, network and kind), `facility` and `emergency`; each line adds the plan's facts:
+`network`, `protected`, `recognized`, `qpa`, `balanceBillable`, `preventive` and `denial`. `deductibleMetBefore` is
+`null`; `plan.before` holds what was met. `documents[0].fields` are the printed values in the page's words, for
+example `terms.deductibleIn`, `accumulators[0].yearToDate`, `claims[0].lineItems[0].youMayOwe`, `claims[0].notes[0]`,
+`sections.appeal` and `sections.noSurprises`.
+
+Each error is keyed where the page prints it: a line (`claims[k].lineItems[j]`), a denial note (`claims[k].notes[n]`),
+an accumulator row (`accumulators[i]`), or no place (`fieldRef` null) for a missing appeal rights section, with the
+expected value from the plan's own adjudication, the printed value and the difference. The plan's own correct denials
+(elective care without prior authorization, a visit past the yearly limit) are in `errors[]` as `coverage-denial` with
+severity `info`, which a reviewer is expected to surface. See "X12 835 remittances" for its 835 and "Provider
+statements (EOB pairs)" for the statement beside it.
+
+### Scenarios
+
+| Scenario | Errors | Decoys | What it holds |
+| --- | --- | --- | --- |
+| `accumulator-math-error` | `math-error` | `oop-excludes-non-covered` | PPO, self-only: an in-network office visit, an out-of-network specialist visit; the in-network deductible row's year to date is not the amount before plus this statement's. |
+| `baseline-clean` | none | none | Clean control: two in-network claims, an office visit with lab work and an adult preventive visit; the seed picks plan option, coverage tier and insurer. |
+| `care-settings-clean` | none | none | Clean control of three in-network visits, one claim per billing provider: urgent care, a hospital outpatient X-ray (hospital charge and radiologist's reading) and lab work. |
+| `combined-three-errors` | `preventive-cost-sharing`, `emergency-authorization-denial`, `missing-required-section`; `coverage-denial` (info) | none | Cost sharing on an adult preventive visit, an out-of-network emergency physician denied for no prior authorization, and an acupuncture denial note without its plan section. |
+| `decoys-only` | none planted; `coverage-denial` (info) x 2 | `consented-balance`, `ground-ambulance-balance`, `problem-visit-beside-listed`, `out-of-network-balance`, `oop-excludes-non-covered`, `elective-authorization-denial`, `appeal-rights-by-section` | Six visits built to look wrong but correct: consented, ambulance and out-of-network differences, a problem visit beside a $0 screening, and an elective surgery's denial. |
+| `denial-missing-content` | `missing-required-section`; `coverage-denial` (info) x 3 | `appeal-rights-by-section` | An elective knee surgery without prior authorization and an acupuncture visit past the yearly limit; one surgery line's denial note gives no plan section. |
+| `denial-without-appeal-rights` | `missing-required-section`; `coverage-denial` (info) | none | An office visit and an acupuncture visit correctly denied past the yearly limit; the EOB prints no appeal rights section, which a denial requires. |
+| `emergency-authorization-denial` | `emergency-authorization-denial`; `coverage-denial` (info) x 2 | `elective-authorization-denial` | An out-of-network emergency physician's line denied for no prior authorization, which emergency care never needs, beside an elective knee surgery correctly denied. |
+| `in-network-balance-bill` | `in-network-balance-bill` | `out-of-network-balance` | Two specialist visits: the in-network one asks for the difference between billed and allowed on top of cost sharing; the out-of-network one correctly owes it. |
+| `preventive-cost-sharing` | `preventive-cost-sharing` | `problem-visit-beside-listed` | An adult preventive visit with a flu shot, nothing met before, charged cost sharing; a problem visit beside a $0 HIV screening is correctly cost-shared. |
+| `surprise-balance-bill` | `surprise-balance-bill` | `consented-balance`, `ground-ambulance-balance` | In-network hospital surgery by an out-of-network surgeon and anesthesiologist with consent, plus a ground ambulance; anesthesia, whose protection consent cannot waive, is billed the difference. |
+
+The `coverage-denial` entries are the plan's correct denials at severity `info`.
+
 ## X12 835 remittances
 
 `--also 835` (on `render` and `batch`) and `render({ ..., also: '835' })` write the X12 005010X221A1 835 of a Medicare
-Summary Notice or a Medicare Advantage EOB from the same claims (`src/x12/remittance.js`); `remittanceFor({ type,
-scenario, seed })` returns it as `{ text, groundTruth }` without writing anything. The itemized bill has none: it prints no per-line payer amounts, and an institutional
-remittance needs data it does not carry.
+Summary Notice, a Medicare Advantage EOB or a commercial EOB from the same claims (`src/x12/remittance.js`);
+`remittanceFor({ type, scenario, seed })` returns it as `{ text, groundTruth }` without writing anything, drawing a
+commercial EOB's insurer from the seed. The itemized bill has none: it prints no per-line payer amounts, and an
+institutional remittance needs data it does not carry.
 
 - **What the file holds.** One interchange and one functional group; one transaction per payee (grouped by NPI). The
   payment record is remittance information only (`BPR01` `I`) for a fictional check (`BPR04` `CHK`), or `H`/`NON`/$0 for a
-  transaction whose claims pay nothing, with no routing or account numbers (`BPR05` to `BPR15` empty). Per claim a `CLP`
-  (status 1, or 4 when every line is denied; claim filing indicator `MB` for the MSN, `16` for the Medicare Advantage
-  EOBs), the patient (`NM1*QC`), and per line an `SVC`, its date, its adjustments and the approved amount (`AMT*B6`).
+  transaction whose claims pay nothing, with no routing or account numbers (`BPR05` to `BPR15` empty). Per claim a
+  `CLP` (status 1, or 4 when every line is denied; claim filing indicator `MB` for the MSN, `16` for the Medicare
+  Advantage EOBs, `CI` for the commercial EOB), the patient (`NM1*QC`), and per line an `SVC`, its date, its
+  adjustments and the approved amount (`AMT*B6`). `SVC01` holds the qualifier `HC` and the procedure code, and on the
+  commercial 835 also the modifier the EOB prints with it, as in `HC>71046>26`.
 - **Adjustments.** Code values only, never their descriptions: CO-45 for the charge above the approved amount; PR-1, PR-2
   and PR-3 for the deductible, coinsurance and copay from the claims block; a line denied as not medically necessary is
   adjusted in full under CARC 50 with group PR when the notice says the patient may be billed, CO when it says the
   patient owes nothing. The duplicate scenarios bill a service twice; a payer handling them correctly would deny the
   repeat as OA-18 (this is the expected handling the errors describe, not something the file shows). Code values are
   X12's (x12.org/codes); claimseed uses the values only.
+- **The commercial EOB's 835.** One transaction per payee, as for every type: each printed claim's billing provider
+  (facility, clinician, lab, ambulance service or urgent care center), grouped by NPI. Adjustments are written in the
+  code (`commercialAdjustments` in `src/x12/remittance.js`): `CO-45` for the charge above the allowed amount in
+  network, on a line the No Surprises Act protects, and on a visit-limit charge's part above the network rate; `PR-45`
+  for the difference an unprotected out-of-network provider may bill; `PR-1`, `PR-2` and `PR-3` for deductible,
+  coinsurance and copay; `CO-197` for a denial for no prior authorization in network (not billable to the patient),
+  `PR-197` out of network; `PR-119` for the patient's share past the yearly visit limit.
+  `data/x12/commercial-codes.json` records each code value's public source, and a test holds the code and the table to
+  the same codes. `CLP05` is the sum of the claim's PR adjustments. `in-network-balance-bill` (the 835 is right where
+  the page bills an in-network balance), `missing-required-section` and an accumulator row's `math-error` (no line)
+  have `x12Ref` null; other errors name their service line.
 - **Values.** The document's own: charged, approved, paid and the patient's share as the PDF prints them, so a planted
   error stays where the PDF has it. In the answer key, `documents[1]` is the 835 (`type` `x12-835`, its SHA-256, its
   transactions and the payer), and each error the file carries has `x12Ref`: `<ST02>:CLP<n>:CLP03` (a wrong charged
@@ -171,11 +321,13 @@ remittance needs data it does not carry.
   from the claim's PR adjustments), or `<ST02>:CLP<n>:SVC<n>` for a line (a duplicate is a repeated service line).
 - **Markers.** `ISA15` is `T`; the sender and receiver IDs, the payer's name and address and the technical contact
   (name and a 555-01xx phone) come from `data/x12/specimen-strings.json`, written without access to any real
-  document, and all say specimen or test. The 835's payer is this specimen payer, not the issuer the PDF prints.
+  document, and all say specimen or test. For the Medicare types the 835's payer is this specimen payer, not the issuer the PDF prints. For the commercial EOB
+the payer (`N1*PR`) is the EOB's fictional insurer, its name in capitals followed by `- SPECIMEN - TEST ONLY`; its
+address and technical contact are the specimen strings above.
 - **Identifiers.** Guaranteed never to be real: NPIs start with 9 (NPIs are issued with a first digit of 1 or 2), tax
   IDs start with 00 (not on the IRS list of prefixes), Medicare numbers carry a letter Medicare never uses. Recognisable
-  sentinels only: the claim numbers the PDF prints (13 digits starting with 99 on the MSN, `CS` and 10 digits on the
-  Medicare Advantage EOBs), member IDs (`SPEC` and 8 digits), and the patient control numbers, check numbers and payer
+  sentinels only: the claim numbers the PDF prints (13 digits starting with 99 on the MSN, `CS` and 10 digits on the Medicare Advantage and commercial EOBs), member IDs
+(`SPEC` and 8 digits, and on the commercial EOB a two-digit suffix per person: `-01`, `-02`), and the patient control numbers, check numbers and payer
   ID (`N1*PR` with the plan ID qualifier `XV`), which start with `CS`. Systems that validate real identifiers may reject
   them.
 - **What real Medicare remittances carry and these do not:** the 2% sequestration adjustment (CO-253), remark codes
@@ -184,18 +336,42 @@ remittance needs data it does not carry.
 - **Format.** Delimiters `*` `^` `>` `~`; each segment ends with `~` and a line feed, for reading (translators accept it;
   strip the line feeds for a strict reader). Save the text byte for byte: the answer key holds its SHA-256. The checker
   in `src/x12/check835.js` (`check835`, `checkSpecimen835`) reads these files; it expects a procedure code of five
-  characters after `HC`, as every code in `reference-data/service-catalog.json` is.
+  characters after `HC`, as every code in `reference-data/service-catalog.json` and `reference-data/commercial/service-catalog.json` is.
 
-## Provider statements (Medicare Advantage pairs)
+## Provider statements (EOB pairs)
 
-Beside a Medicare Advantage EOB (`ppo-eob` or `hmo-eob`, claimseed's fictional PPO and HMO), claimseed can render the
-provider's statement for one claim of that EOB: a one-page patient statement from the provider, of document type
-`provider-statement`. Which claim it bills is drawn from the seed. The EOB is exactly the same with or without its
-statement.
+Beside an EOB (`ppo-eob` or `hmo-eob`, claimseed's fictional Medicare Advantage PPO and HMO, or `commercial-eob`, the
+fictional employer plan's EOB), claimseed can render the provider's statement for one claim of that EOB: a one-page
+patient statement from the provider, of document type `provider-statement`. Which claim it bills is drawn from the
+seed, in a stream of its own. The EOB is exactly the same with or without its statement.
 
 The statement lists the claim's lines (date, code, description, units, charge) and an account summary: Total Charges,
 Contractual Adjustment, Denied by Your Plan (only when a line was denied), Paid by Your Plan, Payments Received and
-Balance Due. On a correct statement the balance due is the member share the EOB shows for that claim.
+Balance Due. On a correct statement the balance due is the member share the EOB shows for that claim less Payments
+Received, which is the copay paid at the visit on the `paid-at-visit` decoy and on `over-owed-with-payment`, and zero
+otherwise.
+
+### Beside a commercial EOB
+
+The statement bills one printed claim, so one billing provider, and is titled by the payee's kind: "Hospital Patient
+Statement" (hospital outpatient department or emergency room), "Medical Group Statement" (a clinician), "Urgent Care
+Statement", "Laboratory Statement" or "Ambulance Statement", recorded in the key's `metadata.title`. Beside a Medicare
+Advantage EOB it is titled "Patient Statement", with no `metadata.title`.
+
+An organization bills under its name and NPI on the EOB. A clinician bills through a group practice (a drawn name
+ending in "Health Associates", with its own NPI), and a "Treating Clinician" row gives the clinician's name and
+specialty as on the EOB; the key's providers list the group, then the clinician.
+
+The adjustment row is what the provider writes off, labelled "No Surprises Act Adjustment" when the Act protects a
+line of the claim. A claim with an approved, unprotected out-of-network line gets no adjustment row (the difference is
+the patient's) and only a `clean` statement. A line denied with nothing owed appears under "Denied by Your Plan, Not
+Billed to You". On a correct statement the balance due is the claim's printed "You may owe" less Payments Received.
+
+`denied-line-billed` needs such a line, here an in-network line denied for no prior authorization. Its error entries
+cite the commercial rules (an in-network provider accepts the plan's allowed amount as payment in full; on a protected
+line, 45 CFR 149.410 and 149.420). None of the EOB's planted errors or decoys passes to the statement. The statement's
+key is 1.6, with the claim as the provider bills it and none of the plan's facts; the EOB's stays 1.7. The statement
+has one layout under either insurer.
 
 ### Variants
 
@@ -216,12 +392,13 @@ A variant applies only where the billed claim allows it; for example, `denied-li
 claim. A single render refuses a variant that does not apply. A batch renders that statement clean instead, and its
 answer key says which variant it got (`pair.variant`). When the EOB claim a statement bills has a planted math error
 in its printed total (the total does not add up from its lines), the statement follows the EOB's lines, which are
-right, not the misprinted total. The statement's own error variants do not apply to that claim, so only a clean
-statement is made for it.
+right, not the misprinted total. Every statement variant other than `clean`, the decoy `paid-at-visit` included, is
+refused for that claim, so only a clean statement can be made for it.
 
-Some statements also carry, keyed on their own lines, errors and decoys that the EOB has on that claim and that the
-provider made: a line billed twice, a wrong date of service, a service repeated on another date, a charge far above
-the approved amount.
+Some statements beside a Medicare Advantage EOB also carry, keyed on their own lines, the errors and decoys that the
+EOB has on that claim and that the provider made: a line billed twice, a wrong date of service, a service repeated on
+another date, a charge far above the approved amount. A statement beside a commercial EOB carries none, because none
+of the commercial EOB's planted errors and decoys is the provider's.
 
 ### Options
 
@@ -233,8 +410,9 @@ decoy. An amount not given is drawn from the seed.
 ### Files and keys
 
 The statement is written as `<name>.bill.pdf`, with its key in `<name>.bill.ground-truth.json`, beside the EOB's
-`<name>.pdf` and key. Both keys are answer-key version 1.6 and carry `pair`: `role` (`eob` or `bill`), `with` (the
-other document's file name without `.pdf`, or its blind id), `claim`, `variant` and `params`.
+`<name>.pdf` and key. The statement's key is answer-key version 1.6, and so is a Medicare Advantage EOB's key beside
+it; a commercial EOB's key stays 1.7. Both keys carry `pair`: `role` (`eob` or `bill`), `with` (the other document's
+file name without `.pdf`, or its blind id), `claim`, `variant` and `params`.
 
 ### Blind documents
 
@@ -250,6 +428,17 @@ place in the order (shuffled by the salt when blind). Each statement has its own
 `pairs.jsonl` in the documents folder publishes the pairing: it lists each pair as `{ "eob": ..., "bill": ... }`, with
 names or ids only.
 
+### Degraded copies
+
+`render --degrade <preset> --also bill`, `batch --degrade <preset> --also bill` and `renderDegraded()` with
+`also: 'bill'` (or `also: ['835', 'bill']`) make a degraded copy of the statement beside the EOB's, with the same
+preset. `renderDegraded()` takes `bill` and `billParams` as `render()` does. The statement copy draws its settings
+from its own document type, the scenario and the seed, not from the EOB copy. The EOB's copy is `<name>_<preset>.pdf`
+and the statement's is `<name>.bill_<preset>.pdf`, where `<name>` is the EOB's file name without `.pdf`. In blind mode
+each copy has its own opaque id. Each key records `degradation` and `degradationParams`, and its `pair.with` names the
+other copy. A degraded batch has no clean documents, so `pairs.jsonl` lists the two copies of each pair. Over MCP,
+`degrade_document` makes no statement, and `render_blind` refuses `bill` with `preset`.
+
 ### Scoring
 
 A report on a statement is scored like any document's, against its own key: with `verify --answer-key` or a manifest.
@@ -258,9 +447,9 @@ EOB's, from the type, scenario and seed.
 
 ### Not supported yet
 
-A statement has no layout variants of its own, and nothing can ask for one. The EOB's layout variant applies to the
-EOB. Degraded copies of a statement and statements in a published set are not supported yet. Each is refused with a
-message.
+A statement has no layout variants of its own, and nothing can ask for one. The EOB's layout variant, and a commercial
+EOB's insurer, apply to the EOB only. The published set "standard" carries statements (see "Blind documents and
+published sets"); `batch --set` takes no `--also` or `--bill`, because the set fixes them.
 
 ## Scenario files
 
@@ -328,6 +517,19 @@ the period, and, on the PPO, `maDeductibleMetBefore`, the part of it that went t
 `docs/error-taxonomy.md` gives the kind each op reports and its rule; the MCP resource `catalog://mutations` lists
 the ops the published scenarios use, with the kinds they produce and the scenarios that use them.
 
+A commercial EOB scenario has no `period`, `claimCount` or `claimShapes`. It may set `design` (`ppo` or `hsa`) and
+`tier` (`self` or `family`), which are otherwise drawn from the seed; `patient` (`subscriber`, `spouse` or `child`);
+`before`, the deductible and out-of-pocket amounts already met, in dollars; and `visitsUsed`, the visits of a
+visit-limited service already used this year. `claims` lists one to eight claim shapes (`office-primary`,
+`office-specialist`, `preventive-adult`, `preventive-child`, `problem-visit-listed`, `lab`, `imaging`, `emergency`,
+`surgery`, `ambulance`, `urgent-care`, `acupuncture`), each a name or an object with options such as `network`,
+`facilityNetwork`, `consent` and `priorAuthObtained`. Its operations have a `ce-` prefix
+(`src/generate/commercial-operations.js`): the errors `ce-unprotect-line`, `ce-preventive-cost-share`,
+`ce-deny-emergency-for-auth`, `ce-in-network-balance-bill`, `ce-accumulator-off` and `ce-drop-denial-element`, and the
+decoys `ce-decoy-out-of-network-balance`, `ce-decoy-consented-balance`, `ce-decoy-ambulance-balance`,
+`ce-decoy-problem-visit`, `ce-decoy-oop-excludes`, `ce-decoy-elective-denial` and `ce-decoy-appeal-by-section`.
+`mutations`, `decoys` and `sources` work as for the other types.
+
 ## Blind documents and published sets
 
 For tools that must not see answers, `--blind-keys KEYDIR` (on `render` and `batch`) and `blind: true` with
@@ -339,16 +541,24 @@ KEYDIR, never the documents' folder or one inside it. A degraded copy is blind t
 Content comes from a seed derived from a salt, 128 random bits drawn per set, recorded in every key, so nobody can
 rebuild a document from a guessed scenario and seed and match a printed claim number. `--blind-salt SALT` or
 `blind: { salt }` (32 lowercase hexadecimal digits from an earlier set's key) makes the same set again; documents
-are written in an order drawn from the salt. Keys (ground truth 1.5 for a blind document alone, 1.6 for either
-document of a pair) hold a `blind` object: `id`, `salt`, `seed` and `layoutVariant` as asked, `copyOf` on a
+are written in an order drawn from the salt. Keys (ground truth 1.5 for a blind document alone, 1.6 for either document of a Medicare Advantage pair and for every
+provider's statement, 1.7 for a commercial EOB) hold a `blind` object: `id`, `salt`, `seed` and `layoutVariant` as asked, `copyOf` on a
 degraded copy, `set` and `canary` in a published set (every manifest line carries the canary too). `verify
 --manifest` scores a blind set exactly as an open set.
 
-`--set standard` (`set: 'standard'`) makes the published set "standard" of 1,022 blind documents (see the repository
-README). A set is always blind and its file fixes every document, so `--set` takes no `--types`, `--scenarios`,
-`--seeds`, `--seed-prefix`, `--degrade`, `--also` or `--layout-variant`. Its salt, from `set.json` or any key, makes
-the same content again; PDF bytes can differ by machine and Chrome install, so the manifest's SHA-256s name the
-published files.
+`--set standard` (`set: 'standard'`) makes the published set "standard" of 1,887 blind documents (see the repository
+README): its set file's notices, bills and EOBs, the provider's statements beside its PPO, HMO and commercial EOBs,
+and the 835s of notices and EOBs. A set is always blind and its file fixes every document, so `--set` takes no
+`--types`, `--scenarios`, `--seeds`, `--seed-prefix`, `--degrade`, `--also`, `--bill` or `--layout-variant`.
+
+Floors are checked from the generator before anything is rendered: each error kind and each decoy kind of each type at
+least 20 times; on each EOB type's statements, `bill-vs-eob-mismatch`, `bill-payment-mismatch`, the `paid-at-visit`
+decoy and clean statements at least 20 times each, other variants at least 5 times; each commercial statement title at
+least twice; each insurer on at least 40% of the commercial EOBs. Without `--blind-salt`, up to 50 salts are drawn
+until one meets every floor, and the command says how many when it took more than one; a salt given with
+`--blind-salt` that misses a floor is refused before anything is made. Its salt, from `set.json` or any key, makes the
+same content again; PDF bytes can differ by machine and Chrome install, so the manifest's SHA-256s name the published
+files.
 
 ```js
 await renderBatch({ set: 'standard', outDir: './documents', blind: true, keysDir: './keys' });  // or blind: { salt }
@@ -357,36 +567,58 @@ await renderBatch({ set: 'standard', outDir: './documents', blind: true, keysDir
 ## Scoring an extractor
 
 `verify` compares an extractor's or bill auditor's report with the answer key. The report is JSON in the shape of
-`schemas/extractor-output.schema.json`: `fields` maps answer-key field paths (the keys of
-`documents[0].fields`) to the values read, and `errors` lists `{ kind, fieldRef | lineRef }` for each problem
-flagged. Either part may be left out.
+`schemas/extractor-output.schema.json`: `fields` maps answer-key field paths (the keys of `documents[0].fields`) to
+the values read, and `errors` lists `{ kind, fieldRef | lineRef }` for each problem flagged. Either part may be left
+out.
 
-- Fields: money is compared to the cent and may be printed text (`"$1,234.50"`); dates may be ISO, M/D/YYYY or
-  "April 11, 2026"; text ignores case and repeated spaces. The result counts correct, wrong and missing fields and
-  lists their paths.
-- Errors: a flag finds an error when its kind matches and its place names the same line or total (a field inside
-  the line counts; for a duplicate charge, either line of the pair). A second flag on a found error is a repeat,
-  not a false alarm. A flag on a decoy, or on the line a decoy repeats (`relatedLineRef`), is a false alarm and
-  is listed under `decoysFlagged`.
-- The report is size-capped (5,000 fields, 1,000 errors, 200-character paths, 1,000-character values) and
-  refused if it has any other shape; the result holds counts, rates and answer-key paths only, never the
-  report's own text.
-- `verify --manifest` scores a whole set against the answer keys saved with it, after checking each key's
-  SHA-256 against the manifest, so a set is always graded against the keys it was rendered with. It reads only
-  regular files with the names the manifest gives, in the set and report folders: a symbolic link there is not
-  followed, and a folder, FIFO or device is listed as an invalid report (or, in place of an answer key, refused).
-  Only a report that is not there counts as missing; one that holds JSON `null`, a list or malformed JSON is
-  listed as invalid.
+For example, this report for `msn combined-three-errors` with seed `example` flags one error:
+
+```json
+{"errors":[{"kind":"duplicate-charge","lineRef":"claims[0].lines[1]"}]}
+```
+
+Saved as `report.json`, it is scored with:
+
+```sh
+npx @claimseed/core verify msn combined-three-errors --seed example --output report.json
+```
+
+It finds 1 of the 3 planted errors: the result's `errors` has `found` 1, `expected` 3, `recall` 0.3333, `precision` 1
+and `falseAlarms` 0. The two it misses are a `cost-sharing-error` and a `math-error`.
+
+- Fields: money is compared to the cent and may be printed text (`"$1,234.50"`); dates may be ISO, M/D/YYYY or "April
+  11, 2026"; text ignores case and repeated spaces. The result counts correct, wrong and missing fields and lists
+  their paths.
+- Errors: a flag finds an error when its kind matches and its place names the same line or total (a field inside the
+  line counts; for a duplicate charge, either line of the pair). A second flag on a found error is a repeat, not a
+  false alarm. A flag on a decoy, or on the line a decoy repeats (`relatedLineRef`), is a false alarm and is listed
+  under `decoysFlagged`.
+- Correct denials: an answer key's `errors[]` also lists the correct denials a reviewer should surface (record the
+  denial and the right to appeal) as kind `coverage-denial` at severity `info`, and they count in `errors`. On
+  commercial `decoys-only`, `denial-missing-content` and `emergency-authorization-denial` such a denied line is also a
+  decoy's line: a `coverage-denial` flag there finds the denial, and a flag of another kind is a false alarm listed
+  under `decoysFlagged`. `errors.excludingInfo`, also in a set's headline, `scoredOnly`, `byType` and `byDegradation`,
+  gives the figures without the `info` entries; its precision is found over `counted`, which leaves out repeats and
+  the flags that found an `info` entry.
+- The report is size-capped (5,000 fields, 1,000 errors, 200-character paths, 1,000-character values) and refused if
+  it has any other shape; the result holds counts, rates and answer-key paths only, never the report's own text.
+- `verify --manifest` scores a whole set against the answer keys saved with it, after checking each key's SHA-256
+  against the manifest, so a set is always graded against the keys it was rendered with. It looks for each document's
+  report under the PDF's file name with `.json` in place of `.pdf` (for `doc-1a2b....pdf`,
+  `reports/doc-1a2b....json`). It reads only regular files with the names the manifest gives, in the set and report
+  folders: a symbolic link there is not followed, and a folder, FIFO or device is listed as an invalid report (or, in
+  place of an answer key, refused). Only a report that is not there counts as missing; one that holds JSON `null`, a
+  list or malformed JSON is listed as invalid.
 - Headline figures (`fields`, `errors`) count every document of the set: a missing or invalid report scores as an
   empty one, and so does a part (fields or errors) a report leaves out once any report gives it. Skipping a document
   never raises field accuracy or recall; precision counts only what was flagged, so read it beside recall.
   `scoredOnly` holds the old figures, over scored reports. New breakdowns: `byType`, `byDegradation` (`clean` or the
   preset) and `byKind` (expected, found, recall per kind). `documents`, `scored`, `missingOutputs`, `invalidOutputs`
   and `documentsScored` are unchanged.
-- An answer key is checked before scoring: field values must be strings, numbers, booleans or null, error kinds
-  and decoy ids lower-case letters, digits and hyphens, and references strings; any other key is refused.
-- Dates match in any of the supported forms on either side: a key that prints "March 5, 2026" accepts
-  `2026-03-05`, and the reverse.
+- An answer key is checked before scoring: field values must be strings, numbers, booleans or null, error kinds and
+  decoy ids lower-case letters, digits and hyphens, and references strings; any other key is refused.
+- Dates match in any of the supported forms on either side: a key that prints "March 5, 2026" accepts `2026-03-05`,
+  and the reverse.
 
 ## Adding a scenario
 
@@ -422,8 +654,10 @@ Everything the engine prints comes from `src/generate/lexicon.js` (fictional nam
 so addresses format correctly), from format-valid identifiers that cannot be real (NPIs start with 9 and are
 Luhn-valid over the 80840 prefix; Medicare numbers carry `S` in position 2, a letter CMS never uses; phones are a
 geographic area code plus `555-01xx`; facility tax IDs use the unissued `00-` prefix; web addresses end in the
-reserved `.example` domain), and from amounts the rules engine computes from the service catalog and the CMS
-annual parameters. Service descriptions are claimseed's plain language, never AMA CPT descriptors; HCPCS Level II
+reserved `.example` domain), and from amounts the rules engine computes from the service catalog and the CMS annual parameters, and for the
+commercial EOB from `reference-data/commercial` (2026 Medicare national amounts times a published commercial price
+ratio, and fictional plan designs within cited federal limits). The commercial EOB's insurers, employers and plan
+names, from `data/commercial-eob/insurers.json`, are fictional. Service descriptions are claimseed's plain language, never AMA CPT descriptors; HCPCS Level II
 codes are preferred; a service added without a verified public price carries `"verified": false`, a round
 illustrative `allowed`, and a `sources` entry saying where a maintainer should look it up. Contributors never
 attach, link, paste, or describe from memory any real statement, bill, notice or lab report, never fit anything

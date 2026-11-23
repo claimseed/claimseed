@@ -7,6 +7,13 @@ import { render, launchBrowser, findChrome, BAND_TEXT, SPECIMEN_SUBJECT } from '
 import { PDFDocument, PDFName, PDFString } from 'pdf-lib';
 import { previewPages } from '../src/preview.js';
 import { readMarkers } from '../../core/test/markers-read.js';
+import { WATERMARK_COLOR, WATERMARK_OPACITY } from '../../core/src/render.js';
+import { watermarkContrast, belowFloors } from '../../core/test/watermark-contrast.js';
+import { markHeights } from '../../core/src/render.js';
+import fs from 'fs'; import os from 'os'; import path from 'path';
+
+// the stamp's colour at its opacity over white
+const TINT = ['red', 'green', 'blue'].map((k) => Math.round(255 * (1 - WATERMARK_OPACITY + WATERMARK_OPACITY * WATERMARK_COLOR[k])));
 
 const skip = !findChrome() && !process.env.CI && 'no Chrome (set CLAIMSEED_CHROME); never skipped in CI';
 let browser;
@@ -14,11 +21,11 @@ before(async () => { if (!skip) browser = await launchBrowser(); });
 after(async () => { await browser?.close(); });
 
 // Pixel facts of an image, measured in the browser: the share of the bottom band rows in the band's fill colour, and
-// the share of the middle of the page in the watermark's tint (the stamp's colour at 14% over white).
+// the share of the middle of the page in the watermark's tint (the stamp's colour at its opacity over white).
 async function pixels(img) {
   const page = await browser.newPage();
   try {
-    return await page.evaluate(async (src) => {
+    return await page.evaluate(async (src, tintRgb) => {
       const im = new Image(); im.src = src; await im.decode();
       const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
       const ctx = c.getContext('2d'); ctx.drawImage(im, 0, 0);
@@ -27,30 +34,38 @@ async function pixels(img) {
       const band = ctx.getImageData(0, im.height - Math.round(1.8 * scale), im.width, 1).data;   // under the band's text
       let inBand = 0; for (let i = 0; i < band.length; i += 4) if (near(band, i, [251, 243, 234], 6)) inBand++;
       const mid = ctx.getImageData(Math.round(im.width * 0.2), Math.round(im.height * 0.3), Math.round(im.width * 0.6), Math.round(im.height * 0.4)).data;
-      let tint = 0; for (let i = 0; i < mid.length; i += 4) if (near(mid, i, [245, 231, 223], 8)) tint++;
+      let tint = 0; for (let i = 0; i < mid.length; i += 4) if (near(mid, i, tintRgb, 8)) tint++;
       return { width: im.width, height: im.height, band: inBand / (band.length / 4), tint: tint / (mid.length / 4) };
-    }, `data:${img.mimeType};base64,${img.data}`);
+    }, `data:${img.mimeType};base64,${img.data}`, TINT);
   } finally { await page.close(); }
 }
 
-test('every document type is drawn page by page, each page with the specimen band and the watermark', { skip, timeout: 180000 }, async () => {
-  for (const [type, scenario] of [['msn', 'combined-three-errors'], ['itemized-bill', 'duplicate-charge'], ['ppo-eob', 'baseline-clean'], ['hmo-eob', 'baseline-clean']]) {
-    const { bytes, groundTruth } = await render({ type, scenario, seed: 'preview-1', browser });
-    const seen = [];
-    const label = `${type} / ${scenario} / seed preview-1`;
-    const p = await previewPages(browser, bytes, { pages: 'all', budget: 1e8, label, onRequest: (u, served) => seen.push([u, served]) });
-    assert.equal(p.pageCount, groundTruth.documents[0].pages, type);
-    assert.deepEqual(p.images.map((i) => i.page), Array.from({ length: p.pageCount }, (_, i) => i + 1), `${type}: every page`);
-    for (const img of p.images) {
-      assert.equal(Math.max(img.width, img.height), 1200, `${type} p${img.page}: size`);
-      const px = await pixels(img);
-      assert.ok(px.band > 0.5, `${type} p${img.page}: specimen band missing (${px.band.toFixed(2)})`);
-      assert.ok(px.tint > 0.005, `${type} p${img.page}: watermark missing (${px.tint.toFixed(4)})`);
-      assert.deepEqual(readMarkers(img.mimeType, img.data), { description: BAND_TEXT, disclaimer: SPECIMEN_SUBJECT, label }, `${type} p${img.page}: file markers`);
-    }
-    for (const [u, served] of seen) {
-      assert.ok(served, `${type}: the page asked for something it was not given: ${u.slice(0, 80)}`);
-      assert.match(u, /^https:\/\/preview\.claimseed\.invalid\/(|main\.mjs|pdf\.min\.mjs|pdf\.worker\.min\.mjs|document\.pdf|standard_fonts\/[A-Za-z-]+\.(pfb|ttf))$/, type);
+test('every document type and a statement is drawn page by page, each page with the specimen band and the watermark, the watermark above its floors on the first and last page', { skip, timeout: 300000 }, async () => {
+  const CASES = [['msn', 'combined-three-errors', {}], ['itemized-bill', 'duplicate-charge', {}], ['ppo-eob', 'baseline-clean', {}], ['hmo-eob', 'baseline-clean', {}],
+    ['commercial-eob', 'baseline-clean', { insurer: 'a' }], ['commercial-eob', 'baseline-clean', { insurer: 'b', statement: true }]];
+  for (const [type, scenario, o] of CASES) {
+    const r = await render({ type, scenario, seed: 'preview-1', ...(o.insurer ? { insurer: o.insurer } : {}), ...(o.statement ? { also: ['bill'], outDir: fs.mkdtempSync(path.join(os.tmpdir(), 'cs-preview-')) } : {}), browser });
+    for (const [bytes, groundTruth, what] of [[r.bytes, r.groundTruth, type], ...(o.statement ? [[r.bill.bytes, r.bill.groundTruth, `${type} statement`]] : [])]) {
+      const seen = [];
+      const label = `${what} / ${scenario} / seed preview-1`;
+      const p = await previewPages(browser, bytes, { pages: 'all', budget: 1e8, label, onRequest: (u, served) => seen.push([u, served]) });
+      assert.equal(p.pageCount, groundTruth.documents[0].pages, type);
+      assert.deepEqual(p.images.map((i) => i.page), Array.from({ length: p.pageCount }, (_, i) => i + 1), `${type}: every page`);
+      for (const img of p.images) {
+        assert.equal(Math.max(img.width, img.height), 1200, `${what} p${img.page}: size`);
+        const px = await pixels(img);
+        assert.ok(px.band > 0.5, `${what} p${img.page}: specimen band missing (${px.band.toFixed(2)})`);
+        assert.ok(px.tint > 0.005, `${what} p${img.page}: watermark missing (${px.tint.toFixed(4)})`);
+        assert.deepEqual(readMarkers(img.mimeType, img.data), { description: BAND_TEXT, disclaimer: SPECIMEN_SUBJECT, label }, `${what} p${img.page}: file markers`);
+        // the watermark's floors on the image of every page (test/watermark-contrast.js), where the PDF's own watermark is
+        const size = (await PDFDocument.load(bytes)).getPage(img.page - 1).getSize(); const mark = (await markHeights(bytes))[img.page - 1];
+        const m = await watermarkContrast(browser, bytes, img.page, { url: `data:${img.mimeType};base64,${img.data}`, dpi: (1200 * 72) / Math.max(size.width, size.height) }, mark);
+        assert.deepEqual(belowFloors(m, { clean: true }), [], `${what} p${img.page}: watermark floors ${JSON.stringify(m)}`);
+      }
+      for (const [u, served] of seen) {
+        assert.ok(served, `${type}: the page asked for something it was not given: ${u.slice(0, 80)}`);
+        assert.match(u, /^https:\/\/preview\.claimseed\.invalid\/(|main\.mjs|pdf\.min\.mjs|pdf\.worker\.min\.mjs|document\.pdf|standard_fonts\/[A-Za-z-]+\.(pfb|ttf))$/, type);
+      }
     }
   }
 });

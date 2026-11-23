@@ -7,7 +7,7 @@ import fs from 'fs'; import path from 'path'; import crypto from 'crypto';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { generateData, listScenarios, loadScenario, render, launchBrowser, verifyFromSeed, degradeRendered, DEGRADE_PRESETS, ALSO, RENDERERS, SLUG, SEED, VARIANT_STRINGS, checkVariantOption, variantIds, BLIND_ID, BLIND_STRINGS , PAIR_STRINGS, BILL_VARIANTS, alsoList} from '@claimseed/core';
+import { COMMERCIAL_TEXT, INSURER_IDS, checkInsurer, generateData, listScenarios, loadScenario, render, launchBrowser, verifyFromSeed, degradeRendered, DEGRADE_PRESETS, ALSO, RENDERERS, SLUG, SEED, VARIANT_STRINGS, checkVariantOption, variantIds, BLIND_ID, BLIND_STRINGS , PAIR_STRINGS, BILL_VARIANTS, alsoList} from '@claimseed/core';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { DOCUMENT_TYPES } from './types.js';
 import { openWorkspace } from './workspace.js';
@@ -30,13 +30,13 @@ const BLIND_TEXT = BLIND_STRINGS.mcp;
 const text = (t) => ({ type: 'text', text: t });
 
 // Scenario facts for listings. The error kinds come from the scenario's own ground truth (generated, no browser),
-// so the listing cannot drift from what a render actually injects.
+// so the listing cannot drift from what a render's key holds.
 function scenarioFacts(type, slug) {
   const s = loadScenario(type, slug);
   const { groundTruth } = generateData({ type, scenario: slug, seed: 'describe' });
   const kinds = [...new Map(groundTruth.errors.map((e) => [e.kind, { kind: e.kind, severity: e.severity, rule: e.rule }])).values()];
   const decoys = [...new Map((groundTruth.decoys || []).map((d) => [d.kind, { kind: d.kind, rule: d.rule }])).values()];
-  return { scenario: slug, status: s.status, description: s.description, period: s.period, claimCount: s.claimCount, injectedErrors: kinds, decoys,
+  return { scenario: slug, status: s.status, description: s.description, period: s.period, claimCount: groundTruth.claims.length, injectedErrors: kinds, decoys,
     cleanControl: !kinds.length && !decoys.length, sources: s.sources };
 }
 function catalog() {
@@ -49,7 +49,8 @@ function mutationCatalog() {
     const muts = sc.mutations || [];
     const gt = generateData({ type: t, scenario: s, seed: 'describe' }).groundTruth;
     const kinds = gt.errors.map((e) => e.kind);
-    const aligned = kinds.length === muts.length;   // one recorded error per mutation, in order
+    // one recorded error per mutation, in order (on the commercial EOB the plan's own denials follow them)
+    const aligned = kinds.length === muts.length || (t === 'commercial-eob' && kinds.length >= muts.length);
     muts.forEach((m, i) => {
       const o = (ops[m.op] ||= { op: m.op, errorKinds: new Set(), usedBy: [] });
       if (aligned) o.errorKinds.add(kinds[i]);
@@ -69,13 +70,7 @@ const resourceText = (f) => fs.readFileSync(path.join(RESOURCES, f), 'utf-8');
 const { $schema: _s, $id: _i, title: _t, ...REPORT_SCHEMA } = JSON.parse(resourceText('extractor-output.schema.json'));
 REPORT_SCHEMA.description = `the extractor's report (schema://extractor-output). ${REPORT_SCHEMA.description}`;
 
-const INSTRUCTIONS_BASE = `claimseed generates synthetic U.S. medical-billing specimen documents (Medicare Summary Notices, hospital itemized
-statements, Medicare Advantage explanations of benefits) with a ground truth that lists every deliberately injected
-error. Start with list_document_types; describe_document_type shows the scenarios of one type. generate_data returns
-the data and ground truth without rendering. verify_document scores what an extractor or bill auditor reported about
-a document against its answer key: fields read, errors found and missed, and false alarms, including decoys (lines that
-look wrong but follow the rules). degrade_document renders a scanned-looking copy (scan, fax, phone photo or low-res) with
-the same answer key, to test reading documents that are not clean PDFs. The itemized-bill, ppo-eob and hmo-eob types can also print the same data in other layouts: pass layout_variant, an id from describe_document_type's list or seeded to pick one from the seed. msn has one layout. The answer key names the variant used. To test a tool that must not see the answers, render with render_blind: it returns the document under an opaque id, without its answer key, scenario or seed. Then fetch each key with get_answer_key and the id; keys live only in the server's memory (the most recent 1,000), so save each one you need.`;
+const INSTRUCTIONS_BASE = `claimseed generates synthetic U.S. medical-billing specimen documents (Medicare Summary Notices, hospital itemized statements, and explanations of benefits, or EOBs, from Medicare Advantage plans and self-funded employer health plans) with a ground truth that lists every deliberately injected error; through the also option, an EOB can come with the provider's statement for one of its claims and an X12 835 remittance file of the same claims, and a Medicare Summary Notice with the 835. Start with list_document_types; describe_document_type shows the scenarios of one type. generate_data returns the data and ground truth without rendering. verify_document scores what an extractor or bill auditor reported about a document against its answer key: fields read, errors found and missed, and false alarms, including decoys (lines that look wrong but follow the rules). degrade_document renders a scanned-looking copy (scan, fax, phone photo or low-res) with the same answer key, to test reading documents that are not clean PDFs. The itemized-bill, ppo-eob and hmo-eob types can also print the same data in other layouts: pass layout_variant, an id from describe_document_type's list or seeded to pick one from the seed. msn has one layout. commercial-eob takes no layout_variant: its insurer option, a or b, picks the insurer and with it the layout (a is portrait with one claim per page, b is landscape with one table of all claims); it is drawn from the seed when omitted, and render_blind always draws it from the document's own seed. The answer key names the variant used. To test a tool that must not see the answers, render with render_blind: it returns the document under an opaque id, without its answer key, scenario or seed. Then fetch each key with get_answer_key and the id; keys live only in the server's memory (the most recent 1,000), so save each one you need.`;
 const INSTRUCTIONS_WORKSPACE = `${INSTRUCTIONS_BASE} render_document writes a PDF and its ground-truth JSON into the
 server's workspace folder, returns their paths and shows the first page as an image (preview "all" shows every page).
 Every value is synthetic and every page carries specimen markers.`;
@@ -131,7 +126,7 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
 
   server.registerTool('describe_document_type', {
     title: 'Describe a document type',
-    description: 'Describe one document type: every scenario with its description, period, number of claims, the errors it injects (kind, severity, rule), its decoys (lines that look wrong but follow the rules) and its public sources. It also lists the type\'s layout variant ids, which layout_variant accepts besides seeded (an empty list for msn, which has one layout). A scenario with neither errors nor decoys is a clean control.',
+    description: "Describe one document type: every scenario with its description, period (none for commercial-eob, whose dates come from the seed), number of claims, its expected findings (kind, severity, rule), its decoys (lines that look wrong but follow the rules) and its public sources. The expected findings are the errors it plants and the correct denials a reviewer should surface (kind coverage-denial, severity info), so a scenario can have expected findings and no planted error. It also lists the type's layout variant ids, which layout_variant accepts besides seeded (an empty list for msn, which has one layout, and for commercial-eob, whose layout comes with its insurer). A scenario with neither expected findings nor decoys is a clean control.",
     inputSchema: { type: Type },
     outputSchema: { type: z.string(), title: z.string(), description: z.string(), orientation: z.string(), groundTruthSchema: z.string(), scenarios: z.array(z.record(z.string(), z.unknown())), layoutVariants: z.array(z.string()) },
     annotations: readOnly,
@@ -140,30 +135,33 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
     return { content: [text(json(out))], structuredContent: out };
   });
 
+  const Insurer = z.enum(INSURER_IDS).optional().describe(COMMERCIAL_TEXT.insurerOption);
   server.registerTool('generate_data', {
     title: 'Generate document data',
     description: 'Generate the data and ground truth of one document without rendering it (no file is saved). The same type, scenario and seed always give the same result. Every value is synthetic.',
-    inputSchema: { type: Type, scenario: Scenario, seed: Seed, layout_variant: LayoutVariant },
+    inputSchema: { type: Type, scenario: Scenario, seed: Seed, layout_variant: LayoutVariant, insurer: Insurer },
     outputSchema: { data: z.record(z.string(), z.unknown()), groundTruth: z.record(z.string(), z.unknown()) },
     annotations: readOnly,
-  }, async ({ type, scenario, seed, layout_variant: lv }) => {
+  }, async ({ type, scenario, seed, layout_variant: lv, insurer }) => {
     needScenario(type, scenario);
-    const out = generateData({ type, scenario, seed, layoutVariant: needVariant(type, lv) });
+    const ins = checkInsurer({ type, insurer }, 'generate_data');
+    const out = generateData({ type, scenario, seed, layoutVariant: needVariant(type, lv), ...(ins ? { overrides: { insurer: ins } } : {}) });
     return { content: [text(json(out))], structuredContent: out };
   });
 
   // Render one document (or, with a preset, a degraded copy of it) and deliver it: page images, the PDF on request, the
   // files in the workspace when there is one. Shared by render_document and degrade_document.
-  async function deliver({ type, scenario, seed, preset = null, preview = ws ? 'first' : 'all', from_page: fromPage = 1, include_pdf: includePdf = false, also = null, bill = null, layout_variant: lv }, extra, { blind = false } = {}) {
+  async function deliver({ type, scenario, seed, preset = null, preview = ws ? 'first' : 'all', from_page: fromPage = 1, include_pdf: includePdf = false, also = null, bill = null, layout_variant: lv, insurer = null }, extra, { blind = false } = {}) {
     needScenario(type, scenario); const layoutVariant = needVariant(type, lv);
-    // a degraded copy has no provider's statement (the library refuses one the same way)
+    // over MCP a degraded copy has no provider's statement (degrade_document takes no also; the library and the command
+    // line make the statement's copy beside the EOB's)
     if (preset && alsoList(also, 'render').includes('bill')) throw new Error(PAIR_STRINGS.messages.billDegraded.replace('{who}', 'degrade'));
     const out = await gate.run(async () => {
       const browser = await pool.acquire();
       const gen = pool.generation;
       try {
         return await withTimeout((async () => {
-          const r = await render({ type, scenario, seed, browser, also, bill, layoutVariant, blind: blind ? { salt: blindSalt } : false });
+          const r = await render({ type, scenario, seed, browser, also, bill, layoutVariant, blind: blind ? { salt: blindSalt } : false, insurer });
           if (preset) Object.assign(r, await degradeRendered(browser, { type, scenario, seed, preset, clean: r, pageImages: false }));
           // the PDF, when asked for, counts toward the same limit: it goes in only when it fits, and the pictures then
           // take what room is left (none forced in); a PDF over the limit is left out and the result says so
@@ -186,7 +184,7 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
     }, extra?.signal);
     if (extra?.signal?.aborted) throw new Error('request cancelled');
     if (blind) return deliverBlind(out, { preset, preview, fromPage, includePdf });
-    const vid = out.groundTruth.documents[0].layoutVariant?.id; const stem = `${seed}${vid ? `.${vid}` : ''}`;   // a variant names its files
+    const vid = out.groundTruth.documents[0].layoutVariant?.id; const stem = `${seed}${vid ? `.${vid}` : ''}${insurer ? `.${insurer}` : ''}`;   // a variant, and a named insurer, name the files
     let saved = null;
     // the provider's statement (also bill) is saved in the same set as the EOB (<base>.bill.pdf and its key), the two
     // keys naming each other's files, or embedded in the result
@@ -216,9 +214,9 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
         pages: out.bill.groundTruth.documents[0].pages, bytes: out.bill.bytes.length, embedded: !billSaved, groundTruth: out.bill.groundTruth } : null }) };
     const errs = out.groundTruth.errors.map((e) => e.kind);
     const decoys = (out.groundTruth.decoys || []).length;
-    const none = decoys === 1 ? 'no injected errors but 1 decoy (not a clean control)' : decoys ? `no injected errors but ${decoys} decoys (not a clean control)` : 'no injected errors';
+    const none = decoys === 1 ? "no expected findings but 1 decoy (not a clean control)" : decoys ? "no expected findings but {n} decoys (not a clean control)".replace('{n}', decoys) : "no expected findings";
     const range = (a) => (a.length > 1 ? `pages ${a[0]}-${a[a.length - 1]}` : `page ${a[0]}`);
-    const lines = [`Rendered ${preset ? `a ${preset} copy of ` : ''}${doc.layout} / ${scenario} / seed ${seed}: ${doc.pages} page(s), ${out.bytes.length} bytes, ${errs.length ? `injected errors: ${errs.join(', ')}` : none}.`];
+    const lines = [`Rendered ${preset ? `a ${preset} copy of ` : ''}${doc.layout} / ${scenario} / seed ${seed}: ${doc.pages} page(s), ${out.bytes.length} bytes, ${errs.length ? "expected findings: {kinds}".replace('{kinds}', errs.join(', ')) : none}.`];
     if (out.previewError) lines.push(`Page images could not be drawn (${out.previewError}); the document itself is unaffected.`);
     else if (preview !== 'none') {
       if (shown.length) lines.push(`Shown below as images: ${range(shown)} of ${doc.pages}.${result.preview.next ? ` ${omitted} more: call ${preset ? 'degrade_document' : 'render_document'} again with from_page ${result.preview.next}.` : ''}`);
@@ -314,7 +312,7 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
       from_page: z.number().int().min(1).max(999).default(1).describe('first page to return as an image (default 1)'),
       include_pdf: z.boolean().default(false).describe('also return the PDF itself, embedded in the result; it counts toward the same size limit as the page images and is left out, with a note, when it alone is over it'),
       also: Also(PAIR_TEXT.alsoRender), bill: Bill,
-      layout_variant: LayoutVariant,
+      layout_variant: LayoutVariant, insurer: Insurer,
     },
     outputSchema: { type: z.string(), scenario: z.string(), seed: z.string(), degradation: z.string().nullable(), pdf: z.string().nullable(), groundTruthFile: z.string().nullable(), sha256: z.string(), pages: z.number(), bytes: z.number(), pdfEmbedded: z.boolean(), groundTruth: z.record(z.string(), z.unknown()), preview: PreviewOut, remittance: RemittanceOut, bill: BillOut.optional() },
     annotations: ws ? { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false } : { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
@@ -335,7 +333,7 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
       preview: Preview,
       from_page: z.number().int().min(1).max(999).default(1).describe('first page to return as an image (default 1)'),
       include_pdf: z.boolean().default(false).describe('also return the degraded PDF itself; it counts toward the same size limit as the page images and is left out, with a note, when it alone is over it'),
-      layout_variant: LayoutVariant,
+      layout_variant: LayoutVariant, insurer: Insurer,
     },
     outputSchema: { type: z.string(), scenario: z.string(), seed: z.string(), degradation: z.string().nullable(), pdf: z.string().nullable(), groundTruthFile: z.string().nullable(), sha256: z.string(), pages: z.number(), bytes: z.number(), pdfEmbedded: z.boolean(), groundTruth: z.record(z.string(), z.unknown()), preview: PreviewOut },
     annotations: ws ? { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false } : { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
@@ -370,9 +368,10 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
     return { content: [text(json(out))], structuredContent: out };
   });
 
+  const EXCLUDING_INFO = '; without info entries {found}/{expected} found';
   server.registerTool('verify_document', {
     title: 'Score an extractor against a document',
-    description: 'Score what an extractor or bill auditor reported about one document against its answer key, rebuilt from the type, scenario and seed with this version of claimseed. The report uses the answer key\'s vocabulary (schema://extractor-output): `fields` maps field paths of documents[0].fields to the values read; `errors` lists flagged errors as { kind, fieldRef or lineRef }. Returns field accuracy with the paths read wrong or missed, error recall and precision, false alarms, and which decoys were flagged. The result names only answer-key paths, kinds and decoy ids, never the text sent. Nothing is rendered or written.',
+    description: 'Score what an extractor or bill auditor reported about one document against its answer key, rebuilt from the type, scenario and seed with this version of claimseed. The report uses the answer key\'s vocabulary (schema://extractor-output): `fields` maps field paths of documents[0].fields to the values read; `errors` lists flagged errors as { kind, fieldRef or lineRef }. Returns field accuracy with the paths read wrong or missed, error recall and precision, false alarms, which decoys were flagged, and excludingInfo: error figures without severity info entries, for billing and notice errors alone. The result names only answer-key paths, kinds and decoy ids, never the text sent. Nothing is rendered or written.',
     inputSchema: {
       type: Type, scenario: Scenario, seed: Seed,
       // the report reaches the shared check exactly as the client sent it: an object schema would copy it and silently
@@ -381,14 +380,15 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
       output: z.unknown().meta(REPORT_SCHEMA),
       layout_variant: LayoutVariant,
       document: z.enum(['eob', 'bill']).optional().describe(PAIR_TEXT.verifyDocument), bill: z.enum(BILL_VARIANTS).optional().describe(PAIR_TEXT.verifyBill),
+      insurer: Insurer,
     },
     outputSchema: { answerKey: z.object({ scenario: z.string(), seed: z.string(), schemaVersion: z.string() }), fields: z.record(z.string(), z.unknown()).nullable(), errors: z.record(z.string(), z.unknown()).nullable() },
     annotations: readOnly,
-  }, async ({ type, scenario, seed, output, layout_variant: lv, document = 'eob', bill = 'clean' }) => {
+  }, async ({ type, scenario, seed, output, layout_variant: lv, document = 'eob', bill = 'clean', insurer }) => {
     needScenario(type, scenario);
-    const r = verifyFromSeed({ type, scenario, seed, output, layoutVariant: needVariant(type, lv), document, bill });
+    const r = verifyFromSeed({ type, scenario, seed, output, layoutVariant: needVariant(type, lv), document, bill, insurer: checkInsurer({ type, insurer }, 'verify_document') });
     const f = r.fields ? `fields ${r.fields.correct}/${r.fields.expected} correct (${r.fields.wrong} wrong, ${r.fields.missing} missing)` : 'fields not scored';
-    const e = r.errors ? `errors ${r.errors.found}/${r.errors.expected} found, ${r.errors.falseAlarms} false alarm(s)${r.errors.decoysFlagged.length ? ` incl. ${r.errors.decoysFlagged.length} decoy(s)` : ''}` : 'errors not scored';
+    const e = r.errors ? `errors ${r.errors.found}/${r.errors.expected} found, ${r.errors.falseAlarms} false alarm(s)${r.errors.decoysFlagged.length ? ` incl. ${r.errors.decoysFlagged.length} decoy(s)` : ''}${EXCLUDING_INFO.replace('{found}', String(r.errors.excludingInfo.found)).replace('{expected}', String(r.errors.excludingInfo.expected))}` : 'errors not scored';
     return { content: [text(`${type} / ${scenario} / seed ${seed}: ${f}; ${e}.\n${json(r)}`)], structuredContent: r };
   });
 
@@ -396,7 +396,7 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
     async (uri) => ({ contents: [{ uri: uri.href, mimeType: 'application/schema+json', text: resourceText('ground-truth.schema.json') }] }));
   server.registerResource('extractor-output-schema', 'schema://extractor-output', { title: 'Extractor-output JSON schema', description: 'JSON Schema (2020-12) of the report verify_document scores: fields read and errors flagged, in the answer key\'s vocabulary', mimeType: 'application/schema+json' },
     async (uri) => ({ contents: [{ uri: uri.href, mimeType: 'application/schema+json', text: resourceText('extractor-output.schema.json') }] }));
-  server.registerResource('scenarios', 'catalog://scenarios', { title: 'Scenario catalog', description: 'Every document type and scenario, with the errors each injects and its public sources', mimeType: 'application/json' },
+  server.registerResource('scenarios', 'catalog://scenarios', { title: 'Scenario catalog', description: "Every document type and scenario, with each scenario's expected findings and public sources", mimeType: 'application/json' },
     async (uri) => ({ contents: [{ uri: uri.href, mimeType: 'application/json', text: json(catalog()) }] }));
   server.registerResource('mutations', 'catalog://mutations', { title: 'Mutation ops', description: 'The error-injection and decoy operations, the kinds they produce and the scenarios that use them', mimeType: 'application/json' },
     async (uri) => ({ contents: [{ uri: uri.href, mimeType: 'application/json', text: json(mutationCatalog()) }] }));
@@ -405,7 +405,7 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
   server.registerResource('synthetic-data-policy', 'policy://synthetic-data', { title: 'Synthetic data policy', description: 'How every value is made synthetic, and acceptable use of the output', mimeType: 'text/markdown' },
     async (uri) => ({ contents: [{ uri: uri.href, mimeType: 'text/markdown', text: resourceText('synthetic-data-policy.md') }] }));
 
-  server.registerResource('preview-view', VIEW_URI, { title: 'Document preview', description: 'MCP Apps view of render_document and degrade_document: page images, injected errors and any decoys', mimeType: VIEW_MIME },
+  server.registerResource('preview-view', VIEW_URI, { title: 'Document preview', description: "MCP Apps view of render_document and degrade_document: page images, expected findings and any decoys", mimeType: VIEW_MIME },
     async (uri) => ({ contents: [{ uri: uri.href, mimeType: VIEW_MIME, text: VIEW_HTML, _meta: { ui: { prefersBorder: true } } }] }));
 
   server.registerPrompt('build_test_case', {
@@ -415,9 +415,9 @@ export function createClaimseedServer({ workspace = null, quotaMB = 500, maxFile
   }, ({ goal, type }) => ({
     messages: [{ role: 'user', content: text(`Build a test case with the claimseed tools for this goal: ${goal}
 ${type ? `Use the ${type} document type.\n` : ''}
-1. Call ${type ? `describe_document_type for ${type}` : 'list_document_types, then describe_document_type for the types that fit'}, and choose the scenarios whose injected errors match the goal. Scenarios with neither errors nor decoys are clean controls, and scenarios with decoys hold lines that look wrong but follow the rules; include one of each so the test also checks for false alarms.
+1. Call ${type ? `describe_document_type for ${type}` : 'list_document_types, then describe_document_type for the types that fit'}, and choose the scenarios whose expected findings match the goal. Scenarios with neither expected findings nor decoys are clean controls, and scenarios with decoys hold lines that look wrong but follow the rules; include one of each so the test also checks for false alarms.
 2. Render each chosen scenario with render_document using two or three different seeds, so the test does not depend on one set of names and amounts. For itemized-bill, ppo-eob or hmo-eob, also render at least one document with layout_variant set (an id or seeded), so the test does not depend on one layout either; msn takes no layout_variant. Pass preview "none" for the renders you do not need to look at. When the tool under test reads the documents itself, render them with render_blind and fetch each answer key with get_answer_key by the document's id, so the documents carry no answers.
-3. Use each document's ground truth as the expected result: errors[] lists what a reviewer should flag (kind, location, expected and actual values), decoys[] what it should not flag, and documents[0].fields the values an extractor should read. verify_document scores a report against it.
+3. Use each document's ground truth as the expected result: errors[] lists what a reviewer should flag (kind, location, expected and actual values) and the correct denials at severity info to surface (the denial and the right to appeal), decoys[] what it should not flag, and documents[0].fields the values an extractor should read. verify_document scores a report against it.
 4. Finish with a table of the documents rendered (${ws ? 'the files are in the server\'s workspace folder' : 'type, scenario, seed and SHA-256; the server saves no files, and include_pdf returns a PDF in the result'}) and the expected result for each.
 Every document is synthetic and carries specimen markers on every page; keep them on. Do not add real people's information to the workspace or to the test.`) }],
   }));

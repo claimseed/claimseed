@@ -1,0 +1,34 @@
+{% extends "base-portrait.html" %}
+{# Insurer A: page 1 with the summary box, the plan's terms and the year's totals; then one claim per page; then the
+   remarks, the No Surprises Act notice when a protected line is present, and the appeal rights. #}
+{% import "commercial-eob/parts.html" as p %}
+{% block extra_styles %}
+{% include "commercial-eob/style.css" %}
+{% endblock %}
+{% block body %}
+<div class="page">
+  {{ p.header(_d, stock) }}
+  <div class="cols">
+    <div class="col">{{ p.summary(_d, stock, stock.summary.titleA) }}</div>
+    <div class="col">{{ p.terms(_d, stock) }}</div>
+  </div>
+  {{ p.accumulators(_d, stock) }}
+</div>
+{% for c in _d.claims %}
+<div class="page">
+  <div class="hdr slim"><div class="brand"><span class="mark">{{ _d._mark | safe }}</span><span class="iname">{{ _d.insurer.name }}</span> <span class="specimen-badge">SPECIMEN</span></div>
+    <div class="title"><div class="t">{{ c.heading }}</div><div class="nb">{{ _d.patient.name }} &bull; {{ _d.plan.memberId }}</div></div></div>
+  {{ p.claimFacts(c, stock) }}
+  <table class="lines">
+    {{ p.lineHead(stock) }}
+    {% for l in c.lineItems %}{{ p.lineRow(l) }}{% endfor %}
+    <tr class="strong"><td colspan="3"></td><td class="num">{{ p.money(c.totals.billed) }}</td><td class="num">{{ p.money(c.totals.allowed) }}</td><td class="num">{{ p.money(c.totals.planPaid) }}</td>
+      <td class="num">{{ p.dash(c.totals.deductible) }}</td><td class="num">{{ p.dash(c.totals.copay) }}</td><td class="num">{{ p.dash(c.totals.coinsurance) }}</td><td class="num">{{ p.dash(c.totals.notCovered) }}</td><td class="num">{{ p.money(c.totals.youMayOwe) }}</td><td></td></tr>
+  </table>
+  {{ p.lineNotes(c) }}
+</div>
+{% endfor %}
+<div class="page">
+  {{ p.back(_d, stock) }}
+</div>
+{% endblock %}

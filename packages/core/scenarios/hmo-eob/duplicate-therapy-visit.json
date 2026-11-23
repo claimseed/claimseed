@@ -2,7 +2,7 @@
   "type": "hmo-eob",
   "slug": "duplicate-therapy-visit",
   "status": "published",
-  "description": "This Tessara Complete (HMO) statement for March 2026 has two claims. Claim 1 prints the same physical therapy visit twice, with the same date and code, so the member pays the $25 therapy copay twice. Claim 2 (lab tests) is correct. A careful reviewer should treat the second therapy line as a duplicate and conclude the member owes one copay, not two.",
+  "description": "This Tessara Complete (HMO) statement for March 2026 has two claims. Claim 1 prints the same physical therapy visit twice, with the same date and code, so the member pays the $25 therapy copay twice. Claim 2 (lab tests) is correct. Treat the second therapy line as a duplicate and conclude that the member owes one copay, not two.",
   "period": {
     "start": "2026-03-01",
     "end": "2026-03-31"

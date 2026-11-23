@@ -1,0 +1,182 @@
+{
+  "title": "Explanation of Benefits",
+  "notABill": "This is not a bill.",
+  "plan": {
+    "planLabel": "Plan",
+    "optionLabel": "Plan option",
+    "sponsorLabel": "Employer (plan sponsor)",
+    "selfFunded": "Claims under {plan} are paid by {sponsor}, the employer that sponsors the plan. {insurer} reviews and processes these claims for {sponsor}.",
+    "memberIdLabel": "Member ID",
+    "groupLabel": "Group number",
+    "patientLabel": "Patient",
+    "processedLabel": "Date processed",
+    "memberServices": "You can phone the plan's member help line at {phone} about any part of this statement."
+  },
+  "terms": {
+    "title": "Your share of costs under this option",
+    "deductible": "Deductible",
+    "coinsurance": "Coinsurance",
+    "copayPrimary": "Copay: primary care visit",
+    "copaySpecialist": "Copay: specialist visit",
+    "copayEmergency": "Copay: emergency room visit",
+    "outOfPocket": "Out-of-pocket maximum",
+    "preventive": "Preventive care on the plan's list costs you $0 in network.",
+    "inNetwork": "In network",
+    "outOfNetwork": "Out of network",
+    "none": "None"
+  },
+  "summary": {
+    "titleA": "Summary of this statement",
+    "claims": "Claims",
+    "billed": "Amount billed",
+    "allowed": "Amount allowed",
+    "planPaid": "Plan paid",
+    "youMayOwe": "You may owe"
+  },
+  "claim": {
+    "headingA": "Claim {n} of {m}",
+    "number": "Claim number",
+    "provider": "Provider",
+    "specialty": "Specialty",
+    "network": "Network status",
+    "inNetwork": "In network",
+    "outOfNetwork": "Out of network",
+    "place": "Place of service",
+    "emergency": "Emergency care",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "facilityTypes": {
+    "hospital-outpatient": "Hospital outpatient department",
+    "hospital-emergency-department": "Hospital emergency room",
+    "ambulatory-surgical-center": "Outpatient surgery center",
+    "independent-imaging-center": "Imaging center",
+    "office": "Provider's office",
+    "urgent-care": "Urgent care center",
+    "clinical-laboratory": "Medical lab",
+    "ambulance": "Ambulance"
+  },
+  "specialties": {
+    "family-medicine": "Family medicine",
+    "pediatrics": "Pediatrics (children's care)",
+    "cardiology": "Cardiology (heart care)",
+    "radiology": "Radiology (imaging)",
+    "emergency-medicine": "Emergency medicine",
+    "orthopedic-surgery": "Orthopedic surgery (bones and joints)",
+    "anesthesiology": "Anesthesiology",
+    "pathology": "Pathology (tissue and lab tests)",
+    "clinical-laboratory": "Medical lab",
+    "ambulance": "Ambulance service",
+    "acupuncture": "Acupuncture",
+    "urgent-care": "Urgent care"
+  },
+  "columns": {
+    "date": "Date of service",
+    "service": "Service",
+    "code": "Service code",
+    "billed": "Billed",
+    "allowed": "Allowed",
+    "planPaid": "Plan paid",
+    "deductible": "Deductible",
+    "copay": "Copay",
+    "coinsurance": "Coinsurance",
+    "notCovered": "Not covered",
+    "youMayOwe": "You may owe",
+    "remark": "Remark"
+  },
+  "remarks": [
+    {
+      "code": "PV",
+      "meaning": "This is preventive care from an in-network provider, so you pay nothing for it."
+    },
+    {
+      "code": "DD",
+      "meaning": "This amount counts toward your deductible, and you pay it."
+    },
+    {
+      "code": "CI",
+      "meaning": "This is your coinsurance: your percentage share of the allowed amount."
+    },
+    {
+      "code": "CP",
+      "meaning": "This is your copay: the set dollar amount you pay for this type of service."
+    },
+    {
+      "code": "OA",
+      "meaning": "This provider is out of network and may bill you for the difference between its charge and the allowed amount."
+    },
+    {
+      "code": "NS",
+      "meaning": "The No Surprises Act protects this service: you owe only the in-network cost sharing shown, and the provider may not bill you more."
+    },
+    {
+      "code": "CN",
+      "meaning": "You gave written consent before care from this out-of-network provider, so it may bill you for the difference between its charge and the allowed amount."
+    },
+    {
+      "code": "PI",
+      "meaning": "This service needed the plan's approval in advance and did not get it; because the provider is in network, it may not bill you for this service."
+    },
+    {
+      "code": "PO",
+      "meaning": "This service needed the plan's approval in advance and did not get it; because the provider is out of network, you may owe its full charge."
+    },
+    {
+      "code": "VL",
+      "meaning": "The plan covers a set number of visits each year for this service, and that number was reached, so this visit is not covered."
+    },
+    {
+      "code": "XO",
+      "meaning": "Amounts the plan does not cover, and amounts a provider bills above the allowed amount, do not count toward your out-of-pocket maximum."
+    }
+  ],
+  "accumulators": {
+    "title": "Deductible and out-of-pocket totals",
+    "person": "Individual",
+    "family": "Family",
+    "before": "Before this statement",
+    "thisStatement": "This statement",
+    "yearToDate": "Year to date",
+    "limit": "Plan limit",
+    "deductibleIn": "In-network deductible",
+    "deductibleOut": "Out-of-network deductible",
+    "deductibleAll": "Deductible for all care",
+    "outOfPocketIn": "In-network out-of-pocket maximum",
+    "outOfPocketOut": "Out-of-network out-of-pocket maximum",
+    "metNote": "Met"
+  },
+  "denial": {
+    "reasonLabel": "Reason",
+    "codeLabel": "Denial code",
+    "provisionLabel": "Plan terms used",
+    "provisionText": "Plan section {section}",
+    "appealPointer": "See \"{title}\" for how to appeal this decision."
+  },
+  "appeal": {
+    "title": "Your right to appeal",
+    "codes": "If you ask, the plan will send you the diagnosis and treatment codes for these claims, and what they mean, at no cost.",
+    "rationale": "If the plan used a rule, guideline or similar standard to decide a claim, you may ask for a copy of it at no cost.",
+    "howToAppeal": "You may request an internal appeal from {insurer}, the plan's administrator, by phone or by letter no later than {days} days after this statement reaches you. Include the claim number, your reason for disagreeing, and any records that back up your appeal.",
+    "externalReview": "If the plan still denies your claim after an internal appeal, you may be able to ask for an independent review, in which a reviewer who does not work for the plan decides the claim.",
+    "civilAction": "If you disagree with the decision on your appeal, you have the right to file a civil action (a lawsuit) under section 502(a) of ERISA, the federal law that governs this plan.",
+    "helpIntro": "For help with this notice or your appeal rights, you can contact:",
+    "ebsa": "U.S. Department of Labor, Employee Benefits Security Administration: 1-866-444-3272",
+    "memberServicesHelp": "Plan member services line: {phone}"
+  },
+  "nsa": {
+    "title": "Your protections from surprise bills",
+    "body": [
+      "The No Surprises Act protects you when you get emergency care, and when an out-of-network provider treats you at an in-network hospital or outpatient surgery center, unless you gave written consent in a case where the law allows it.",
+      "When this law protects you, you owe only the cost sharing you would pay in network, such as your deductible, copay and coinsurance.",
+      "The provider or facility may not bill you more than that amount.",
+      "The laws of your state may give you more protections.",
+      "If you are billed more than you should owe, call the federal No Surprises Help Desk at 1-800-985-3059."
+    ]
+  },
+  "lineNotes": {
+    "protected": "The No Surprises Act protects this service, so you owe only the in-network cost sharing of {amount}, and the provider may not bill you more.",
+    "consent": "This provider is not in your plan's network, but you signed consent to its treatment before receiving care, which lets it bill you for whatever it charged beyond the plan's allowed amount.",
+    "groundAmbulance": "This ground ambulance provider is not in your plan's network, and the No Surprises Act does not protect ground ambulance services, even in an emergency, so it may bill you for whatever it charged beyond the plan's allowed amount.",
+    "oopExcluded": "Amounts not covered and differences billed by out-of-network providers do not count toward your out-of-pocket maximum."
+  }
+}

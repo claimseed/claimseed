@@ -46,6 +46,7 @@ let part = null;
   }
 }
 const sha = (b) => crypto.createHash('sha256').update(b).digest('hex');
+const EXAMPLE_TEXT = JSON.parse(fs.readFileSync(new URL('./lib/examples-text.json', import.meta.url), 'utf-8'));
 
 export function textHash(pdfPath) {
   const pages = pdfWords(pdfPath).map((ws) => ws.map((w) => w.t).sort().join(' '));
@@ -59,10 +60,10 @@ export function groundTruthHash(gt) {
 }
 
 // one per published scenario, then one per layout variant id on the type's published scenarios in turn
-// (scripts/lib/rendered-plan.js; the test in test/ma-errors.test.js holds the counts: 34 scenario examples and 36 variant examples)
+// (scripts/lib/rendered-plan.js; the test in test/ma-errors.test.js holds the counts: 56 scenario examples and 36 variant examples)
 const examples = exampleJobs();
 const mine = part ? partOf(examples, part.i, part.n) : examples;
-const stem = (e) => `${e.type}_${e.scenario}_${e.seed}${e.layoutVariant ? `.${e.layoutVariant}` : ''}`;
+const stem = (e) => `${e.type}_${e.scenario}_${e.seed}${e.layoutVariant ? `.${e.layoutVariant}` : ''}${e.insurer ? `.${e.insurer}` : ''}`;
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'claimseed-examples-'));
 if (outDir) fs.mkdirSync(outDir, { recursive: true });
 if (wordsDir) fs.mkdirSync(wordsDir, { recursive: true });
@@ -73,14 +74,24 @@ const results = [];
 const started = Date.now();
 try {
   for (const ex of mine) {
-    // MSN and Medicare Advantage examples also carry their 835, compared byte for byte (it is plain text)
-    const { bytes, groundTruth, remittance } = await render({ ...ex, browser, also: REMITTANCE_TYPES.includes(ex.type) ? '835' : null });
+    // examples of a type with an 835 (the MSN and the EOBs) also carry it, compared byte for byte (it is plain text)
+    const extra = [...(REMITTANCE_TYPES.includes(ex.type) ? ['835'] : []), ...(ex.bill ? ['bill'] : [])];
+    const { bytes, groundTruth, remittance, bill } = await render({ ...ex, browser, also: extra.length ? extra : null });
     const name = stem(ex);
     const pdf = path.join(work, name + '.pdf'); fs.writeFileSync(pdf, bytes);
     const { pages, textSha256, text } = textHash(pdf);
     if (wordsDir) fs.writeFileSync(path.join(wordsDir, name + '.words.txt'), text + '\n');
+    // a statement beside the example: its own page words and key, hashed the same way (<name>.bill.pdf)
+    let statement = null;
+    if (bill) {
+      const sp = path.join(work, name + '.bill.pdf'); fs.writeFileSync(sp, bill.bytes);
+      const h = textHash(sp); const sg = bill.groundTruth;
+      if (wordsDir) fs.writeFileSync(path.join(wordsDir, name + '.bill.words.txt'), h.text + '\n');
+      statement = { file: name + '.bill.pdf', title: sg.documents[0].fields['metadata.title'] ?? null, variant: sg.pair.variant, pages: h.pages, errors: sg.errors.map((e) => e.kind), decoys: (sg.decoys || []).map((d) => d.kind), textSha256: h.textSha256, groundTruthSha256: groundTruthHash(sg) };
+      if (outDir) { fs.copyFileSync(sp, path.join(outDir, name + '.bill.pdf')); fs.writeFileSync(path.join(outDir, name + '.bill.ground-truth.json'), JSON.stringify(sg, null, 2)); }
+    }
     results.push({ ...ex, file: name + '.pdf', pages, errors: groundTruth.errors.map((e) => e.kind), decoys: (groundTruth.decoys || []).map((d) => d.kind), textSha256, groundTruthSha256: groundTruthHash(groundTruth),
-      remittanceSha256: remittance === null ? null : sha(remittance) });
+      remittanceSha256: remittance === null ? null : sha(remittance), ...(statement ? { statement } : {}) });
     if (outDir) { fs.copyFileSync(pdf, path.join(outDir, name + '.pdf')); fs.writeFileSync(path.join(outDir, name + '.ground-truth.json'), JSON.stringify(groundTruth, null, 2)); if (remittance !== null) fs.writeFileSync(path.join(outDir, name + '.835'), remittance); }
     process.stderr.write(`examples: ${name} (${pages} pages)\n`);
   }
@@ -112,37 +123,49 @@ if (mode === 'update') {
 
 function readme(rs) {
   const list = (ks) => ks.map((k) => `\`${k}\``).join(', ');
-  const rows = rs.filter((r) => !r.layoutVariant).map((r) => `| \`${r.type}\` | \`${r.scenario}\` | ${r.pages} | ${r.errors.length ? list(r.errors) : r.decoys.length ? 'none (decoys only)' : 'none (clean)'} | ${r.decoys.length ? list(r.decoys) : ''} | ${loadScenario(r.type, r.scenario).description.replace(/\|/g, '\\|')} |`);
+  const rows = rs.filter((r) => !r.layoutVariant).map((r) => `| \`${r.type}${r.insurer ? `.${r.insurer}` : ''}\` | \`${r.scenario}\` | ${r.pages} | ${r.errors.length ? list(r.errors) : r.decoys.length ? 'none (decoys only)' : 'none (clean)'} | ${r.decoys.length ? list(r.decoys) : ''} | ${loadScenario(r.type, r.scenario).description.replace(/\|/g, '\\|')} |`);
+  const srows = rs.filter((r) => r.statement).map((r) => `| \`${r.type}${r.insurer ? `.${r.insurer}` : ''}\` | \`${r.scenario}\` | ${r.statement.title ?? ''} | \`${r.statement.variant}\` | ${r.statement.pages} | ${r.statement.errors.length ? list(r.statement.errors) : 'none'} | ${r.statement.decoys.length ? list(r.statement.decoys) : ''} |`);
   const vrows = rs.filter((r) => r.layoutVariant).map((r) => {
     const v = resolveVariant(r.type, r.layoutVariant, SEED); const st = v.styleDef;
     return `| \`${r.type}\` | \`${r.layoutVariant}\` | \`${r.scenario}\` | ${r.pages} | ${v.columns.join(', ')} | \`${v.labels}\` | ${st.font}, ${st.density}, ${st.palette} | \`${v.breaks}\` |`;
   });
   return `# Examples
 
-One document per published scenario and one per layout variant id, all rendered with the seed \`example\`. The PDFs
-and their ground truth are not kept in the repository (it holds no binary files); render them with
+One document per published scenario (two for each commercial EOB scenario, one per insurer), one per layout variant
+id, and a provider's statement beside five of them, all rendered with the seed \`example\`. The PDFs and their ground
+truth are not kept in the repository (it holds no binary files); render them with
 
     node packages/core/scripts/examples.js --check --out ./examples-out
 
 or one at a time with \`node packages/core/src/cli.js render <type> <scenario> --seed example --out DIR\` (add
-\`--layout-variant <id>\` for a variant). The variant examples take the type's scenarios in turn, in the order of the
-first table: the first id uses the first scenario, the second id the second, and so on, starting again after the
-last; each is written as \`<type>_<scenario>_example.<id>.pdf\`. CI renders every example on each push and compares
-it with \`manifest.json\`: a hash of each page's words and a hash of the ground truth (without the PDF's SHA-256,
-which depends on the Chrome build), and for the Medicare Summary Notice and the Medicare Advantage EOBs the SHA-256
-of the 835 remittance written beside them (\`--out\` writes it as \`<name>.835\`), which does not depend on the
-environment. The variant examples are compared the same way. The words pdftotext reads also depend on the Chrome
-and Poppler versions and the platform: \`manifest.json\` names the environment the hashes were recorded in, and
-\`--words DIR\` writes each example's words so two runs can be compared. This file is generated by the same script.
+\`--layout-variant <id>\` for a variant, and \`--insurer a\` or \`--insurer b\` for a commercial example, written as
+\`commercial-eob_<scenario>_example.<insurer>.pdf\`; the tables show it as \`commercial-eob.a\` or \`commercial-eob.b\`).
+The variant examples take the type's scenarios in turn, in the order of the first table: the first id uses the first
+scenario, the second id the second, and so on, starting again after the last; each is written as
+\`<type>_<scenario>_example.<id>.pdf\`. CI renders every example on each push and compares it with \`manifest.json\`: a
+hash of each page's words and a hash of the ground truth (without the PDF's SHA-256, which depends on the Chrome
+build), and for the Medicare Summary Notice and the Medicare Advantage and commercial EOBs the SHA-256 of the 835
+remittance written beside them (\`--out\` writes it as \`<name>.835\`), which does not depend on the environment. The
+variant examples are compared the same way. The words pdftotext reads also depend on the Chrome and Poppler versions
+and the platform: \`manifest.json\` names the environment the hashes were recorded in, and \`--words DIR\` writes each
+example's words so two runs can be compared. This file is generated by the same script.
 
-| Type | Scenario | Pages | Injected errors | Decoys (correct lines that look wrong) | Scenario |
+| Type | Scenario | Pages | Expected findings | Decoys (correct lines that look wrong) | Description |
 | --- | --- | --- | --- | --- | --- |
 ${rows.join('\n')}
 
+## Provider's statements
+
+${EXAMPLE_TEXT.statementsIntro}
+
+| EOB | Scenario | Statement | Variant | Pages | Expected findings | Decoys |
+| --- | --- | --- | --- | --- | --- | --- |
+${srows.join('\n')}
+
 ## Layout variants
 
-One document per layout variant id of the itemized bill and the two Medicare Advantage EOBs, on the type's
-scenarios in turn; the Medicare Summary Notice has one layout and is not listed. The ids, and what each one fixes,
+One document per layout variant id of the itemized bill and the two Medicare Advantage EOBs, on the type's scenarios
+in turn; the Medicare Summary Notice and the commercial EOB take no layout variant and are not listed. The ids, and what each one fixes,
 are defined in \`packages/core/data/<type>/variants.json\`, with the wording sets in \`labels.json\` beside it.
 
 | Type | Variant id | Scenario | Pages | Column order | Wording set | Style (font, density, palette) | Continued tables |

@@ -1,0 +1,13 @@
+{
+  "type": "commercial-eob",
+  "slug": "baseline-clean",
+  "status": "published",
+  "description": "An explanation of benefits from a fictional self-funded employer plan with two in-network claims: an office visit (the seed decides whether it has lab work) and an adult preventive visit. It is a clean control with no planted errors or decoys; the seed picks the plan option (PPO or HSA-qualified), coverage tier and insurer.",
+  "claims": ["office-primary", "preventive-adult"],
+  "mutations": [],
+  "sources": [
+    { "what": "Content of a notice of adverse benefit determination (every EOB that pays less than billed)", "source": "29 CFR 2560.503-1(g); 29 CFR 2590.715-2719(b)(2)(ii)(E); DOL claims procedure FAQ C-12, https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XXV/subchapter-G/part-2560/section-2560.503-1" },
+    { "what": "Preventive care without cost sharing", "source": "45 CFR 147.130; 29 CFR 2590.715-2713, https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.130" },
+    { "what": "Cost sharing on the allowed amount; no balance billing in network", "source": "Uniform Glossary of Coverage and Medical Terms, https://www.cms.gov/files/document/uniform-glossary-english-060723.pdf" }
+  ]
+}

@@ -1,7 +1,8 @@
 // The provider's statement rendered beside its Medicare Advantage EOB (also: 'bill', in the library and on the command
 // line): both PDFs and both keys, schema 1.6, naming each other; the EOB the same with or without its statement; the
-// statement printing its lines and summary and nothing of Part B; a blind statement naming only its own id; and the
-// values a caller can give for also and bill refused with fixed messages before anything is written.
+// statement printing its title (the label's "Patient Statement"), lines and summary and nothing of Part B; a blind
+// statement naming only its own id; and the values a caller can give for also and bill refused with fixed messages
+// before anything is written.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs'; import os from 'os'; import path from 'path'; import crypto from 'crypto';
@@ -9,7 +10,7 @@ import { spawnSync, execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
-import { findChrome, launchBrowser, render, renderDegraded, renderBatch, readManifest } from '../src/index.js';
+import { findChrome, launchBrowser, render, renderBatch, renderDegraded, readManifest } from '../src/index.js';
 import { pairMessage } from '../src/generate/provider-statement.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -36,6 +37,7 @@ test('render with also bill writes the statement and its key beside the EOB, and
   for (const f of ['claim', 'variant', 'params']) assert.deepEqual(eob.pair[f], st.pair[f], f);
   assert.equal(st.pair.variant, 'over-owed'); assert.deepEqual(st.errors.map((e) => e.kind), ['bill-vs-eob-mismatch']);
   assert.equal(st.documents[0].sha256, sha(fs.readFileSync(base + '.bill.pdf'))); assert.equal(st.documents[0].pages, 1);
+  assert.equal(st.documents[0].fields['metadata.pageCount'], st.documents[0].pages, 'the statement key\'s page count, as every key has');
   assert.equal(r.bill.groundTruth.documents[0].sha256, st.documents[0].sha256);
   // the statement prints its lines and every summary row, and nothing of Part B or Medigap and no MBI
   const t = text(base + '.bill.pdf'); const s = st.documents[0].fields;
@@ -43,6 +45,11 @@ test('render with also bill writes the statement and its key beside the EOB, and
   for (const f of ['totalCharges', 'balanceDue']) assert.ok(t.includes(money(s[`summary.${f}`])), f);
   for (const f of ['contractualAdjustment', 'paidByPlan']) assert.ok(t.includes(`-${money(s[`summary.${f}`])}`), f);
   assert.ok(!/Part B|Medigap|MBI/i.test(t)); assert.match(t, /provider-statement \/ baseline-clean \/ seed pair-r1/);
+  // the Medicare Advantage statement's title is the label's, and none of the commercial statements' titles prints
+  const { PAIR_STRINGS } = await import('../src/generate/provider-statement.js');
+  assert.ok(t.includes(PAIR_STRINGS.labels.title) && PAIR_STRINGS.labels.title === 'Patient Statement', 'the MA title');
+  for (const title of Object.values(PAIR_STRINGS.commercialStatement.titles)) assert.ok(!t.includes(title), title);
+  assert.ok(!t.includes(PAIR_STRINGS.labels.treatingProvider), 'no treating row');
   // the EOB and its key are the same without the statement (apart from the pair link and its version)
   const plain = await render(job);
   const { pair: _p, schemaVersion: _v, ...rest } = r.groundTruth; const { schemaVersion: _w, ...plainRest } = plain.groundTruth;
@@ -80,13 +87,18 @@ test('also, bill and a statement where none can be made are refused with fixed m
   for (const bill of ['nope', 7, ['clean'], JSON.parse('{"toString":"clean"}')])
     await assert.rejects(render({ ...base, type: 'ppo-eob', outDir: dir, also: 'bill', bill }), msg('billVariant'));
   await assert.rejects(render({ ...base, type: 'ppo-eob', outDir: dir, also: 'bill', bill: 'over-owed', billParams: { by: 0.001 } }), msg('billAmount'));
-  await assert.rejects(renderDegraded({ ...base, type: 'ppo-eob', preset: 'scan', outDir: dir, also: 'bill' }), msg('billDegraded', 'degrade'));
   const batch = { types: ['ppo-eob'], scenarios: ['baseline-clean'], seeds: 1, outDir: dir, browser };
-  await assert.rejects(renderBatch({ ...batch, also: 'bill', degrade: 'scan' }), msg('billDegraded', 'batch'));
   await assert.rejects(renderBatch({ ...batch, types: ['msn'], also: 'bill' }), msg('pairTypes', 'batch'));
   await assert.rejects(renderBatch({ ...batch, bill: 'over-owed' }), msg('billNeedsAlso', 'batch'));
   for (const bill of ['nope', 7, ['clean']]) await assert.rejects(renderBatch({ ...batch, also: 'bill', bill }), msg('billVariant', 'batch'));
   await assert.rejects(renderBatch({ ...batch, also: ['bill', 'bill'] }), msg('alsoList', 'batch'));
+  // a seed ending in .bill would name another seed's statement files, so a type with statements refuses it, with or without a statement
+  for (const seed of ['pair-x.bill', 'pair-x.BILL', 'pair-x.Bill']) for (const type of ['ppo-eob', 'hmo-eob']) for (const also of [null, 'bill'])
+    await assert.rejects(render({ ...base, type, seed, outDir: dir, also }), (e) => e.message === pairMessage('seedSuffix', 'render'), `${type} ${seed} ${also}`);
+  // a degraded copy refuses them before it makes its folders, a blind one with the seed it would render from
+  const out = path.join(dir, 'deg'); const keys = path.join(dir, 'deg-keys');
+  for (const [opts, key] of [[{ bill: 'nope' }, 'billVariant'], [{ bill: 'over-owed', billParams: { by: '5' } }, 'billAmount'], [{ bill: 'over-owed', billParams: { by: 1e9 } }, 'billAmount']])
+    for (const blind of [false, true]) await assert.rejects(renderDegraded({ ...base, type: 'ppo-eob', preset: 'scan', also: 'bill', outDir: out, ...(blind ? { blind, keysDir: keys } : {}), ...opts }), msg(key, 'degrade'), `${JSON.stringify(opts)} blind ${blind}`);
   assert.deepEqual(fs.readdirSync(dir), []);
 });
 

@@ -37,8 +37,10 @@ test('same seed, same output; different seed, different member', () => {
 });
 
 // ---------- scenario catalog ----------
+// the Medicare types; the commercial EOB's scenarios and data are held to their own rules in commercial-eob.test.js
+const MEDICARE_TYPES = TYPES.filter((t) => t !== 'commercial-eob');
 test('every scenario file is well-formed and published', () => {
-  for (const type of TYPES) {
+  for (const type of MEDICARE_TYPES) {
     const slugs = listScenarios(type);
     assert.ok(slugs.length >= (type === 'msn' ? 10 : 1), `${type} has ${slugs.length} scenarios`);
     assert.ok(ASSEMBLERS[type], `no assembler for scenario type ${type}`);
@@ -72,7 +74,7 @@ test('every scenario file is well-formed and published', () => {
 });
 
 test('every scenario generates for many seeds, each mutation lands and reports a taxonomy kind', () => {
-  for (const type of TYPES) for (const slug of listScenarios(type)) {
+  for (const type of MEDICARE_TYPES) for (const slug of listScenarios(type)) {
     const s = loadScenario(type, slug);
     for (const seed of SEEDS) {
       const { data, groundTruth } = generateData({ type, scenario: slug, seed });
@@ -280,5 +282,5 @@ test('error taxonomy both ways: emitted kinds are implemented, implemented kinds
   assert.deepEqual([...errors].filter((k) => !implErrors.has(k)), [], 'emitted error kinds not marked implemented');
   assert.deepEqual([...implErrors].filter((k) => !errors.has(k)), [], 'implemented error kinds no published scenario emits');
   assert.deepEqual([...decoys].sort(), [...implDecoys].sort(), 'decoy kinds');
-  assert.ok(implErrors.size >= 10 && implDecoys.size === 6);
+  assert.ok(implErrors.size >= 10 && implDecoys.size === 13);
 });

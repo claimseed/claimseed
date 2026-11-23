@@ -5,7 +5,7 @@
 //   claimseed-core render <type> <scenario> --seed S --out DIR  -> PDF + <name>.ground-truth.json
 //        [--degrade scan|fax|photo|low-res]                    -> a degraded copy instead: image-only PDF, answer key, page images
 //        [--also 835]                                          -> also the X12 835 remittance of the same claims (<name>.835)
-//        [--also bill [--bill VARIANT]]                        -> also the provider's statement of one claim of a ppo-eob or hmo-eob (<name>.bill.pdf)
+//        [--also bill [--bill VARIANT]]                        -> also the provider's statement of one claim of an EOB (<name>.bill.pdf)
 //        [--layout-variant ID|seeded|all]                      -> a layout variant (itemized-bill, ppo-eob, hmo-eob): <name>.<id>.pdf
 //        [--blind-keys KEYDIR [--blind-salt SALT]]            -> a blind document: <id>.pdf in DIR, its answer key in KEYDIR
 //   claimseed-core batch --types T1,T2 [--scenarios all|S1,S2] [--seeds N] [--seed-prefix P] [--degrade PRESET] [--also 835|bill|835,bill [--bill VARIANT]] --out DIR
@@ -37,10 +37,10 @@ const SEED = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 // repeats what was typed.
 const COMMANDS = {
   list: { positional: 1, options: [] },
-  generate: { positional: 2, options: ['seed', 'layout-variant'] },
-  render: { positional: 2, options: ['seed', 'out', 'degrade', 'also', 'bill', 'layout-variant', 'blind-keys', 'blind-salt'] },
+  generate: { positional: 2, options: ['seed', 'layout-variant', 'insurer'] },
+  render: { positional: 2, options: ['seed', 'out', 'degrade', 'also', 'bill', 'layout-variant', 'blind-keys', 'blind-salt', 'insurer'] },
   batch: { positional: 0, options: ['types', 'scenarios', 'seeds', 'seed-prefix', 'degrade', 'also', 'bill', 'out', 'layout-variant', 'blind-keys', 'blind-salt', 'set'] },
-  verify: { positional: 2, options: ['answer-key', 'output', 'seed', 'manifest', 'outputs', 'layout-variant'] },
+  verify: { positional: 2, options: ['answer-key', 'output', 'seed', 'manifest', 'outputs', 'layout-variant', 'insurer'] },
 };
 function refuse(message) { console.error(message); process.exit(2); }
 function parseArgs(cmd, rest) {
@@ -121,7 +121,8 @@ async function main() {
   }
   if (cmd === 'generate' || cmd === 'render') { mustMatch(type, SLUG, 'type'); mustMatch(scenario, SLUG, 'scenario'); mustMatch(flag('seed', 'claimseed'), SEED, 'seed'); }
   if (cmd === 'generate') {
-    const out = generateData({ type, scenario, seed: flag('seed', 'claimseed'), layoutVariant: variantFlag([type]) });
+    const { checkInsurer } = await import('./generate/commercial-eob.js'); const ins = checkInsurer({ type, insurer: flag('insurer', null) }, 'generate');
+    const out = generateData({ type, scenario, seed: flag('seed', 'claimseed'), layoutVariant: variantFlag([type]), ...(ins ? { overrides: { insurer: ins } } : {}) });
     process.stdout.write(JSON.stringify(out, null, 2)); return;
   }
   if (cmd === 'render') {
@@ -139,12 +140,13 @@ async function main() {
     for (const layoutVariant of variants) {
       if (degrade !== null) {
         const { renderDegraded } = await import('./degrade.js');
-        const r = await renderDegraded({ type, scenario, seed, preset: degrade, outDir, also, bill: flag('bill', null), layoutVariant, blind: set, keysDir });
-        console.log(blind ? wroteBlind(r.pdf, r.bytes.length) : `wrote ${r.pdf} (${r.bytes.length} bytes), its ground truth${also ? ', its 835' : ''} and ${r.images.length} page image(s)`);
+        const r = await renderDegraded({ type, scenario, seed, preset: degrade, outDir, also, bill: flag('bill', null), layoutVariant, blind: set, keysDir, insurer: flag('insurer', null) });
+        console.log(blind ? wroteBlind(r.pdf, r.bytes.length) : `wrote ${r.pdf} (${r.bytes.length} bytes), its ground truth${r.remittance !== null ? ', its 835' : ''} and ${r.images.length} page image(s)`);
+        if (r.bill) console.log(blind ? wroteBlind(r.bill.pdf, r.bill.bytes.length) : `wrote ${r.bill.pdf} (${r.bill.bytes.length} bytes), its ground truth and ${r.bill.images.length} page image(s)`);
         continue;
       }
       const { render } = await import('./index.js');
-      const { pdf, bytes, bill } = await render({ type, scenario, seed, outDir, also, bill: flag('bill', null), layoutVariant, blind: set, keysDir });
+      const { pdf, bytes, bill } = await render({ type, scenario, seed, outDir, also, bill: flag('bill', null), layoutVariant, blind: set, keysDir, insurer: flag('insurer', null) });
       const with835 = also === '835' || (Array.isArray(also) && also.includes('835'));
       console.log(blind ? wroteBlind(pdf, bytes.length) : `wrote ${pdf} (${bytes.length} bytes) and ground truth${with835 ? ' and its 835' : ''}`);
       if (bill) console.log(blind ? wroteBlind(bill.pdf, bill.bytes.length) : `wrote ${bill.pdf} (${bill.bytes.length} bytes) and ground truth`);
@@ -165,6 +167,7 @@ async function main() {
     const r = await renderBatch({ set: flag('set', null), outDir: path.resolve(out), blind, keysDir,
       onProgress: (n, of) => { if (n === of || n % 10 === 0) console.log(`batch: ${n} of ${of}`); } });
     console.log(`wrote ${r.count} documents and ${r.manifest}`);
+    if (r.draws > 1) { const { drawnMessage } = await import('./set.js'); console.log(drawnMessage(r.draws)); }
     return;
   }
   if (cmd === 'batch') {
@@ -187,7 +190,7 @@ async function main() {
     const manifest = flag('manifest', null);
     // three forms, each with its own options: an option of another form, or a type and scenario beside an answer key or
     // a manifest, would be ignored, so it is refused
-    const form = manifest ? ['--manifest', ['manifest', 'outputs']] : flag('answer-key', null) ? ['--answer-key', ['answer-key', 'output']] : ['a type and scenario', ['seed', 'output', 'layout-variant']];
+    const form = manifest ? ['--manifest', ['manifest', 'outputs']] : flag('answer-key', null) ? ['--answer-key', ['answer-key', 'output']] : ['a type and scenario', ['seed', 'output', 'layout-variant', 'insurer']];
     for (const name of parsed.values.keys()) if (!form[1].includes(name)) refuse(`verify: --${name} cannot be used with ${form[0]}`);
     if (form[0] !== 'a type and scenario' && parsed.positional.length) refuse('verify: too many arguments');
     if (manifest) {
@@ -221,13 +224,14 @@ async function main() {
     const key = flag('answer-key', null);
     let r;
     if (key) r = scoreExtraction(readJson(key, 'the answer key'), output);
-    else { mustMatch(type, SLUG, 'type'); mustMatch(scenario, SLUG, 'scenario'); mustMatch(flag('seed', 'claimseed'), SEED, 'seed'); r = verifyFromSeed({ type, scenario, seed: flag('seed', 'claimseed'), output, layoutVariant: variantFlag([type]) }); }
+    else { mustMatch(type, SLUG, 'type'); mustMatch(scenario, SLUG, 'scenario'); mustMatch(flag('seed', 'claimseed'), SEED, 'seed'); r = verifyFromSeed({ type, scenario, seed: flag('seed', 'claimseed'), output, layoutVariant: variantFlag([type]), insurer: flag('insurer', null) }); }
     process.stdout.write(JSON.stringify(r, null, 2) + '\n'); return;
   }
   console.error('usage: claimseed-core list [type] | generate <type> <scenario> --seed S | render <type> <scenario> --seed S --out DIR [--degrade PRESET] [--also 835|bill|835,bill [--bill VARIANT]] [--blind-keys KEYDIR [--blind-salt SALT]]\n'
     + '       | batch --types T1,T2 [--scenarios all|S1,S2] [--seeds N] [--seed-prefix P] [--degrade PRESET] [--also 835|bill|835,bill [--bill VARIANT]] [--layout-variant ID|seeded|all] [--blind-keys KEYDIR [--blind-salt SALT]] --out DIR\n'
     + `       ${SET_USAGE}\n`
     + `         --layout-variant ID|seeded|all (render, generate, batch, verify): ${VARIANT_STRINGS.developer.cliUsage}\n`
+    + `         ${(await import('./generate/commercial-eob.js')).COMMERCIAL_TEXT.insurerHelp} (render, generate, verify)\n`
     + '       | verify (--answer-key FILE | <type> <scenario> --seed S) --output FILE | verify --manifest FILE --outputs DIR');
   process.exit(2);
 }

@@ -113,9 +113,10 @@ test('render_document and degrade_document with a variant: the id in the file na
 test('agent text: the instructions, describe_document_type and build_test_case name layout_variant, every id and every kind the code has', async () => {
   const { tools } = await c.listTools();
   assert.match(c.getInstructions(), /layout_variant/); assert.match(c.getInstructions(), /msn has one layout/);
+  assert.match(c.getInstructions(), /commercial-eob takes no layout_variant: its insurer option/); assert.match(c.getInstructions(), /provider's statement/);
   assert.match(tools.find((t) => t.name === 'describe_document_type').description, /layout variant ids/);
   const kinds = { errors: new Set(), decoys: new Set() };
-  for (const type of ['msn', 'itemized-bill', 'ppo-eob', 'hmo-eob']) {
+  for (const type of ['msn', 'itemized-bill', 'ppo-eob', 'hmo-eob', 'commercial-eob']) {
     const r = await call('describe_document_type', { type });
     assert.ok(!r.isError, r.content?.[0]?.text);
     assert.deepEqual(r.structuredContent.layoutVariants, variantIds(type), `${type}: the published ids`);
@@ -130,4 +131,15 @@ test('agent text: the instructions, describe_document_type and build_test_case n
   for (const k of [...kinds.errors, ...kinds.decoys]) assert.ok(taxonomy.includes(`\`${k}\``), `${k} in the error taxonomy`);
   const p = await c.getPrompt({ name: 'build_test_case', arguments: { goal: 'read every line' } });
   assert.match(p.messages[0].content.text, /layout_variant set \(an id or seeded\)/);
+});
+
+// The README's sentence on degrade_document names its arguments: exactly the keys of the tool's input schema (the
+// preset's values, in parentheses, are not arguments)
+test('the README names degrade_document\'s arguments exactly as its schema has them', async () => {
+  const readme = fs.readFileSync(new URL('../README.md', import.meta.url), 'utf-8');
+  const sentence = readme.split(/(?<=\.)\s+/).find((x) => x.startsWith('`degrade_document` takes'));
+  assert.ok(sentence, 'the sentence');
+  const named = [...sentence.replace(/\([^)]*\)/g, '').matchAll(/`([a-z_]+)`/g)].map((m) => m[1]).filter((x) => x !== 'degrade_document');
+  const { tools } = await c.listTools();
+  assert.deepEqual(named.sort(), Object.keys(tools.find((t) => t.name === 'degrade_document').inputSchema.properties).sort());
 });

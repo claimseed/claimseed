@@ -533,7 +533,8 @@ test('the example set holds the 20 scenarios of 0.4.0 and the 14 Medicare Advant
   const ma = published.filter((k) => /^(ppo|hmo)-eob\//.test(k) && !k.endsWith('/baseline-clean'));
   assert.equal(ma.length, 14, 'Medicare Advantage error and decoy scenarios');
   assert.equal(published.length, 34, 'published scenarios');
-  const plain = manifest.examples.filter((e) => !e.layoutVariant);
+  // the Medicare examples (the commercial EOB's, one per insurer, are checked in commercial-eob.test.js)
+  const plain = manifest.examples.filter((e) => !e.layoutVariant && e.type !== 'commercial-eob');
   assert.deepEqual(plain.map((e) => `${e.type}/${e.scenario}`).sort(), published.sort());
   assert.equal(plain.length, 34);
   // and one per layout variant id, on the type's published scenarios in turn (0.5.0)
@@ -541,6 +542,6 @@ test('the example set holds the 20 scenarios of 0.4.0 and the 14 Medicare Advant
   const pub = (t) => listScenarios(t).filter((s) => published.includes(`${t}/${s}`));
   const want = ['itemized-bill', 'ppo-eob', 'hmo-eob'].flatMap((t) => variantIds(t).map((id, i) => `${t}/${pub(t)[i % pub(t).length]}.${id}`));
   assert.deepEqual(varied.map((e) => `${e.type}/${e.scenario}.${e.layoutVariant}`), want);
-  assert.equal(varied.length, 36); assert.equal(manifest.examples.length, 70);
+  assert.equal(varied.length, 36); assert.equal(manifest.examples.filter((e) => e.type !== 'commercial-eob').length, 70);
   for (const e of varied) assert.equal(e.file, `${e.type}_${e.scenario}_example.${e.layoutVariant}.pdf`);
 });

@@ -1,0 +1,66 @@
+{
+  "type": "commercial-eob",
+  "slug": "surprise-balance-bill",
+  "status": "published",
+  "description": "This EOB holds an elective knee surgery at an in-network hospital outpatient department by an out-of-network surgeon and anesthesiologist, both with signed consent forms, plus a ground ambulance ride. The anesthesia line is billed the difference as consented, though consent cannot waive protection for anesthesia; the surgeon's and the ambulance's differences are correct (decoys). The anesthesia line, a sound review concludes, owes in-network cost sharing only.",
+  "claims": [
+    {
+      "shape": "surgery",
+      "surgeonNetwork": "out",
+      "anesthesiaNetwork": "out",
+      "consent": [
+        "surgeon",
+        "anesthesia"
+      ],
+      "pathologyNetwork": "out"
+    },
+    "ambulance"
+  ],
+  "mutations": [
+    {
+      "op": "ce-unprotect-line",
+      "args": {
+        "claim": 0,
+        "line": "knee-anesthesia"
+      }
+    }
+  ],
+  "decoys": [
+    {
+      "op": "ce-decoy-consented-balance",
+      "args": {
+        "claim": 0,
+        "line": "knee-surgery-surgeon"
+      }
+    },
+    {
+      "op": "ce-decoy-ambulance-balance",
+      "args": {
+        "claim": 1,
+        "line": "ambulance-transport"
+      }
+    }
+  ],
+  "sources": [
+    {
+      "what": "Content of a notice of adverse benefit determination (every EOB that pays less than billed)",
+      "source": "29 CFR 2560.503-1(g); 29 CFR 2590.715-2719(b)(2)(ii)(E); DOL claims procedure FAQ C-12, https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XXV/subchapter-G/part-2560/section-2560.503-1"
+    },
+    {
+      "what": "Cost sharing on the allowed amount; no balance billing in network",
+      "source": "Uniform Glossary of Coverage and Medical Terms, https://www.cms.gov/files/document/uniform-glossary-english-060723.pdf"
+    },
+    {
+      "what": "Out-of-network clinicians at in-network facilities: in-network cost sharing, no balance billing",
+      "source": "45 CFR 149.120, https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-149/subpart-B/section-149.120"
+    },
+    {
+      "what": "Notice and consent to balance bill; never a waiver for anesthesia, pathology, radiology and like specialties",
+      "source": "45 CFR 149.420, https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-149/subpart-E/section-149.420"
+    },
+    {
+      "what": "Balance-billing protection for out-of-network air ambulance services; ground ambulance not covered",
+      "source": "45 CFR 149.130, https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-149/subpart-B/section-149.130"
+    }
+  ]
+}

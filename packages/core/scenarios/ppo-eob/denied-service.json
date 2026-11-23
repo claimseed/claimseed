@@ -2,7 +2,7 @@
   "type": "ppo-eob",
   "slug": "denied-service",
   "status": "published",
-  "description": "Claim 1 is a dermatology visit with a skin biopsy. The plan denied the biopsy: its plan-approved amount, plan's share and member's share are all $0, and a denial note says why. The back page explains denials and how to appeal, and claim 2 (lab tests) is correct. Nothing here is an error: a careful reviewer should record the denial, note that the member owes nothing for the biopsy, and note the right to appeal.",
+  "description": "Claim 1 is a dermatology visit with a skin biopsy. The plan denied the biopsy: its plan-approved amount, plan's share and member's share are all $0, and a denial note says why. The back page explains denials and how to appeal, and claim 2 (lab tests) is correct. This correct denial is the one finding to surface; a reviewer should record it, note that the member owes nothing for the biopsy, and note the right to appeal.",
   "period": {
     "start": "2026-03-01",
     "end": "2026-03-31"

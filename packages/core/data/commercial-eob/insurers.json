@@ -1,0 +1,55 @@
+{
+  "note": "The fictional insurers, sponsors and plan options of the commercial EOB: names, marks and colours. The names are claimseed's own, cleared by a recorded search, and each layout family's two public source pages are recorded.",
+  "insurers": [
+    {
+      "id": "a",
+      "name": "Fernhollow Health Plans",
+      "shortName": "Fernhollow",
+      "network": "Fernhollow Preferred Providers",
+      "tagline": "",
+      "mark": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 48 48\" width=\"48\" height=\"48\"><rect x=\"2\" y=\"2\" width=\"44\" height=\"44\" rx=\"10\" ry=\"10\" fill=\"#1F5E4A\"/><polygon points=\"14,34 15,26.6 18.9,20 25.2,15.8 30.7,13.8 35,13 34.2,17.3 32.2,22.8 28,29.2 21.4,33\" fill=\"#FFFFFF\"/><line x1=\"16\" y1=\"32\" x2=\"32\" y2=\"16\" stroke=\"#1F5E4A\" stroke-width=\"1.5\" stroke-linecap=\"round\"/><line x1=\"14\" y1=\"34\" x2=\"10\" y2=\"38\" stroke=\"#FFFFFF\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><circle cx=\"36\" cy=\"36\" r=\"4\" fill=\"#C9773B\"/></svg>",
+      "palette": {
+        "primary": "#1F5E4A",
+        "accent": "#C9773B",
+        "panelBg": "#EEF4F0",
+        "text": "#1B2A24"
+      }
+    },
+    {
+      "id": "b",
+      "name": "Quillmont Insurance Company",
+      "shortName": "Quillmont",
+      "network": "Quillmont Provider Panel",
+      "tagline": "",
+      "mark": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 48 48\"><polygon points=\"24,2 43,13 43,35 24,46 5,35 5,13\" fill=\"#7A2335\"/><polygon points=\"10,33 19,19 24,26 29,20 38,33\" fill=\"#FFFFFF\"/><circle cx=\"31\" cy=\"12.5\" r=\"3\" fill=\"#E0A530\"/></svg>",
+      "palette": {
+        "primary": "#7A2335",
+        "accent": "#E0A530",
+        "panelBg": "#F7F1EC",
+        "text": "#2A1E1E"
+      }
+    }
+  ],
+  "sponsors": [
+    {
+      "name": "Thistlewood Machine Works",
+      "planName": "Thistlewood Employee Health Plan"
+    },
+    {
+      "name": "Ravensgate Freight Lines",
+      "planName": "Ravensgate Group Health Plan"
+    },
+    {
+      "name": "Copperleigh Hardware Stores",
+      "planName": "Copperleigh Associate Health Plan"
+    },
+    {
+      "name": "Wrenfield Software Group",
+      "planName": "Wrenfield Staff Health Plan"
+    }
+  ],
+  "designNames": {
+    "ppo": "Standard PPO Option",
+    "hsa": "HSA Qualified Option"
+  }
+}

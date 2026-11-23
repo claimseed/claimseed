@@ -1,0 +1,44 @@
+{
+  "rules": {
+    "inNetworkBalance": "This line is from an in-network provider, and an in-network provider accepts the plan's allowed amount as payment in full, so the member owes only the deductible, copay, coinsurance and any amount not covered. The line also asks the member for the difference between the billed and allowed amounts, which the member does not owe.",
+    "surpriseEmergency": "Emergency care from an out-of-network provider is protected by the No Surprises Act (45 CFR 149.110), so the member owes only in-network cost sharing and cannot be billed the difference between the charge and the plan's allowance. This line treats the emergency care as unprotected out-of-network care.",
+    "surpriseFacility": "Care from an out-of-network clinician at an in-network hospital or ambulatory surgical center is protected (45 CFR 149.120), and for anesthesia, pathology, radiology and emergency medicine, among others, a signed consent cannot waive that protection (45 CFR 149.420(b)). This line treats the care as unprotected and bills the member the difference.",
+    "preventive": "The service's code is on the plan's list of preventive services, and a non-grandfathered plan must cover in-network preventive services with no deductible, copay or coinsurance (45 CFR 147.130). This line charges the member cost sharing for it.",
+    "accumulator": "The year-to-date amount must equal the amount before this statement plus this statement's amount. The year to date printed on this row does not.",
+    "emergencyAuthorization": "A plan may not require prior authorization for emergency care (45 CFR 149.110(b)(1)). This line is an emergency service that the plan denied for having no prior authorization.",
+    "missingProvision": "A notice that denies or reduces a claim must give the specific plan provision the decision is based on (29 CFR 2560.503-1(g)(1)(ii)). This denied line's note gives no plan provision.",
+    "missingAppeal": "A notice that denies a claim must describe the plan's review procedures and their time limits, including the right to sue under ERISA section 502(a) (29 CFR 2560.503-1(g)(1)(iv)). This EOB denies a line but prints no appeal rights section.",
+    "denialAuthorization": "This denial is correct and is recorded for information: the plan's terms require prior authorization for this elective service and none was obtained, so the plan denied it. Because the provider is in network, the provider cannot bill the member for the denied service.",
+    "denialAuthorizationOut": "This denial is correct and is recorded for information: the plan's terms require prior authorization for this elective service and none was obtained, so the plan denied it. Because the provider is out of network, the provider may bill the member its charge for the denied service.",
+    "denialVisitLimit": "This denial is correct and is recorded for information: the plan covers this service for a set number of visits a year, and the limit was reached, so the line is not covered."
+  },
+  "decoyRules": {
+    "outOfNetworkBalance": "This line is correct because an out-of-network provider outside the No Surprises Act's protections, for care that is not emergency care and not at an in-network facility, may bill the member the difference between its charge and the plan's allowance.",
+    "consentedBalance": "This line is correct because an out-of-network surgeon at an in-network facility may bill the difference when the patient signed the notice and consent beforehand, since surgery is a specialty for which consent can waive the protection.",
+    "groundAmbulance": "This line is correct because ground ambulance services are outside the No Surprises Act's balance-billing protections, so an out-of-network ground ambulance may bill the difference even for an emergency.",
+    "problemVisit": "This line is correct because an office visit billed with a problem visit code is not a preventive visit, so cost sharing applies to it even when a preventive service on the same claim costs the member nothing.",
+    "oopExcludes": "This total is correct because amounts not covered and differences billed by out-of-network providers do not count toward the out-of-pocket maximum, so they are rightly left out of the out-of-pocket total.",
+    "electiveDenial": "This denial is correct because the plan may require prior authorization for elective, non-emergency surgery, and none was obtained.",
+    "appealBySection": "This is correct because the appeal rights may be printed once, in the section that the denied line's note points to."
+  },
+  "messages": {
+    "noClaim": "{op}: the claim index named is not one of this scenario's claims.",
+    "noLine": "{op}: the claim does not always bill that line under these options; turn an optional line on in the claim's options, and screening lines cannot be named.",
+    "lineTwice": "{op}: the claim bills that service more than once, so the line is ambiguous.",
+    "lineTaken": "{op}: that line already carries an error or a decoy.",
+    "notBalanceable": "{op}: the line must be an in-network, covered, non-preventive line whose allowed amount is below its charge.",
+    "notProtected": "{op}: the line must be one the No Surprises Act protects, and not a ground ambulance line or a denied line.",
+    "notPreventive": "{op}: the line must be an in-network preventive visit, vaccine or vaccine administration.",
+    "notEmergency": "{op}: the line must be on an emergency claim, covered, and not a ground ambulance line.",
+    "noRow": "{op}: the plan option and coverage tier this scenario fixes have no such deductible or out-of-pocket row.",
+    "badBy": "{op}: the amount must be a positive whole number of cents, at most a quarter of the row's limit.",
+    "needsBefore": "{op}: this operation needs the scenario to fix the amounts met before (for example, nothing met).",
+    "needsOptionTier": "{op}: this operation needs the scenario to fix the plan option and the coverage tier.",
+    "notDenied": "{op}: the line must be one the plan denies.",
+    "noDenial": "{op}: the EOB must have a denied line for its appeal rights to be required.",
+    "badElement": "{op}: the element must be \"provision\" or \"appeal\".",
+    "decoyNotHere": "{op}: the line is not one this decoy describes.",
+    "unknownOp": "{op}: no error operation has that name.",
+    "unknownDecoy": "{op}: no decoy operation has that name."
+  }
+}

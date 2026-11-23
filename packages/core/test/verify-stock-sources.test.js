@@ -54,6 +54,18 @@ test('a lifted sentence in a layout-variant label set fails, as a label and as t
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+test('a lifted sentence in the provider statement\'s labels fails, as a label and as the line the statement prints', () => {
+  const lifted = 'Members who travel outside the service area should carry this card';
+  const dir = scratchCopy();
+  const pp = path.join(dir, 'data/pair.json'); const p = JSON.parse(fs.readFileSync(pp, 'utf-8'));
+  p.labels.summaryTitle = lifted; fs.writeFileSync(pp, JSON.stringify(p));
+  let r = spawnSync(process.execPath, [path.join(dir, 'scripts/verify-stock-sources.js'), '--variants', 'none', '--no-render'], { encoding: 'utf-8', cwd: dir });
+  assert.equal(r.status, 1, `statement labels not checked: ${r.stdout}`); assert.match(r.stderr, /\[data\/pair\.json labels[^\]]*\] members who travel outside/);
+  r = run(dir);
+  assert.equal(r.status, 1, `statement pages not checked: ${r.stdout}`); assert.match(r.stderr, /statement (clean|over-owed|denied-line-billed|payment-misposted|paid-at-visit|over-owed-with-payment) \(rendered page text\)\] members who travel outside/);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 test('verify-stock-sources fails on a lifted sentence, however it is fragmented', () => {
   const lifted = 'Members who travel outside the service area should carry this card and present it at every visit.';
   for (const variant of [lifted, lifted.replace(/ should carry /, '; should carry ')]) {

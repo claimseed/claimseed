@@ -9,7 +9,7 @@ import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import * as P from '../scripts/lib/test-plan.js';
 import { runFiles, budgetText, deadlineOf, tapSummary, referenceOf, fileProblems, readTimings, timingsOf } from '../scripts/test-with-render-log.js';
-import { scanJobs, exampleJobs, CI_SCAN, ciPartCount } from '../scripts/lib/rendered-plan.js';
+import { scanJobs, exampleJobs, CI_SCAN, ciPartCount, scanDocs } from '../scripts/lib/rendered-plan.js';
 import { compareExamples, exampleKey } from '../scripts/lib/examples-check.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -81,9 +81,10 @@ test('i/n is whole numbers with 1 <= i <= n, and parts take every document exact
     assert.equal(parts.flat().length, list.length, `m=${m}: no document twice`);
   }
   const m = ciPartCount();
-  assert.equal(m, P.partCount(scan.length, ex.length));
-  assert.ok((Math.ceil(scan.length / m) + Math.ceil(ex.length / m)) * P.DOC_SECONDS <= P.PART_SECONDS, 'each part, on its actual share, within budget');
-  assert.ok(m === 1 || (Math.ceil(scan.length / (m - 1)) + Math.ceil(ex.length / (m - 1))) * P.DOC_SECONDS > P.PART_SECONDS, 'm - 1 does not fit');
+  const docs = scanDocs(scan); assert.ok(docs > scan.length, 'statement jobs count twice');
+  assert.equal(m, P.partCount(docs, ex.length));
+  assert.ok((Math.ceil(docs / m) + Math.ceil(ex.length / m)) * P.DOC_SECONDS <= P.PART_SECONDS, 'each part, on its actual share, within budget');
+  assert.ok(m === 1 || (Math.ceil(docs / (m - 1)) + Math.ceil(ex.length / (m - 1))) * P.DOC_SECONDS > P.PART_SECONDS, 'm - 1 does not fit');
   assert.throws(() => P.partCount(0, 5)); assert.throws(() => P.partCount(5000, 5000), /more than 12 parts/);
 });
 
@@ -194,7 +195,8 @@ test('the command line: every shard runs each file exactly once, a wrong count i
 });
 
 test('the examples check, split into parts, together equals the whole check', () => {
-  const examples = [{ type: 'msn', scenario: 'a', seed: 'example' }, { type: 'msn', scenario: 'b', seed: 'example' }, { type: 'ppo-eob', scenario: 'a', seed: 'example', layoutVariant: 'p01' }, { type: 'ppo-eob', scenario: 'b', seed: 'example' }];
+  const examples = [{ type: 'msn', scenario: 'a', seed: 'example' }, { type: 'msn', scenario: 'b', seed: 'example' }, { type: 'ppo-eob', scenario: 'a', seed: 'example', layoutVariant: 'p01' }, { type: 'ppo-eob', scenario: 'b', seed: 'example' },
+    { type: 'commercial-eob', scenario: 'c', seed: 'example', insurer: 'a' }, { type: 'commercial-eob', scenario: 'c', seed: 'example', insurer: 'b' }];
   const resultOf = (e) => ({ ...e, file: `${exampleKey(e)}.pdf`, pages: 2, errors: [], decoys: [], textSha256: 't', groundTruthSha256: 'g', remittanceSha256: null });
   const recorded = examples.map(resultOf);
   const readme = (rs) => rs.map((r) => `${exampleKey(r)} ${r.pages}`).join('\n');
@@ -211,6 +213,10 @@ test('the examples check, split into parts, together equals the whole check', ()
   assert.ok(check([], { recorded: recorded.slice(1) }).includes('msn/a/example: not in the manifest'));
   assert.ok(check([], { recorded: [...recorded, resultOf({ type: 'msn', scenario: 'old', seed: 'example' })] }).includes('msn/old/example: in the manifest but no longer published'));
   assert.ok(check([], { readmeNow: 'stale' }).includes('examples/README.md is out of date'));
+  // one example per insurer: each is compared with its own record, and a change to one insurer's names that one only
+  const insurerB = (e) => (e.insurer === 'b' ? { ...resultOf(e), textSha256: 'other' } : resultOf(e));
+  assert.deepEqual(check(examples.map(insurerB)), ['commercial-eob/c/example.b: textSha256 "t" -> "other"']);
+  assert.ok(check([], { recorded: [...recorded, recorded[0]] }).includes('msn/a/example: two examples share this key'));
 });
 
 test('the rendered checks refuse a part that is not the plan\'s, before rendering anything', () => {

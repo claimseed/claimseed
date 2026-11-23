@@ -2,7 +2,7 @@
   "type": "hmo-eob",
   "slug": "share-after-oop-max",
   "status": "published",
-  "description": "The member reached the $4,900 out-of-pocket maximum before March 2026, and the cover shows $4,900 of $4,900 used. Even so, claim 1's eye exam charges the $35 eye-exam copay, so the year-to-date member share is higher than the out-of-pocket amount the cover shows. Claim 2 (lab tests) is correct. A careful reviewer should conclude the plan should have paid the full approved amount for the eye exam and the member owes nothing for it.",
+  "description": "The member reached the $4,900 out-of-pocket maximum before March 2026, and the cover shows $4,900 of $4,900 used. Even so, claim 1's eye exam charges the $35 eye-exam copay, so the year-to-date member share is higher than the out-of-pocket amount the cover shows. Claim 2 (lab tests) is correct. The plan should have paid the full approved amount for the eye exam, and the member owes nothing for it.",
   "period": {
     "start": "2026-03-01",
     "end": "2026-03-31"

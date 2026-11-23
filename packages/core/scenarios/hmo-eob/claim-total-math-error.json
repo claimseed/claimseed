@@ -2,7 +2,7 @@
   "type": "hmo-eob",
   "slug": "claim-total-math-error",
   "status": "published",
-  "description": "Claim 1 is an office visit with lab tests and is correct. Claim 2 has a single physical therapy line, but the claim's plan-paid total is $15.00 higher than the plan's share on that line. A careful reviewer should add up the line, see that the printed total does not match it, and conclude the plan-paid total is wrong while the line itself is correct.",
+  "description": "Claim 1 is an office visit with lab tests and is correct. Claim 2 has a single physical therapy line, but the claim's plan-paid total is $15.00 higher than the plan's share on that line. Adding up the line shows that the printed total does not match it: the plan-paid total is wrong, while the line itself is correct.",
   "period": {
     "start": "2026-03-01",
     "end": "2026-03-31"

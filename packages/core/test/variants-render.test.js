@@ -9,9 +9,11 @@ import fs from 'fs'; import os from 'os'; import path from 'path';
 import { execFileSync } from 'child_process';
 import { generateData, RENDERERS, launchBrowser, findChrome, SPECIMEN_SUBJECT, degradePdf, degradationParams } from '../src/index.js';
 import { measureWatermark } from './watermark-measure.js';
+import { watermarkContrast, belowFloors } from './watermark-contrast.js';
 import { VARIANT_TYPES, variantIds, resolveVariant, variantStock } from '../src/variants.js';
 import { paginateClaims, variantClaimLayout } from '../src/render-ma.js';
-import { paginateItemizedBillVariant, variantBillLayout } from '../src/render.js';
+import { paginateItemizedBillVariant, variantBillLayout, markHeights } from '../src/render.js';
+import { copyMarks } from '../src/degrade.js';
 import { fileURLToPath } from 'url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -117,9 +119,15 @@ test('every layout variant id renders with its markers, its planned pages, its c
         if (!degraded.has(`${type}/${v.styleDef.palette}`)) {
           degraded.add(`${type}/${v.styleDef.palette}`);
           const params = degradationParams('low-res', { type, scenario: 'baseline-clean', seed });
-          const { pdf: low, pictures } = await degradePdf(browser, fs.readFileSync(pdf), { preset: 'low-res', params, label: band, keepPictures: true });
-          const m = await measureWatermark(browser, low, pictures[1], 2, `${band} / low-res`);
+          const { pdf: low, pictures, images } = await degradePdf(browser, fs.readFileSync(pdf), { preset: 'low-res', params, label: band, keepPictures: true });
+          const mark = copyMarks('low-res', params, await markHeights(fs.readFileSync(pdf)))[1];
+          const m = await measureWatermark(browser, low, pictures[1], 2, `${band} / low-res`, mark);
           assert.ok(m.maskPixels > 500 && m.tintIn > 8 && Math.abs(m.tintOut) < 3, `${where} (${v.styleDef.palette}): watermark ${JSON.stringify(m)}`);
+          // the watermark's floors on the degraded page and its image (test/watermark-contrast.js)
+          const im = images[1];
+          for (const [what, f] of [['page', await watermarkContrast(browser, low, 2, null, mark)], ['image', await watermarkContrast(browser, low, 2, { url: `data:${im.mimeType};base64,${im.data.toString('base64')}`, dpi: params.dpi }, mark)]]) {
+            assert.deepEqual(belowFloors(f), [], `${where} (${v.styleDef.palette}) ${what}: watermark floors ${JSON.stringify(f)}`);
+          }
           assert.ok(m.bandBackground > 0.6 && m.bandDark > 40, `${where}: band ${JSON.stringify(m)}`);
         }
         // every line and totals row, read as printed: its amounts are the data's, one per money column, in the columns'

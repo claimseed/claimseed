@@ -18,7 +18,8 @@ async function hashes() {
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'cs-guard-'));
   const quiet = console.log; console.log = () => {};
   try {
-    for (const type of Object.keys(RENDERERS)) {
+    // the four types that had layouts before variants; the commercial EOB came later and has none
+    for (const type of Object.keys(RENDERERS).filter((t) => t !== 'commercial-eob')) {
       const stock = JSON.parse(fs.readFileSync(path.join(here, `../data/${type}/stock-content.json`), 'utf-8'));
       for (const scenario of listScenarios(type)) for (const seed of ['1', '2', '3']) {
         const parts = []; printHooks.capture = (html) => parts.push(sha(html));

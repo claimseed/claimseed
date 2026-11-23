@@ -85,6 +85,17 @@ test('scan-rendered reports a sentence printed side by side from positioned boxe
   assert.equal(ok.status, 0, `reviewed sentences in two columns refused: ${ok.stdout}${ok.stderr}`);
 });
 
+test('scan-rendered judges the provider statement beside each scenario as a document of its own', { skip: !findChrome() && !process.env.CI && 'no Chrome (set CLAIMSEED_CHROME); never skipped in CI', timeout: 600000 }, () => {
+  const d = scratchCopy(); const tp = path.join(d, 'templates/provider-statement/statement.html'); const t = fs.readFileSync(tp, 'utf-8');
+  assert.ok(t.includes('<p class="intro">{{ labels.intro }}</p>'), 'template anchor moved');
+  fs.writeFileSync(tp, t.replace('<p class="intro">{{ labels.intro }}</p>', '<div style="columns:2;column-gap:0;width:400px"><div>We mailed your refund</div><div>to another person</div></div>'));
+  try {
+    const r = spawnSync(process.execPath, [path.join(d, 'scripts/scan-rendered.js'), '--seeds', '1', '--type', 'hmo-eob', '--variants', 'none'], { encoding: 'utf-8', cwd: d });
+    assert.equal(r.status, 1, `a statement's assembled line passed: ${r.stdout}${r.stderr}`);
+    assert.match(r.stderr, /provider-statement\/[a-z0-9-]+ \(hmo-eob [a-z-]+\) seed scan-s: printed line on page 1 assembles text neither public nor reviewed original: "we mailed your refund to another person"/);
+  } finally { fs.rmSync(d, { recursive: true, force: true }); }
+});
+
 // The maintainer scripts read their options strictly too: an option without a value is refused rather than read as the
 // current folder or as zero, and a scan that would cover nothing fails instead of reporting success.
 test('scan-rendered and examples refuse an option without a value, a count of zero and a selection of nothing', () => {

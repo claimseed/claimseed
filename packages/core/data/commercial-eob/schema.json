@@ -1,0 +1,28 @@
+{
+  "schema17": "Version 1.7 adds a top-level plan object and, on each claim and claim line, the plan's facts as the plan applied them. claimseed 0.8.0 writes 1.7 for every commercial EOB, blind or not, with or without a paired provider's statement. The provider's statement beside a commercial EOB is written at 1.6, like every provider's statement, without the plan's facts, and no other document is written at 1.7.",
+  "plan": "The plan behind these claims: its option, coverage tier, insurer and sponsor, the deductible and out-of-pocket amounts met before and after them, and the No Surprises Act notices it sends providers.",
+  "planFields": {
+    "design": "The plan option, \"ppo\" or \"hsa\".",
+    "tier": "The coverage tier, \"self\" or \"family\".",
+    "insurer": "The fictional insurer, \"a\" or \"b\", which also decides the document's layout.",
+    "sponsor": "The fictional employer that sponsors the plan.",
+    "before": "The deductible and out-of-pocket amounts met before these claims, per person and per family, in and out of network, in dollars.",
+    "after": "The deductible and out-of-pocket amounts met after these claims, per person and per family, in and out of network, in dollars.",
+    "stateLaw": "The state law applied to the claims, which is always \"none\" because no state law is applied.",
+    "providerNotices": "One No Surprises Act notice per payee of a protected line, giving each item's qualifying payment amount and recognized amount, the initial payment and the decision date."
+  },
+  "claimFields": {
+    "payee": "The claim's billing provider (the facility, or one clinician or organization), with its key, NPI, network status and kind.",
+    "facility": "The place where the care was given, with its type and network status, or null.",
+    "emergency": "Whether the care on the claim was emergency care."
+  },
+  "lineFields": {
+    "network": "The network status of the line's provider, \"in\" or \"out\".",
+    "protected": "Whether the plan treated the line as protected by the No Surprises Act; where an error is planted, the error's entry gives what is right.",
+    "recognized": "The recognized amount the plan used for the line, or null if it used none; where an error is planted, the error's entry gives what is right.",
+    "qpa": "The qualifying payment amount the plan used for the line, or null if it used none; where an error is planted, the error's entry gives what is right.",
+    "balanceBillable": "The difference the plan left the provider free to bill the member for the line; where an error is planted, the error's entry gives what is right.",
+    "preventive": "The preventive basis the plan applied to the line, or null if it applied none; where an error is planted, the error's entry gives what is right.",
+    "denial": "The reason the plan denied the line, or null if the plan did not deny it; where an error is planted, the error's entry gives what is right."
+  }
+}

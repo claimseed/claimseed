@@ -1,0 +1,36 @@
+{
+  "description": "The places the commercial employer-plan EOB mails to: the ten lexicon places (referenced by city and ZIP; a test checks they agree with src/generate/lexicon.js). Every place is in a county that is not on the November 2023 CLAS list, so no language tagline (29 CFR 2590.715-2719(e)) is required; a test and the release check refuse a place in a listed county.",
+  "clas": {
+    "document": "CLAS county data",
+    "edition": "November 2023",
+    "data": "ACS 2016-2020 5-year, table B16001",
+    "url": "https://www.dol.gov/sites/dolgov/files/ebsa/laws-and-regulations/laws/affordable-care-act/for-employers-and-advisers/clas-county-data-2023.pdf",
+    "read": "2026-11-20",
+    "note": "For each state of a place, the FIPS ids of the counties the list names in that state (2020 Census county codes, read 2026-11-20 from www2.census.gov/geo/docs/reference/codes2020/cou/); a place whose countyFips is listed, or in a state not stored here, is refused.",
+    "listedFips": {
+      "AZ": ["04001", "04023", "04027"],
+      "FL": ["12011", "12021", "12027", "12043", "12049", "12051", "12086", "12095", "12097"],
+      "IA": ["19021", "19047"],
+      "ID": ["16047", "16053", "16063", "16067", "16077"],
+      "NC": ["37061"],
+      "NM": ["35013", "35019", "35025", "35029"],
+      "OH": ["39075"],
+      "PA": [],
+      "TN": [],
+      "WA": ["53001", "53007", "53017", "53021", "53025", "53077"]
+    }
+  },
+  "countyNote": "Each place's county is the US Census Bureau geocoder's county (benchmark Public_AR_Current, vintage Current_Current, layer Counties) at the city's downtown point inside the ZIP, read 2026-11-20; countyFips is its GEOID. The county is that of the address the EOB uses.",
+  "places": [
+    {"city": "Columbus", "state": "OH", "zip": "43215", "county": "Franklin County", "countyFips": "39049", "countyVerified": true},
+    {"city": "Tucson", "state": "AZ", "zip": "85701", "county": "Pima County", "countyFips": "04019", "countyVerified": true},
+    {"city": "Raleigh", "state": "NC", "zip": "27601", "county": "Wake County", "countyFips": "37183", "countyVerified": true},
+    {"city": "Spokane", "state": "WA", "zip": "99201", "county": "Spokane County", "countyFips": "53063", "countyVerified": true},
+    {"city": "Des Moines", "state": "IA", "zip": "50309", "county": "Polk County", "countyFips": "19153", "countyVerified": true},
+    {"city": "Knoxville", "state": "TN", "zip": "37902", "county": "Knox County", "countyFips": "47093", "countyVerified": true},
+    {"city": "Albuquerque", "state": "NM", "zip": "87102", "county": "Bernalillo County", "countyFips": "35001", "countyVerified": true},
+    {"city": "Sarasota", "state": "FL", "zip": "34236", "county": "Sarasota County", "countyFips": "12115", "countyVerified": true},
+    {"city": "Lancaster", "state": "PA", "zip": "17602", "county": "Lancaster County", "countyFips": "42071", "countyVerified": true},
+    {"city": "Boise", "state": "ID", "zip": "83702", "county": "Ada County", "countyFips": "16001", "countyVerified": true}
+  ]
+}

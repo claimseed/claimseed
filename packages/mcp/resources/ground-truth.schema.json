@@ -20,9 +20,10 @@
         "1.3",
         "1.4",
         "1.5",
-        "1.6"
+        "1.6",
+        "1.7"
       ],
-      "description": "1.1 adds decoys and, on errors, relatedLineRef and relatedFieldRef (claimseed 0.3.0). 1.2 adds degradationParams on documents (no published claimseed release writes 1.2). 1.3 adds the patient's share in its parts on each claim line (coinsurance, copay, nonCovered, with toDeductible), deductibleMetBefore, the X12 835 remittance as a document (format x12, transactions, payer) and x12Ref on errors (claimseed 0.4.0 and later write 1.3). 1.4 adds documents[0].layoutVariant ({ id, columns, labels, style, breaks }) and a documents[0].layout of the form <type>.<id> (claimseed 0.5.0 and later write 1.4 only for a document rendered with a layout variant and still write 1.3 for every other document). Version 1.5 adds the `blind` object, and claimseed 0.6.0 writes 1.5 for every blind document, with or without a layout variant, and never for any other document. Version 1.6 adds the `pair` object and, on the errors and decoys of a provider's statement, `relatedDocumentFieldRef`, and claimseed 0.7.0 writes 1.6 for both documents of a pair, blind or not, with or without a layout variant on the EOB, and never for any other document. In every version it writes (1.3 to 1.6), claimseed 0.7.0 also writes relatedLineRef and relatedFieldRef on a decoy that repeats another line; keys written by 0.6.0 and earlier never have them."
+      "description": "1.1 adds decoys and, on errors, relatedLineRef and relatedFieldRef (claimseed 0.3.0). 1.2 adds degradationParams on documents (no published claimseed release writes 1.2). 1.3 adds the patient's share in its parts on each claim line (coinsurance, copay, nonCovered, with toDeductible), deductibleMetBefore, the X12 835 remittance as a document (format x12, transactions, payer) and x12Ref on errors (claimseed 0.4.0 and later write 1.3). 1.4 adds documents[0].layoutVariant ({ id, columns, labels, style, breaks }) and a documents[0].layout of the form <type>.<id> (claimseed 0.5.0 and later write 1.4 only for a document rendered with a layout variant and still write 1.3 for every other document). Version 1.5 adds the `blind` object, and claimseed 0.6.0 writes 1.5 for every blind document, with or without a layout variant, and never for any other document. Version 1.6 adds the `pair` object and, on the errors and decoys of a provider's statement, `relatedDocumentFieldRef`, and claimseed 0.7.0 writes 1.6 for both documents of a pair, blind or not, with or without a layout variant on the EOB, and never for any other document. In every version it writes (1.3 to 1.6), claimseed 0.7.0 also writes relatedLineRef and relatedFieldRef on a decoy that repeats another line; keys written by 0.6.0 and earlier never have them. Version 1.7 adds a top-level plan object and, on each claim and claim line, the plan's facts as the plan applied them. claimseed 0.8.0 writes 1.7 for every commercial EOB, blind or not, with or without a paired provider's statement. The provider's statement beside a commercial EOB is written at 1.6, like every provider's statement, without the plan's facts, and no other document is written at 1.7."
     },
     "seed": {
       "type": "string",
@@ -145,6 +146,67 @@
         }
       }
     },
+    "plan": {
+      "type": "object",
+      "description": "The plan behind these claims: its option, coverage tier, insurer and sponsor, the deductible and out-of-pocket amounts met before and after them, and the No Surprises Act notices it sends providers.",
+      "additionalProperties": false,
+      "required": [
+        "design",
+        "tier",
+        "insurer",
+        "sponsor",
+        "before",
+        "after",
+        "stateLaw",
+        "providerNotices"
+      ],
+      "properties": {
+        "design": {
+          "enum": [
+            "ppo",
+            "hsa"
+          ],
+          "description": "The plan option, \"ppo\" or \"hsa\"."
+        },
+        "tier": {
+          "enum": [
+            "self",
+            "family"
+          ],
+          "description": "The coverage tier, \"self\" or \"family\"."
+        },
+        "insurer": {
+          "enum": [
+            "a",
+            "b"
+          ],
+          "description": "The fictional insurer, \"a\" or \"b\", which also decides the document's layout."
+        },
+        "sponsor": {
+          "type": "string",
+          "description": "The fictional employer that sponsors the plan."
+        },
+        "before": {
+          "type": "object",
+          "description": "The deductible and out-of-pocket amounts met before these claims, per person and per family, in and out of network, in dollars."
+        },
+        "after": {
+          "type": "object",
+          "description": "The deductible and out-of-pocket amounts met after these claims, per person and per family, in and out of network, in dollars."
+        },
+        "stateLaw": {
+          "const": "none",
+          "description": "The state law applied to the claims, which is always \"none\" because no state law is applied."
+        },
+        "providerNotices": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "description": "One No Surprises Act notice per payee of a protected line, giving each item's qualifying payment amount and recognized amount, the initial payment and the decision date."
+        }
+      }
+    },
     "scenario": {
       "type": "string",
       "description": "Scenario reference, <type>.<slug>, e.g. msn.duplicate-charge"
@@ -166,7 +228,7 @@
           },
           "type": {
             "type": "string",
-            "description": "Document type slug: msn, itemized-bill, ppo-eob or hmo-eob; x12-835 for a remittance file written beside one; provider-statement for the provider's statement paired with a ppo-eob or hmo-eob."
+            "description": "The document type slug (msn, itemized-bill, ppo-eob, hmo-eob or commercial-eob), x12-835 for an X12 835 remittance file written beside one, or provider-statement for the provider's statement paired with a ppo-eob, hmo-eob or commercial-eob."
           },
           "layout": {
             "type": "string",
@@ -428,7 +490,7 @@
     },
     "errors": {
       "type": "array",
-      "description": "Deliberately injected errors. Empty for a clean control.",
+      "description": "Expected findings: the planted errors plus the correct denials a reviewer should surface (kind \"coverage-denial\", severity \"info\"). Empty for a clean control, which also has no decoys.",
       "items": {
         "type": "object",
         "required": [
@@ -706,6 +768,14 @@
                 "code": {
                   "type": "string"
                 },
+                "modifier": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "pattern": "^[0-9A-Z]{2}$",
+                  "description": "The modifier the EOB prints with this line's procedure code, for example `26` (the professional component), or null when it prints none."
+                },
                 "units": {
                   "type": "integer"
                 },
@@ -759,6 +829,50 @@
                     "number",
                     "null"
                   ]
+                },
+                "network": {
+                  "enum": [
+                    "in",
+                    "out"
+                  ],
+                  "description": "The network status of the line's provider, \"in\" or \"out\"."
+                },
+                "protected": {
+                  "type": "boolean",
+                  "description": "Whether the plan treated the line as protected by the No Surprises Act; where an error is planted, the error's entry gives what is right."
+                },
+                "recognized": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "description": "The recognized amount the plan used for the line, or null if it used none; where an error is planted, the error's entry gives what is right."
+                },
+                "qpa": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "description": "The qualifying payment amount the plan used for the line, or null if it used none; where an error is planted, the error's entry gives what is right."
+                },
+                "balanceBillable": {
+                  "type": "number",
+                  "description": "The difference the plan left the provider free to bill the member for the line; where an error is planted, the error's entry gives what is right."
+                },
+                "preventive": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "The preventive basis the plan applied to the line, or null if it applied none; where an error is planted, the error's entry gives what is right."
+                },
+                "denial": {
+                  "enum": [
+                    "prior-authorization",
+                    "visit-limit",
+                    null
+                  ],
+                  "description": "The reason the plan denied the line, or null if the plan did not deny it; where an error is planted, the error's entry gives what is right."
                 }
               }
             }
@@ -771,6 +885,45 @@
                 "null"
               ]
             }
+          },
+          "payee": {
+            "type": "object",
+            "description": "The claim's billing provider (the facility, or one clinician or organization), with its key, NPI, network status and kind.",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "npi",
+              "network",
+              "kind"
+            ],
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "npi": {
+                "type": "string"
+              },
+              "network": {
+                "enum": [
+                  "in",
+                  "out"
+                ]
+              },
+              "kind": {
+                "type": "string"
+              }
+            }
+          },
+          "facility": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "The place where the care was given, with its type and network status, or null."
+          },
+          "emergency": {
+            "type": "boolean",
+            "description": "Whether the care on the claim was emergency care."
           }
         }
       }
@@ -852,7 +1005,8 @@
               "1.3",
               "1.4",
               "1.5",
-              "1.6"
+              "1.6",
+              "1.7"
             ]
           }
         },
@@ -1141,7 +1295,10 @@
       "if": {
         "properties": {
           "schemaVersion": {
-            "const": "1.6"
+            "enum": [
+              "1.6",
+              "1.7"
+            ]
           },
           "pair": {
             "properties": {
@@ -1184,7 +1341,10 @@
       "if": {
         "properties": {
           "schemaVersion": {
-            "const": "1.6"
+            "enum": [
+              "1.6",
+              "1.7"
+            ]
           },
           "pair": {
             "properties": {
@@ -1229,7 +1389,10 @@
       "if": {
         "properties": {
           "schemaVersion": {
-            "const": "1.6"
+            "enum": [
+              "1.6",
+              "1.7"
+            ]
           },
           "pair": {
             "properties": {
@@ -1268,6 +1431,202 @@
                 ]
               }
             }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": "1.7"
+          }
+        },
+        "required": [
+          "schemaVersion"
+        ]
+      },
+      "then": {
+        "required": [
+          "plan"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "plan"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": "1.7"
+          }
+        },
+        "required": [
+          "schemaVersion"
+        ]
+      },
+      "then": {
+        "properties": {
+          "claims": {
+            "items": {
+              "required": [
+                "payee",
+                "facility",
+                "emergency"
+              ],
+              "properties": {
+                "lines": {
+                  "items": {
+                    "required": [
+                      "network",
+                      "protected",
+                      "recognized",
+                      "qpa",
+                      "balanceBillable",
+                      "preventive",
+                      "denial",
+                      "modifier"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "claims": {
+            "items": {
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "payee"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "facility"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "emergency"
+                    ]
+                  }
+                ]
+              },
+              "properties": {
+                "lines": {
+                  "items": {
+                    "not": {
+                      "anyOf": [
+                        {
+                          "required": [
+                            "network"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "protected"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "recognized"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "qpa"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "balanceBillable"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "preventive"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "denial"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "modifier"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": "1.7"
+          }
+        },
+        "required": [
+          "schemaVersion"
+        ]
+      },
+      "then": {
+        "properties": {
+          "documents": {
+            "prefixItems": [
+              {
+                "properties": {
+                  "type": {
+                    "const": "commercial-eob"
+                  }
+                },
+                "required": [
+                  "type"
+                ]
+              }
+            ]
+          },
+          "pair": {
+            "properties": {
+              "role": {
+                "const": "eob"
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "documents": {
+            "prefixItems": [
+              {
+                "properties": {
+                  "type": {
+                    "not": {
+                      "const": "commercial-eob"
+                    }
+                  }
+                }
+              }
+            ]
           }
         }
       }

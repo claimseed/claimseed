@@ -8,6 +8,8 @@ import { fileURLToPath } from 'url';
 import { PDFDocument, PDFName, PDFDict, PDFArray, PDFNumber, PDFRef, PDFStream, StandardFonts, rgb, degrees } from 'pdf-lib';
 import { hardenHtml, printPage, printHooks } from './print.js';
 import { assertBalancedContent } from './pdf-content.js';
+import { markLines } from './pdf-text.js';
+export { markLines };
 import { variantStock, templateVariant, FONT_WIDTH } from './variants.js';
 export { hardenHtml };
 
@@ -85,6 +87,9 @@ const BLOCK_FONT = {
   ' ': ['00000', '00000', '00000', '00000', '00000', '00000', '00000'],
 };
 export const WATERMARK_COLOR = rgb(0.72, 0.325, 0.118);
+// The watermark's opacity: the lightest that keeps its words readable on every output, with a margin (the floors in
+// test/marks-floors.test.js and test/degrade.test.js)
+export const WATERMARK_OPACITY = 0.07;
 function drawBlockText(page, text, { x, y, cell, angleDeg, color, opacity }) {
   const a = (angleDeg * Math.PI) / 180; const cos = Math.cos(a); const sin = Math.sin(a);
   let col = 0;
@@ -98,21 +103,75 @@ function drawBlockText(page, text, { x, y, cell, angleDeg, color, opacity }) {
     col += 6;
   }
 }
-// Where the watermark goes on a visible page box: 18 columns x 6 cells wide at `cell` points, centred on the page,
-// rotated 28 degrees, sized so the rotated run fits inside the page with a margin on either side.
-const WATERMARK_ANGLE = 28;
-function watermarkPlacement(ox, oy, width, height) {
-  const a = (WATERMARK_ANGLE * Math.PI) / 180; const cols = WATERMARK_TEXT.length * 6 - 1;
-  const cell = Math.min(Math.min(width, height) / 100, (width - 36) / (cols * Math.cos(a) + 7 * Math.sin(a)));
-  const textW = cols * cell; const textH = 7 * cell; const cx = ox + width / 2; const cy = oy + height / 2;
+// Where the watermark goes on a visible page box: 18 columns x 6 cells wide at `cell` points, rotated `angle` degrees,
+// centred across the page. Up the page it goes over the page's text (`mark.lines`, the text baselines, from
+// markLines) or at `mark.fy` (its centre's height as a share of the page, for a picture of a page whose text is not
+// text any more), and otherwise in the middle; always inside the page, above the band.
+const WATERMARK_ANGLE = 28; const BAND_H = 11; const MARK_MARGIN = 18;
+// The run must reach REACH_X of the page's width and REACH_Y of its height (the floors the tests measure are 0.70 and
+// 0.35; the measured reach sits a little under the run's geometry).
+const REACH_X = 0.73; const REACH_Y = 0.38;
+// The run's angle and cell on a page: at 28 degrees with a cell of a hundredth of the short side, or less so that the
+// run fits the width, wherever that reaches both targets; otherwise the angle nearest 28 degrees, in half degrees from
+// 10 to 60, at which the smallest cell that reaches both still fits inside the page (its width inside the margins, its
+// height inside the margins above the band); null when no angle does.
+function watermarkRun(width, height) {
+  const cols = WATERMARK_TEXT.length * 6 - 1;
+  const per = (deg) => { const a = (deg * Math.PI) / 180; return { across: cols * Math.cos(a) + 7 * Math.sin(a), up: cols * Math.sin(a) + 7 * Math.cos(a) }; };
+  const p0 = per(WATERMARK_ANGLE);
+  const cell0 = Math.min(Math.min(width, height) / 100, (width - 36) / p0.across);
+  if (cell0 * p0.across >= REACH_X * width && cell0 * p0.up >= REACH_Y * height) return { angle: WATERMARK_ANGLE, cell: cell0 };
+  const roomX = width - 2 * MARK_MARGIN; const roomY = height - BAND_H - 2 * MARK_MARGIN;
+  for (let k = 0; k <= 128; k++) {
+    const deg = WATERMARK_ANGLE + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.5;   // 28, 28.5, 27.5, 29, 27, ...
+    if (deg < 10 || deg > 60) continue;
+    const q = per(deg); const cell = Math.max((REACH_X * width) / q.across, (REACH_Y * height) / q.up);
+    if (cell * q.across <= roomX && cell * q.up <= roomY) return { angle: deg, cell };
+  }
+  return null;
+}
+const pageShapeRefused = (width, height) => {
+  const W = Math.max(0, width).toFixed(0), H = Math.max(0, height).toFixed(0);
+  return new Error(`stamp refused: visible page ${W}x${H} pt has a shape that cannot carry the watermark, which must reach at least 70% of the page's width and 35% of its height`);
+};
+function watermarkPlacement(ox, oy, width, height, mark = null) {
+  const run = watermarkRun(width, height);
+  if (!run) throw pageShapeRefused(width, height);
+  const { angle, cell } = run; const a = (angle * Math.PI) / 180; const cols = WATERMARK_TEXT.length * 6 - 1;
+  const textW = cols * cell; const textH = 7 * cell; const reach = textW * Math.sin(a) + textH * Math.cos(a);
+  const cx = ox + width / 2; const cy = markCentre(oy, height, reach, mark);
   const x0 = cx - (textW / 2) * Math.cos(a) + (textH / 2) * Math.sin(a); const y0 = cy - (textW / 2) * Math.sin(a) - (textH / 2) * Math.cos(a);
-  return { x0, y0, cell };
+  return { x0, y0, cell, cy, angle };
+}
+// The watermark's centre height: as near the middle of the page as it can go (every point from the lowest height to
+// the highest) while its reach (its height on the page) holds at least half of the page's text baselines; when no
+// height does, the one that holds the most, nearest the middle. Baselines in the band or off the page do not count.
+function markCentre(oy, height, reach, mark) {
+  const lo = oy + BAND_H + MARK_MARGIN + reach / 2; const hi = oy + height - MARK_MARGIN - reach / 2;
+  const clamp = (v) => (lo > hi ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, v)));
+  if (mark && Number.isFinite(mark.fy)) return clamp(oy + mark.fy * height);
+  const middle = clamp(oy + height / 2);
+  const lines = (mark && Array.isArray(mark.lines) ? mark.lines : []).filter((b) => Number.isFinite(b) && b >= oy + BAND_H && b <= oy + height);
+  if (!lines.length || lo > hi) return middle;
+  const held = (c) => { let n = 0; for (const b of lines) if (b >= c - reach / 2 && b <= c + reach / 2) n++; return n; };
+  const half = Math.ceil(lines.length / 2); let best = { c: middle, n: held(middle) };
+  if (best.n >= half) return middle;
+  for (let k = 0; lo + k <= hi + 1e-9; k++) {
+    const c = Math.min(hi, lo + k); const n = Math.min(held(c), half);
+    if (n > best.n || (n === best.n && Math.abs(c - middle) < Math.abs(best.c - middle))) best = { c, n };
+  }
+  return best.c;
+}
+// The watermark on a visible page box (finalizePdf), at the given opacity (a test draws it lighter to prove its floor)
+export function drawWatermark(page, { ox, oy, width, height }, opacity = WATERMARK_OPACITY, mark = null) {
+  const { x0, y0, cell, angle } = watermarkPlacement(ox, oy, width, height, mark);
+  drawBlockText(page, WATERMARK_TEXT, { x: x0, y: y0, cell, angleDeg: angle, color: WATERMARK_COLOR, opacity });
 }
 // The watermark's filled cells on a page of width x height points with its box at the origin, each as the four corners
 // [x, y] of the square the stamp draws (PDF coordinates, y up): for drawing the same watermark into a picture.
-export function watermarkCells(width, height) {
-  const { x0, y0, cell } = watermarkPlacement(0, 0, width, height);
-  const a = (WATERMARK_ANGLE * Math.PI) / 180; const cos = Math.cos(a); const sin = Math.sin(a);
+export function watermarkCells(width, height, mark = null) {
+  const { x0, y0, cell, angle } = watermarkPlacement(0, 0, width, height, mark);
+  const a = (angle * Math.PI) / 180; const cos = Math.cos(a); const sin = Math.sin(a);
   const out = []; let col = 0;
   for (const ch of WATERMARK_TEXT) {
     const rows = BLOCK_FONT[ch] || BLOCK_FONT[' '];
@@ -125,6 +184,13 @@ export function watermarkCells(width, height) {
     col += 6;
   }
   return out;
+}
+export const MARK_UNREADABLE = "stamp refused: a page PDF could not be read for the text positions that place the watermark (or its pages were counted differently); the merge does not guess where the watermark goes";
+// Each page's watermark height as a share of its visible page (mark.fy), from the page's text: for the pictures of a
+// stamped PDF (degrade.js) and the tests' reference watermark.
+export async function markHeights(bytes) {
+  const doc = await PDFDocument.load(bytes, { updateMetadata: false }); const lines = await markLines(bytes, doc.getPageCount());
+  return doc.getPages().map((page, i) => { const v = visibleBox(page); const { cy } = watermarkPlacement(v.ox, v.oy, v.width, v.height, { lines: lines ? lines[i] : [] }); return { fy: (cy - v.oy) / v.height }; });
 }
 // A number tree (the structure tree's ParentTree) entry, or undefined. Cycles and malformed nodes end the search.
 function numberTreeGet(context, node, key, seen = new Set()) {
@@ -208,10 +274,21 @@ function dropUnreferenced(context, candidates) {
   for (const r of candidates) if (!used.has(r)) context.delete(r);
 }
 
+// The visible page: the CropBox clipped to the MediaBox (a viewer shows only their intersection), as its foot-left
+// corner and size; an empty or non-finite one is refused.
+function visibleBox(page) {
+  const norm = (r) => { const x1 = Math.min(r.x, r.x + r.width), x2 = Math.max(r.x, r.x + r.width), y1 = Math.min(r.y, r.y + r.height), y2 = Math.max(r.y, r.y + r.height); return { x1, x2, y1, y2 }; };
+  const mb = norm(page.getMediaBox()); const cb = norm(page.getCropBox() || page.getMediaBox());
+  const vis = { x1: Math.max(mb.x1, cb.x1), x2: Math.min(mb.x2, cb.x2), y1: Math.max(mb.y1, cb.y1), y2: Math.min(mb.y2, cb.y2) };
+  if (![vis.x1, vis.x2, vis.y1, vis.y2].every(Number.isFinite)) throw new Error('stamp refused: page box is not a finite rectangle');
+  return { ox: vis.x1, oy: vis.y1, width: vis.x2 - vis.x1, height: vis.y2 - vis.y1 };
+}
 // Draw the specimen band (text) and the diagonal watermark (block rectangles) on every page with pdf-lib, after
 // rendering. This does not depend on the HTML, the templates or any CSS, so no data object or template mistake can
 // remove it; the band text is the PDF-standard Helvetica (not embedded, so bytes stay deterministic) in fixed colours.
-async function stampPages(doc, bandSuffix) {
+// A visible page at least 3.6 in wide and 3 in tall: the band's fixed text fits its width at 6 pt or larger.
+const MIN_WIDTH = 259.2; const MIN_HEIGHT = 216;
+async function stampPages(doc, bandSuffix, marks = []) {
   // document-level actions and scripts (OpenAction, additional actions, JavaScript name tree) and the form dictionary
   // go too: a viewer could otherwise run code that hides or covers the markers when the document opens
   const cat = doc.catalog; for (const k of ['OpenAction', 'AA', 'AcroForm']) cat.delete(PDFName.of(k));
@@ -228,27 +305,27 @@ async function stampPages(doc, bandSuffix) {
     // The markers are drawn in the page's own coordinate space: a caller's PDF may carry an offset MediaBox, a
     // CropBox smaller than the MediaBox, or annotations that would cover the foot of the page. The band and the
     // watermark go inside the visible box, annotations are dropped, and a page too small to carry a legible band
-    // (under 3 in on a side) is refused.
+    // (under 3.6 in wide or 3 in tall) is refused.
     // The visible page is the CropBox clipped to the MediaBox (a viewer shows only their intersection): the markers are
     // placed in that intersection, and an empty, non-finite or undersized one is refused.
-    const norm = (r) => { const x1 = Math.min(r.x, r.x + r.width), x2 = Math.max(r.x, r.x + r.width), y1 = Math.min(r.y, r.y + r.height), y2 = Math.max(r.y, r.y + r.height); return { x1, x2, y1, y2 }; };
-    const mb = norm(page.getMediaBox()); const cb = norm(page.getCropBox() || page.getMediaBox());
-    const vis = { x1: Math.max(mb.x1, cb.x1), x2: Math.min(mb.x2, cb.x2), y1: Math.max(mb.y1, cb.y1), y2: Math.min(mb.y2, cb.y2) };
-    if (![vis.x1, vis.x2, vis.y1, vis.y2].every(Number.isFinite)) throw new Error('stamp refused: page box is not a finite rectangle');
-    const ox = vis.x1, oy = vis.y1, width = vis.x2 - vis.x1, height = vis.y2 - vis.y1;
-    if (!(width >= 216 && height >= 216)) throw new Error(`stamp refused: visible page ${Math.max(0, width).toFixed(0)}x${Math.max(0, height).toFixed(0)} pt is too small to carry the specimen band (3 in minimum)`);
+    const { ox, oy, width, height } = visibleBox(page);
+    const W = Math.max(0, width).toFixed(0), H = Math.max(0, height).toFixed(0);
+    const small = () => new Error(`stamp refused: visible page ${W}x${H} pt is too small to carry the specimen band, which needs at least 259.2 pt (3.6 in) of width and 216 pt (3 in) of height so that its text prints at 6 pt or larger`);
+    if (!(width >= MIN_WIDTH && height >= MIN_HEIGHT)) throw small();
+    if (!watermarkRun(width, height)) throw pageShapeRefused(width, height);   // before anything is drawn on it
     page.node.delete(PDFName.of('Annots')); page.node.delete(PDFName.of('AA'));   // annotations (and so form widgets) and page actions: nothing may be drawn over the markers or run when the page opens
     if (contents[index].length) for (const r of isolatePageContent(doc, page, contents[index])) replaced.add(r);
     page.drawRectangle({ x: ox, y: oy, width, height: 11, color: rgb(0.984, 0.953, 0.918), borderColor: rgb(0.89, 0.788, 0.659), borderWidth: 0.5 });
     // the band always fits the page: on a page narrower than the band at 6.5 pt (a caller's small page through
-    // mergePdfs/finalizePdf), the fixed text is kept whole and the suffix is dropped first, then the size shrinks
+    // mergePdfs/finalizePdf), the fixed text is kept whole and the suffix is dropped first, then the size shrinks, never
+    // under 6 pt
     let size = 6.5; let text = band;
     if (font.widthOfTextAtSize(text, size) > width - 8) text = BAND_TEXT;
-    if (font.widthOfTextAtSize(text, size) > width - 8) size = Math.max(3, (width - 8) / font.widthOfTextAtSize(text, 1));
+    if (font.widthOfTextAtSize(text, size) > width - 8) size = (width - 8) / font.widthOfTextAtSize(text, 1);
+    if (!(size >= 6)) throw small();
     const tw = font.widthOfTextAtSize(text, size);
     page.drawText(text, { x: ox + Math.max(4, (width - tw) / 2), y: oy + 3, size, font, color: rgb(0.42, 0.29, 0.17) });
-    const { x0, y0, cell } = watermarkPlacement(ox, oy, width, height);
-    drawBlockText(page, WATERMARK_TEXT, { x: x0, y: y0, cell, angleDeg: WATERMARK_ANGLE, color: WATERMARK_COLOR, opacity: 0.14 });
+    drawWatermark(page, { ox, oy, width, height }, WATERMARK_OPACITY, marks[index]);
   }
   dropUnreferenced(doc.context, replaced);
 }
@@ -261,8 +338,19 @@ function setSpecimenMetadata(doc, meta) {
 // output through mergePdfs, which stamps; finalizePdf is for callers that assembled a PDF through renderHtmlToPdf
 // themselves. It always stamps (calling it on an already-stamped PDF draws the markers twice).
 export async function finalizePdf(pdfPath, meta = {}) {
-  const doc = await PDFDocument.load(fs.readFileSync(pdfPath), { updateMetadata: false });
-  await stampPages(doc, meta.band);
+  const bytes = fs.readFileSync(pdfPath);
+  const pages = (await PDFDocument.load(bytes, { updateMetadata: false })).getPageCount();
+  const lines = await markLines(bytes, pages);   // a caller's PDF pdf.js cannot read keeps the watermark in the middle
+  return stampFile(pdfPath, bytes, meta, lines ? lines.map((l) => ({ lines: l })) : []);
+}
+// finalizePdf with each page's watermark placed by `marks` (see watermarkPlacement): for an image-only copy of a
+// stamped PDF, whose watermark goes where the original's went (degrade.js).
+export async function finalizePdfAt(pdfPath, meta, marks) {
+  return stampFile(pdfPath, fs.readFileSync(pdfPath), meta, Array.isArray(marks) ? marks : []);
+}
+async function stampFile(pdfPath, bytes, meta, marks) {
+  const doc = await PDFDocument.load(bytes, { updateMetadata: false });
+  await stampPages(doc, meta.band, marks);
   setSpecimenMetadata(doc, meta);
   fs.writeFileSync(pdfPath, await doc.save());
   logStamped(meta.degraded ? 'degraded' : 'single');
@@ -283,9 +371,12 @@ export async function mergePdfs(pdfPaths, outputPath, meta = {}) {
   const merged = await PDFDocument.create({ updateMetadata: false });
   setSpecimenMetadata(merged, meta);
 
+  const marks = [];
   for (const pdfPath of pdfPaths) {
     const bytes = fs.readFileSync(pdfPath);
     const doc = await PDFDocument.load(bytes);
+    const lines = await markLines(bytes, doc.getPageCount()); if (!lines) throw new Error(MARK_UNREADABLE);
+    for (const l of lines) marks.push({ lines: l });
     const copiedPages = await merged.copyPages(doc, doc.getPageIndices());
     for (const page of copiedPages) {
       merged.addPage(page);
@@ -294,7 +385,7 @@ export async function mergePdfs(pdfPaths, outputPath, meta = {}) {
 
   if (meta.expectedPages != null && merged.getPageCount() !== meta.expectedPages)
     throw new Error(`pagination mismatch: planned ${meta.expectedPages} pages, rendered ${merged.getPageCount()} (a page overflowed)`);
-  await stampPages(merged, meta.band);
+  await stampPages(merged, meta.band, marks);
   const mergedBytes = await merged.save();
   fs.writeFileSync(outputPath, mergedBytes);
   logStamped('render');

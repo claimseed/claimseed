@@ -31,7 +31,7 @@ test('render with also 835 writes the 835 byte for byte and adds it to the answe
   const plain = await render({ type: 'msn', scenario: 'duplicate-office-visit', seed: 'also-1', browser });
   assert.equal(plain.remittance, null); assert.equal(plain.groundTruth.documents.length, 1); assert.equal(plain.groundTruth.errors[0].x12Ref, undefined);
   assert.deepEqual(plain.groundTruth.documents[0], r.groundTruth.documents[0], 'the PDF and its key are the same with or without the 835');
-  await assert.rejects(render({ type: 'itemized-bill', scenario: 'baseline-clean', seed: 'x', browser, also: '835' }), /835 is written for msn, ppo-eob, hmo-eob only/);
+  await assert.rejects(render({ type: 'itemized-bill', scenario: 'baseline-clean', seed: 'x', browser, also: '835' }), /835 is written for msn, ppo-eob, hmo-eob, commercial-eob only/);
   await assert.rejects(render({ type: 'msn', scenario: 'baseline-clean', seed: 'x', browser, also: '837' }), /also must be one of 835/);
 });
 
@@ -43,7 +43,7 @@ test('the command line: render and batch with --also 835, a degraded copy with i
   assert.equal(r.status, 0, r.stderr);
   const dgt = JSON.parse(fs.readFileSync(path.join(dir, 'ppo-eob_baseline-clean_also-2_low-res.ground-truth.json'), 'utf-8'));
   assert.equal(dgt.documents[0].degradation, 'low-res'); assert.equal(dgt.documents[1].sha256, sha(fs.readFileSync(path.join(dir, 'ppo-eob_baseline-clean_also-2_low-res.835'))));
-  for (const [args, msg] of [[['render', 'msn', 'baseline-clean', '--out', dir, '--also', 'x12-secret'], /--also must be one of 835/], [['render', 'itemized-bill', 'baseline-clean', '--out', dir, '--also', '835'], /--also 835 is for msn, ppo-eob, hmo-eob only/],
+  for (const [args, msg] of [[['render', 'msn', 'baseline-clean', '--out', dir, '--also', 'x12-secret'], /--also must be one of 835/], [['render', 'itemized-bill', 'baseline-clean', '--out', dir, '--also', '835'], /--also 835 is for msn, ppo-eob, hmo-eob, commercial-eob only/],
     [['batch', '--types', 'msn,itemized-bill', '--seeds', '1', '--out', path.join(dir, 'never'), '--also', '835'], /--also 835 is for/],
     // --also is read like every other option: an empty value, the = form and a repeat are refused
     [['render', 'msn', 'baseline-clean', '--out', dir, '--also', ''], /^--also needs a value\n$/], [['batch', '--types', 'msn', '--seeds', '1', '--out', path.join(dir, 'never'), '--also=x12-secret'], /^--also takes its value in the next argument/],

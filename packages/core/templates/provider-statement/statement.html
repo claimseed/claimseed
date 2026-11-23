@@ -1,6 +1,6 @@
 {% extends "base-portrait.html" %}
-{# The provider's statement of one claim of a Medicare Advantage EOB (provider-statement.js). Every printed word is a
-   label from data/pair.json (the clean side's) or a value of the statement; the colours and fonts are the itemized
+{# The provider's statement of one claim of an EOB (provider-statement.js). Every printed word is a
+   label from data/pair.json or a value of the statement; the colours and fonts are the itemized
    bill's. #}
 {% macro credit(x) %}{% if x > 0 %}-${{ x | formatMoney }}{% else %}${{ 0 | formatMoney }}{% endif %}{% endmacro %}
 
@@ -33,7 +33,7 @@
   <div class="bar">
     <div>
       <div class="name">{{ metadata.providerName }} <span class="specimen-badge">SPECIMEN</span></div>
-      <div class="addr">{{ metadata.providerAddress }} &bull; {{ metadata.providerCityStateZip }} &bull; {{ metadata.providerPhone }}</div>
+      <div class="addr">{{ metadata.providerAddress }}{% if metadata.providerCityStateZip %} &bull; {{ metadata.providerCityStateZip }}{% endif %} &bull; {{ metadata.providerPhone }}</div>
     </div>
     <div class="ids">
       <div>{{ labels.providerNpi }}: {{ metadata.npi }}</div>
@@ -41,7 +41,7 @@
     </div>
   </div>
 
-  <h1>{{ labels.title }}</h1>
+  <h1>{{ metadata.title or labels.title }}</h1>
   <div class="info">
     <div><div class="k">{{ labels.statementDate }}</div><div class="v">{{ metadata.statementDate }}</div></div>
     <div><div class="k">{{ labels.accountNumber }}</div><div class="v">{{ metadata.accountNumber }}</div></div>
@@ -50,6 +50,7 @@
     <div><div class="k">{{ labels.plan }}</div><div class="v">{{ metadata.planName }}</div></div>
     <div><div class="k">{{ labels.claimNumber }}</div><div class="v">{{ metadata.claimNumber }}</div></div>
     <div><div class="k">{{ labels.dateOfService }}</div><div class="v">{{ metadata.serviceDateRange }}</div></div>
+    {% if metadata.treatingProvider %}<div><div class="k">{{ labels.treatingProvider }}</div><div class="v">{{ metadata.treatingProvider }}</div><div>{{ metadata.treatingSpecialty }}</div></div>{% endif %}
   </div>
   <p class="intro">{{ labels.intro }}</p>
 
@@ -63,7 +64,7 @@
   <div class="section">{{ labels.summaryTitle }}</div>
   <table class="summary">
     <tr><td>{{ labels.totalCharges }}</td><td class="num">${{ summary.totalCharges | formatMoney }}</td></tr>
-    <tr><td>{{ labels.contractualAdjustment }}</td><td class="num">{{ credit(summary.contractualAdjustment) }}</td></tr>
+    {% if summary.contractualAdjustment !== null %}<tr><td>{% if summary._adjustmentKind == 'nsa' %}{{ labels.adjustmentNoSurprises }}{% else %}{{ labels.contractualAdjustment }}{% endif %}</td><td class="num">{{ credit(summary.contractualAdjustment) }}</td></tr>{% endif %}
     {% if summary.deniedNotBilled %}<tr><td>{{ labels.denied }}</td><td class="num">{{ credit(summary.deniedNotBilled) }}</td></tr>{% endif %}
     <tr><td>{{ labels.paidByPlan }}</td><td class="num">{{ credit(summary.paidByPlan) }}</td></tr>
     <tr><td>{{ labels.paymentsReceived }}</td><td class="num">{{ credit(summary.paymentsReceived) }}</td></tr>
@@ -73,7 +74,7 @@
   <div class="section">{{ labels.howToPay }}</div>
   <div class="pay">
     <div><div class="k">{{ labels.payByPhone }}</div><div>{{ metadata.billingPhone }}</div></div>
-    <div><div class="k">{{ labels.payByMail }}</div><div>{{ labels.payableTo }}: {{ metadata.providerName }}</div><div>{{ metadata.providerAddress }}</div><div>{{ metadata.providerCityStateZip }}</div></div>
+    <div><div class="k">{{ labels.payByMail }}</div><div>{{ labels.payableTo }}: {{ metadata.providerName }}</div><div>{{ metadata.providerAddress }}</div>{% if metadata.providerCityStateZip %}<div>{{ metadata.providerCityStateZip }}</div>{% endif %}</div>
   </div>
   <p class="note">{{ questions }}</p>
   <p class="note">{{ labels.financialHelp }}</p>

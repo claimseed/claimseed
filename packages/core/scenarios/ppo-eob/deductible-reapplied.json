@@ -2,7 +2,7 @@
   "type": "ppo-eob",
   "slug": "deductible-reapplied",
   "status": "published",
-  "description": "Before March 2026 the member had paid nothing out of pocket, and none of the $150 in-network deductible was met. The EOB lists three dermatology claims, each an office visit (a copay) and a skin biopsy (20% coinsurance after the deductible). Claim 1's biopsy goes entirely to the deductible, and claim 2's biopsy finishes the deductible, with the member paying 20% of the rest; the cover shows the deductible fully met. Nevertheless claim 3's biopsy is charged its whole plan-approved amount as deductible again, instead of 20% coinsurance. The biopsy lines put more than $150 toward the deductible, which no correct EOB can show. A careful reviewer should conclude the member owes only 20% coinsurance on claim 3's biopsy.",
+  "description": "Before March 2026 the member had paid nothing out of pocket, and none of the $150 in-network deductible was met. The EOB lists three dermatology claims, each an office visit (a copay) and a skin biopsy (20% coinsurance after the deductible). Claim 1's biopsy goes entirely to the deductible, and claim 2's biopsy finishes the deductible, with the member paying 20% of the rest; the cover shows the deductible fully met. Nevertheless claim 3's biopsy is charged its whole plan-approved amount as deductible again, instead of 20% coinsurance. The biopsy lines put more than $150 toward the deductible, which no correct EOB can show. The member owes only 20% coinsurance on claim 3's biopsy.",
   "period": {
     "start": "2026-03-01",
     "end": "2026-03-31"

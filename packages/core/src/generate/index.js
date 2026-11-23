@@ -18,6 +18,8 @@ import { resolveVariant, variantRecord } from '../variants.js';
 import { assembleMsn } from './msn.js';
 import { assembleItemizedBill } from './itemized-bill.js';
 import { assembleStatement, STATEMENT_TYPE, PAIRED_TYPES, BILL_VARIANTS, pairMessage } from './provider-statement.js';
+import { generateCommercial, COMMERCIAL_TYPE, printedFields, checkInsurer } from './commercial-eob.js';
+import { CATALOG as COMMERCIAL_CATALOG } from './commercial/adjudicate.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const SCENARIOS_DIR = path.resolve(__dirname, '../../scenarios');
@@ -96,7 +98,7 @@ export function generateData(options) {
 }
 // generateData's work, with what a document paired with it (a provider's statement) is built from: the beneficiary,
 // the Part B claims the plan re-adjudicated (their providers) and the notice date. Nothing here draws more.
-function generateDocument({ type, scenario, seed = 'claimseed', overrides = {}, layoutVariant = null }) {
+export function generateDocument({ type, scenario, seed = 'claimseed', overrides = {}, layoutVariant = null }) {
   // the type and scenario are slugs and the seed is text or a number (written out); any other value is refused before
   // it is converted or used to look anything up
   if (!SLUG.test(scalarText(type)) || !SLUG.test(scalarText(scenario))) throw new Error('invalid type or scenario slug');
@@ -104,7 +106,9 @@ function generateDocument({ type, scenario, seed = 'claimseed', overrides = {}, 
   // a layout variant is checked first and drawn from a stream of its own: it moves no draw of the document
   const variant = resolveVariant(type, layoutVariant, seed);
   if (overrides === null || typeof overrides !== 'object' || Array.isArray(overrides)) throw new Error('invalid overrides');
+  checkInsurer({ type, insurer: overrides.insurer }, 'generate');   // the commercial EOB's only, whatever the type
   const sc = { ...loadScenario(type, scenario), ...overrides };
+  if (type === COMMERCIAL_TYPE) return commercialDocument({ type, scenario, sc, seed, insurer: overrides.insurer ?? null });
   checkScenario(type, sc);
   const rng = makeRng(seed, type, scenario);
   const place = makePlace(rng);
@@ -165,6 +169,33 @@ function generateDocument({ type, scenario, seed = 'claimseed', overrides = {}, 
   // a varied document: schema 1.4, the variant's layout name and its record; nothing else in the key changes
   if (variant) { groundTruth.schemaVersion = '1.4'; Object.assign(groundTruth.documents[0], { layout: variant.layout, layoutVariant: variantRecord(variant) }); }
   return { data, groundTruth, context: { beneficiary, adjudicated, dateOfNotice } };
+}
+// The commercial employer-plan EOB (commercial-eob.js): answer key 1.7, with the plan's facts per line (network,
+// protection, recognized amount), the accumulators before and after, the insurer and each printed claim's payee.
+function commercialDocument({ type, scenario, sc, seed, insurer }) {
+  const g = generateCommercial({ scenario, sc, seed, insurer });
+  const { data } = g;
+  data.scenario = scenario;
+  const errors = g.errors.map((e) => ({ documentId: `${type}-1`, ...e })); const decoys = g.decoys.map((d) => ({ id: d.id, kind: d.kind, documentId: `${type}-1`, ...d }));
+  const pf = printedFields(data);   // what the page prints, in its words
+  const groundTruth = {
+    schemaVersion: '1.7', seed: String(seed), scenario: `${type}.${scenario}`,
+    documents: [{ id: `${type}-1`, type, layout: type, pages: null, format: 'pdf', degradation: null, degradationParams: null, sha256: null,
+      fields: flattenFields(pf), entities: {
+        patient: { name: data.patient.name, address: `${data.mailing.street}, ${data.mailing.cityStateZip}` },
+        providers: g.keyClaims.map((c, i) => ({ name: c.provider, npi: c.payee.npi, specialty: pf.claims[i].specialty, participating: c.payee.network === 'in' })),
+        payer: { name: g.insurer.name, planType: 'self-funded employer plan' },
+        identifiers: { memberId: data.patient.memberId, groupNumber: data.plan.groupNumber, ...Object.fromEntries(data.claims.map((c, i) => [`claimNumber[${i}]`, c.claimNumber])) },
+      } }],
+    claims: g.keyClaims.map(({ encounter, specialty, payee, facility, emergency, ...c }) => ({ ...c, payee, facility, emergency })),
+    deductibleMetBefore: null,
+    plan: { design: g.design, tier: g.tier, insurer: g.insurer.id, sponsor: g.sponsor.name, before: g.before, after: g.adjudicated.accumulators, stateLaw: g.adjudicated.stateLaw,
+      providerNotices: g.adjudicated.claims.flatMap((c, ci) => c.providerNotices.map((n) => ({ claimNumber: g.keyClaims.find((k) => k.encounter === ci && k.payee.key === n.payee).claimNumber, ...n }))) },
+    errors, decoys, documentGaps: [], adversarial: false,
+    sources: [...(sc.sources || [])],
+    pricing: { status: 'commercial reference data', year: COMMERCIAL_CATALOG.year },
+  };
+  return { data, groundTruth, context: { commercial: g } };
 }
 // Internal keys that are not printed and so never appear in fields.
 const INTERNAL_TOP_LEVEL = new Set(['carrier', 'scenario', 'hasDenial']);
